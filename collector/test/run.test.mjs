@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { run, payloadOf, robotsAllows, cleanSearch } from '../run.mjs';
-import { keyring, open, LABEL } from '../seal.mjs';
+import { run, payloadOf, robotsAllows, cleanSearch, D_PATHS } from '../run.mjs';
+import { keyring, open, seal, LABEL } from '../seal.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 new Function('self', fs.readFileSync(path.join(here, '..', '..', 'box.js'), 'utf8'))(globalThis);
@@ -55,7 +55,8 @@ function fakeSites({ extra = [], robotsBunjang = 404, issues = [], log = [] } = 
   };
 }
 
-const dirs = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'jd-')); return { prev: path.join(d, 'prev'), out: path.join(d, 'out'), work: path.join(d, 'work') }; };
+const dirs = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'jd-')); return { prev: path.join(d, 'prev'), out: path.join(d, 'out'), work: path.join(d, 'work'), dres: path.join(d, 'dres') }; };
+const openJob = (d, pw = PW) => open(readOut(d, 'djob.enc'), keyring(pw), LABEL.djob);
 const readOut = (d, f) => JSON.parse(fs.readFileSync(path.join(d.out, f), 'utf8'));
 const openView = (d, pw = PW) => open(readOut(d, 'view.enc'), keyring(pw), LABEL.view);
 const INIT = JSON.stringify({
@@ -70,7 +71,7 @@ const quiet = () => {};
 
 let first; // 첫 실행 결과 폴더 (다음 시험이 이어 쓴다)
 
-test('첫 실행: 처음 검색 목록으로 모으고 잠가 둔다 (당근은 빠짐)', async () => {
+test('첫 실행: 처음 검색 목록으로 모으고 잠가 둔다 (당근은 폰 앱을 기다린다)', async () => {
   const d = dirs();
   const log = [];
   const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites({ log }), log: quiet });
@@ -82,11 +83,26 @@ test('첫 실행: 처음 검색 목록으로 모으고 잠가 둔다 (당근은 
   assert.ok(!fs.readFileSync(path.join(d.out, 'view.enc'), 'utf8').includes('테스트'), '잠근 파일에 글자가 그대로 없다');
   const v = openView(d);
   assert.deepEqual(v.searches.map((s) => s.id), ['s_aaaa1111', 's_bbbb2222']);
-  assert.deepEqual(v.searches[0].platforms, ['joongna', 'bunjang']);
+  assert.deepEqual(v.searches[0].platforms, ['joongna', 'daangn', 'bunjang']);
   const r = v.results.s_aaaa1111;
   assert.equal(r.pf.joongna.st, 'ok');
   assert.equal(r.pf.bunjang.st, 'ok');
-  assert.ok(!r.pf.daangn, '당근 자리는 없다');
+  assert.equal(r.pf.daangn.st, 'wait', '당근은 폰 앱이 올릴 때까지 기다린다');
+  assert.match(r.pf.daangn.note, /폰 앱/);
+  assert.equal(v.refresh.daangn.st, 'wait');
+  assert.equal(st.markets.daangn, 'wait');
+  assert.ok(!log.some((x) => x.host.includes('daangn')), 'GitHub 에서는 당근을 부르지 않는다');
+  // 폰 앱이 할 일
+  const job = openJob(d);
+  assert.equal(job.idle, undefined);
+  assert.ok(job.code.startsWith('async function junggoCollect('));
+  assert.equal(job.cfg.part, 'd');
+  assert.deepEqual(job.cfg.searches.map((x) => x.id), ['s_aaaa1111'], '당근을 켠 검색만');
+  assert.deepEqual(job.cfg.homes, [{ k: '', q: '경기도 시흥시' }]);
+  assert.deepEqual(job.cfg.searches[0].regions, [{ q: '경기도 시흥시' }]);
+  assert.deepEqual(job.robots.paths, D_PATHS);
+  assert.deepEqual(Object.keys(job.ck), ['s_aaaa1111']);
+  assert.ok(!fs.readFileSync(path.join(d.out, 'djob.enc'), 'utf8').includes('테스트'), '할 일도 잠겨 있다');
   const titles = r.items.map((t) => t[2]);
   assert.ok(titles.some((t) => t.includes('판매합니다')));
   assert.ok(!titles.some((t) => t.includes('삽니다')), '구매글은 뺀다');
@@ -135,7 +151,132 @@ test('페이지가 보낸 요청: 검색 바꾸기 + 새로고침 요청을 반�
   assert.equal(r.items.find((t) => t[1] === '101')[11], 0, '시흥시 매물은 이제 가깝지 않다');
   assert.ok(v.results.s_cccc3333, '새 검색도 모았다');
   assert.equal(r.hist.length >= 1, true);
+  assert.equal(r.pf.daangn.st, 'wait');
+  assert.deepEqual(openJob(d).cfg.homes, [{ k: '', q: '서울 마포구' }], '바뀐 지역으로 할 일을 다시 만든다');
   first = d;
+});
+
+// 폰 앱이 올린 당근 결과 (앱과 같은 모양)
+const sec = (ms) => Math.floor(ms / 1000);
+function dresOf(job, { at, ok = true, ck = job.ck, error, items } = {}) {
+  const t = sec(at - 20 * 60e3);
+  const result = {
+    __junggo: 'v1', part: 'd', at,
+    results: {
+      s_aaaa1111: {
+        pf: { daangn: { st: 'ok', raw: 3, n: 3, regions: [{ id: '1', name: '마포구', fullName: '서울 마포구', q: '서울 마포구', anchors: 2, geo: { names: ['합정동', '망원동'], centers: [[37.55, 126.91]] } }] } },
+        items: items || [
+          ['d', 'aa1', '테스트 물건 팝니다', 300000, 's', '합정동', t, t, 0, 0, 0, 1, { lat: 37.551, lng: 126.912, sn: '거의 새것' }],
+          ['d', 'aa2', '테스트 물건 급처', 250000, 's', '신천동', t, t, 0, 0, 0, 0, { lat: 37.51, lng: 127.1 }],
+          ['d', 'aa3', '테스트 물건 삽니다', 200000, 's', '망원동', t, t, 0, 0, 0, 1, {}],
+        ],
+      },
+    },
+    homes: { '': { q: '서울 마포구', id: '1', name: '마포구', fullName: '서울 마포구', lat: 37.56, lng: 126.9 } },
+  };
+  return { v: 1, job: job.id, ck, at, startedAt: at - 60e3, by: 'app', app: '0.2.0', device: 'Test Phone', ok, ...(ok ? { result } : { error, blocked: '/kr/search/buy-sell/' }) };
+}
+function writeDres(d, obj, pw = PW) {
+  const box = readOut({ out: d.prevOut }, 'view.enc');
+  const key = keyring(pw)(box.salt, box.iter);
+  fs.mkdirSync(d.dres, { recursive: true });
+  fs.writeFileSync(path.join(d.dres, 'dres.enc'), JSON.stringify(seal(obj, key, box.salt, LABEL.dres, box.iter)));
+}
+
+test('폰 앱이 올린 당근을 합친다 (중고나라·번개장터는 조금 전 것을 그대로)', async () => {
+  const job = openJob(first);
+  const d = dirs();
+  fs.cpSync(first.out, d.prev, { recursive: true });
+  d.prevOut = first.out;
+  const t0 = Date.now() + 3600e3 + 10 * 60e3;
+  writeDres(d, dresOf(job, { at: t0 - 2 * 60e3 }));
+  const log = [];
+  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: d.dres, env: env({ GITHUB_EVENT_NAME: 'repository_dispatch' }), fetchImpl: fakeSites({ log }), now: () => t0, log: quiet });
+  assert.equal(st.ok, true);
+  assert.equal(st.reusedJb, true, '45분 안에 모은 중고나라·번개장터는 다시 모으지 않는다');
+  assert.ok(!log.some((x) => x.host === 'search-api.joongna.com' || x.host === 'api.bunjang.co.kr'));
+  const v = openView(d);
+  const r = v.results.s_aaaa1111;
+  assert.equal(r.pf.daangn.st, 'ok');
+  assert.equal(r.pf.joongna.st, 'ok', '중고나라는 지난 안내 그대로 (오류 아님)');
+  assert.ok(r.items.some((t) => t[0] === 'j'), '중고나라 매물은 이어 보여준다');
+  const dd = r.items.filter((t) => t[0] === 'd');
+  assert.deepEqual(dd.map((t) => t[1]).sort(), ['aa1', 'aa2'], '구매글(삽니다)은 뺀다');
+  assert.equal(dd.find((t) => t[1] === 'aa1')[11], 1, '기준 동네 안');
+  assert.equal(dd.find((t) => t[1] === 'aa2')[11], 0, '이름만 비슷한 먼 동네는 가깝지 않다');
+  assert.ok(dd.find((t) => t[1] === 'aa1')[13].km < 2, '내 동네에서 거리');
+  assert.equal(dd.find((t) => t[1] === 'aa1')[13].sn, '거의 새것');
+  assert.equal(v.refresh.daangn.st, 'ok');
+  assert.equal(v.refresh.daangn.device, 'Test Phone');
+  assert.equal(v.refresh.daangn.at, t0 - 2 * 60e3);
+  assert.equal(st.markets.daangn, 'ok');
+  first = d;
+
+  // 같은 결과로 다시 돌면(폰이 아직 새로 안 올림) 오류 없이 그대로 이어 보여준다
+  const d2 = dirs();
+  fs.cpSync(d.out, d2.prev, { recursive: true });
+  fs.cpSync(d.dres, d2.dres, { recursive: true });
+  const st2 = await run({ prevDir: d2.prev, outDir: d2.out, workDir: d2.work, dresDir: d2.dres, env: env(), fetchImpl: fakeSites(), now: () => t0 + 3600e3, log: quiet });
+  assert.equal(st2.reusedJb, false, '정각 실행은 중고나라·번개장터를 모은다');
+  const v2 = openView(d2);
+  const r2 = v2.results.s_aaaa1111;
+  assert.equal(r2.pf.daangn.st, 'ok');
+  assert.deepEqual(r2.items.filter((t) => t[0] === 'd').map((t) => t[1]).sort(), ['aa1', 'aa2']);
+  assert.equal(v2.refresh.summary.s_aaaa1111.new, 0, '이어 보여주는 당근 매물은 다시 새 매물로 세지 않는다');
+  const firstSeen = (rr) => Object.fromEntries(rr.items.filter((t) => t[0] === 'd').map((t) => [t[1], t[12]]));
+  assert.deepEqual(firstSeen(r2), firstSeen(r), '처음 본 시각은 그대로');
+  assert.equal(v.refresh.summary.s_aaaa1111.new, 2, '처음 합칠 때 최근에 올라온 당근 매물은 새 매물');
+
+  // 세 시간 넘게 안 올리면 늦어진다고 알린다
+  const d3 = dirs();
+  fs.cpSync(d2.out, d3.prev, { recursive: true });
+  const st3 = await run({ prevDir: d3.prev, outDir: d3.out, workDir: d3.work, dresDir: d2.dres, env: env(), fetchImpl: fakeSites(), now: () => t0 + 4 * 3600e3, log: quiet });
+  assert.equal(st3.markets.daangn, 'stale');
+  assert.equal(openView(d3).refresh.daangn.st, 'stale');
+});
+
+test('폰 앱이 robots.txt 때문에 못 모았다고 올리면 알리고 지난 당근 매물을 이어 보여준다', async () => {
+  const job = openJob(first);
+  const d = dirs();
+  fs.cpSync(first.out, d.prev, { recursive: true });
+  d.prevOut = first.out;
+  const t0 = Date.now() + 5 * 3600e3;
+  writeDres(d, dresOf(job, { at: t0 - 60e3, ok: false, error: '당근이 자동 수집을 막아 두어(robots.txt /kr/search/buy-sell/) 모으지 않았어요' }));
+  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: d.dres, env: env(), fetchImpl: fakeSites(), now: () => t0, log: quiet });
+  assert.equal(st.markets.daangn, 'error');
+  const v = openView(d);
+  const r = v.results.s_aaaa1111;
+  assert.equal(r.pf.daangn.st, 'error');
+  assert.match(r.pf.daangn.error, /robots/);
+  assert.equal(r.pf.daangn.carried, 2);
+  assert.equal(v.refresh.daangn.st, 'error');
+});
+
+test('폰 앱이 모은 뒤 조건이 바뀐 검색은 그 결과를 합치지 않는다', async () => {
+  const job = openJob(first);
+  const d = dirs();
+  fs.cpSync(first.out, d.prev, { recursive: true });
+  d.prevOut = first.out;
+  const t0 = Date.now() + 6 * 3600e3;
+  writeDres(d, dresOf(job, { at: t0 - 60e3, ck: { s_aaaa1111: 'old-conditions' }, items: [['d', 'zz9', '테스트 물건 옛 조건', 1000, 's', '합정동', sec(t0), sec(t0), 0, 0, 0, 1, {}]] }));
+  await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: d.dres, env: env(), fetchImpl: fakeSites(), now: () => t0, log: quiet });
+  const r = openView(d).results.s_aaaa1111;
+  assert.ok(!r.items.some((t) => t[1] === 'zz9'));
+});
+
+test('당근 할 일: 당근 검색이 없거나 지역을 정하지 않았으면 쉰다', async () => {
+  const d = dirs();
+  const init = JSON.stringify({ searches: [{ id: 's_dddd4444', keyword: '당근 없는 검색', platforms: ['joongna'], createdAt: 1 }], config: { area: '' } });
+  await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env({ INIT_SEARCHES: init }), fetchImpl: fakeSites(), log: quiet });
+  assert.equal(openJob(d).idle, true);
+  const d2 = dirs();
+  const init2 = JSON.stringify({ searches: [{ id: 's_eeee5555', keyword: '당근 검색', platforms: ['daangn'], createdAt: 1 }], config: { area: '' } });
+  const st = await run({ prevDir: d2.prev, outDir: d2.out, workDir: d2.work, env: env({ INIT_SEARCHES: init2 }), fetchImpl: fakeSites(), log: quiet });
+  const job = openJob(d2);
+  assert.equal(job.idle, true);
+  assert.match(job.reason, /가까운 지역/);
+  assert.equal(st.markets.daangn, 'noarea');
+  assert.match(openView(d2).results.s_eeee5555.pf.daangn.error, /가까운 지역/);
 });
 
 test('비밀번호가 없거나 다르면 지난 데이터를 그대로 둔다', async () => {
@@ -184,7 +325,8 @@ test('작은 도우미들', () => {
   const s = cleanSearch({ id: 's_abcd1234', keyword: '  a   b ', minPrice: 9, maxPrice: 3, platforms: ['daangn'], category: '__proto__', exclude: ['', 'x', 'x'] });
   assert.equal(s.keyword, 'a b');
   assert.deepEqual([s.minPrice, s.maxPrice], [3, 9]);
-  assert.deepEqual(s.platforms, ['joongna', 'bunjang']);
+  assert.deepEqual(s.platforms, ['daangn']);
+  assert.deepEqual(cleanSearch({ id: 's_abcd1235', keyword: 'y', platforms: ['nope'] }).platforms, ['joongna', 'daangn', 'bunjang']);
   assert.equal(s.category, '');
   assert.deepEqual(s.exclude, ['x']);
 });

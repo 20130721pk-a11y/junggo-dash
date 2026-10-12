@@ -28,14 +28,14 @@ import { fileURLToPath } from 'node:url';
 
 const COLLECTOR = { jb: __COLLECT_JB__, d: __COLLECT_D__ };
 const ORDER = ['joongna', 'daangn', 'bunjang'];
-const PART_OF = { joongna: 'jb', bunjang: 'jb', daangn: 'd' };
+export const PART_OF = { joongna: 'jb', bunjang: 'jb', daangn: 'd' };
 const CODE_OF = { joongna: 'j', daangn: 'd', bunjang: 'b' };
 const SITE_OF = { jb: 'https://web.joongna.com/', d: 'https://www.daangn.com/kr/buy-sell/' };
 const MAX_DOC_BYTES = 240000;
 // 같이 쓰는 사람 한 명이 모을 수 있는 검색 수 (먼저 만든 것부터). 동춘님(주인) 검색은 제한 없음
 export const MEMBER_MAX = 5;
 // 수집기 한 번(javascript_tool 45초 안)에 넣는 검색 수. 넘으면 같은 탭에서 여러 번 나눠 실행한다
-const ROUND = { jb: 15, d: 8 };
+export const ROUND = { jb: 15, d: 8 };
 const UID_RE = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
 const LEDGER_MAX = 5000;
 const BATCH_BYTES = 900000;
@@ -596,7 +596,10 @@ function priceStatsOf(rows) {
 }
 
 // partErr: 부분(jb|d)을 통째로 못 모은 까닭 (예: 실행문을 옮겨 적다 틀림) — 그 마켓의 오류 문구로 쓴다
-export function buildResults({ searches, prev, ledgers = {}, collected, now = Date.now(), maxAgeDays = 30, home = null, keyOf = (id) => id, skipped = {}, partErr = {} }) {
+// carry: 이번에 일부러 모으지 않은 부분 {jb|d: {st, note}} — 지난 매물을 오류 없이 이어 보여준다
+//        (GitHub 판: 당근은 폰 앱이 올린 결과가 새로 없을 때, 중고나라·번개장터는 당근만 합치러 돈 실행일 때)
+// partAt: 부분을 실제로 모은 시각 {jb|d: ms} (당근은 폰이 모은 시각) — 다음 번 새 매물 판단의 기준이 된다
+export function buildResults({ searches, prev, ledgers = {}, collected, now = Date.now(), maxAgeDays = 30, home = null, keyOf = (id) => id, skipped = {}, partErr = {}, carry = {}, partAt = {} }) {
   const nowSec = Math.floor(now / 1000);
   const docs = {};
   const ledgerDocs = {};
@@ -610,6 +613,9 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
     // 새 매물 판단은 "다시 모아야 바뀌는 조건"이 그대로일 때만 (빼는 단어만 바꾼 건 그대로 본다)
     const sameCond = !!(old && (old.ckey ? old.ckey === ckey : old.condKey === key));
     const prevFetched = old && old.fetchedAt ? Math.floor(old.fetchedAt / 1000) : 0;
+    // 부분마다 지난번에 실제로 모은 시각 (당근은 폰이 모은 시각이라 대시보드 실행 시각과 다르다)
+    const prevOf = (part) => { const t = old && old.fetched && old.fetched[part]; return t ? Math.floor(t / 1000) : prevFetched; };
+    const freshParts = new Set();
     // 장부: "j:123" → [처음 본 초, 마지막 본 초, 마지막 가격, (가격이 바뀌었으면) 이전 가격, 바뀐 초]
     const seen = {};
     const L = ledgers[id] && ledgers[id].data && ledgers[id].data.k;
@@ -632,6 +638,7 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
       // { t: 매물 칸, x: 수집기의 덧붙임 정보(새로 모음) 또는 저장된 덧붙임 정보(이어 보여줌) }
       let mine;
       if (info && info.st === 'ok') {
+        freshParts.add(PART_OF[p]);
         mine = res.items.filter((t) => t[0] === code && keep(t)).map((t) => ({ t, x: extOf(t) }));
         if (code === 'd') {
           // 여러 기준 지역이면 이름·중심을 합쳐서 본다. 저장할 때는 geo 를 뺀다(크기만 차지)
@@ -642,6 +649,16 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
           pf[p] = { ...info, n: mine.length, regions: regs.map((r) => { const { geo: _g, ...rest } = r || {}; return rest; }) };
         } else pf[p] = { ...info, n: mine.length };
         delete pf[p].sold;
+      } else if (carry[PART_OF[p]] && !(info && info.st === 'error') && !(skipped[id] && skipped[id][p])) {
+        // 일부러 이번에 모으지 않음 → 지난 매물과 지난 안내를 그대로
+        mine = oldItems.filter((t) => t[0] === code && keep(t)).map((t) => {
+          const x = t[13] && typeof t[13] === 'object' ? { ...t[13] } : {};
+          delete x.pp; delete x.pc;
+          return { t, x, kept: true };
+        });
+        const was = old && old.pf && old.pf[p];
+        const c = carry[PART_OF[p]] || {};
+        pf[p] = was && was.st !== 'error' && was.st !== 'wait' ? { ...was, n: mine.length } : { st: c.st || 'wait', ...(c.note ? { note: c.note } : {}), n: mine.length };
       } else {
         mine = oldItems.filter((t) => t[0] === code && keep(t)).map((t) => {
           const x = t[13] && typeof t[13] === 'object' ? { ...t[13] } : {};
@@ -665,7 +682,7 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
           const was = seen[k];
           let fs0;
           if (was) fs0 = was[0] || 0;
-          else if (old && sameCond && (t[6] || 0) >= prevFetched - 3600) { fs0 = nowSec; newCount++; }
+          else if (old && sameCond && (t[6] || 0) >= prevOf(PART_OF[p]) - 3600) { fs0 = nowSec; newCount++; }
           else fs0 = 0;
           const price = typeof t[3] === 'number' ? t[3] : null;
           let pp = null;
@@ -731,7 +748,13 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
       else hist.push(point);
       if (hist.length > HIST_MAX) hist = hist.slice(-HIST_MAX);
     }
-    docs[id] = { v: 2, fetchedAt: now, condKey: key, ckey, cond: condOf(s), keyword: s.keyword, pf, parts, hist };
+    const fetched = {};
+    for (const part of ['jb', 'd']) {
+      if (!(s.platforms || []).some((x) => PART_OF[x] === part)) continue;
+      const t = freshParts.has(part) ? partAt[part] || now : (old && old.fetched && old.fetched[part]) || (old && old.fetchedAt) || 0;
+      if (t) fetched[part] = t;
+    }
+    docs[id] = { v: 2, fetchedAt: now, fetched, condKey: key, ckey, cond: condOf(s), keyword: s.keyword, pf, parts, hist };
     let entries = Object.entries(seen).sort((a, b) => (b[1][1] || 0) - (a[1][1] || 0)).slice(0, LEDGER_MAX);
     let ledger = { v: 2, updatedAt: now, k: Object.fromEntries(entries) };
     while (Buffer.byteLength(JSON.stringify(ledger)) > MAX_DOC_BYTES && entries.length > 100) {

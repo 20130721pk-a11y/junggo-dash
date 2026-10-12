@@ -120,6 +120,7 @@ button, input, select { font: inherit; color: inherit; }
 .refresh-status { margin: 0; color: var(--ink-2); font-size: 13px; text-align: right; }
 .refresh-status.is-error { color: var(--danger); }
 .refresh-status .last-note { color: var(--ink-2); }
+.refresh-status .d-note.is-late { color: var(--danger); }
 
 /* 왼쪽: 저장한 검색 */
 .layout { display: grid; grid-template-columns: 272px minmax(0, 1fr); min-height: calc(100vh - 64px); }
@@ -480,7 +481,7 @@ a.btn { text-decoration: none; }
   <div class="refresh-box">
     <button class="btn btn-ghost btn-small" id="homeBtn" type="button" title="가까운 지역과 이 기기 잠금" hidden>설정</button>
     <p class="refresh-status" id="refreshStatus" aria-live="polite">불러오는 중…</p>
-    <a class="btn btn-ink" id="refreshBtn" href="#" target="_blank" rel="noopener" title="GitHub에 '지금 모으기' 요청을 보내요. GitHub 화면에서 초록색 Create(또는 Submit new issue)를 누르면 1~3분 뒤 새로 모여요" hidden>지금 모으기</a>
+    <a class="btn btn-ink" id="refreshBtn" href="#" target="_blank" rel="noopener" title="GitHub에 '지금 모으기' 요청을 보내요(토큰이 없으면 GitHub 화면에서 초록색 Create 또는 Submit new issue 를 눌러요). 1~3분 뒤 새로 모여요" hidden>지금 모으기</a>
   </div>
 </header>
 <div class="sendbar" id="sendBar" role="region" aria-label="GitHub에 보내지 않은 변경" hidden>
@@ -524,7 +525,7 @@ a.btn { text-decoration: none; }
         <li id="welcomeStep2">검색을 저장한 뒤 위에 나오는 'GitHub에 보내기'를 누르고, GitHub 화면에서 초록색 Create(또는 Submit new issue) 버튼을 눌러 주세요. 그다음부터 GitHub가 한 시간마다 중고나라·번개장터를 검색해 와요.</li>
         <li>다시 열면 새로 올라온 매물에 노란 표시가 붙어요.</li>
         <li>필요 없는 매물은 숨기고, 눈여겨볼 매물은 ☆를 눌러 관심 목록에 모아 둬요. 숨김·관심은 이 기기에만 저장돼요.</li>
-        <li>당근은 GitHub 서버(해외)에서는 검색되지 않아 빠져요. 당근 매물은 꿀매 레이더 앱에서 보세요.</li>
+        <li>당근은 폰의 꿀매 레이더 앱이 한 시간마다 모아 올려요. 앱의 '대시보드' 탭에서 한 번 연결해 주세요.</li>
       </ol>
     </section>
 
@@ -649,8 +650,9 @@ a.btn { text-decoration: none; }
     <fieldset class="field">
       <legend>검색할 마켓</legend>
       <label class="check pf-check p-joongna"><input type="checkbox" name="pf" id="dPfJ" value="joongna" checked><span class="mk" aria-hidden="true">중</span>중고나라</label>
+      <label class="check pf-check p-daangn"><input type="checkbox" name="pf" id="dPfD" value="daangn" checked><span class="mk" aria-hidden="true">당</span>당근</label>
       <label class="check pf-check p-bunjang"><input type="checkbox" name="pf" id="dPfB" value="bunjang" checked><span class="mk" aria-hidden="true">번</span>번개장터</label>
-      <p class="help">당근은 GitHub 서버(해외)에서는 검색되지 않아 빠져요.</p>
+      <p class="help">당근은 폰의 꿀매 레이더 앱이 '설정'의 가까운 지역 근처에서 찾아 올려요.</p>
     </fieldset>
     <fieldset class="field">
       <legend>검색어 확인</legend>
@@ -692,6 +694,12 @@ a.btn { text-decoration: none; }
       <p class="help">시·도와 시·군·구를 적어 주세요(예: 경기도 시흥시, 서울 강남구). 판매 지역이 여기인 매물에 '근처'가 붙고 '가까운 동네만'으로 볼 수 있어요. 바꾸면 GitHub에 보내야 다음 수집부터 반영돼요.</p>
     </div>
     <div class="field">
+      <label for="tokInput">GitHub 토큰 (선택)</label>
+      <input id="tokInput" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+      <p class="help" id="tokNote">넣어 두면 검색을 바꿀 때 GitHub 화면을 거치지 않고 바로 보내요. 이 저장소만 고르고 Issues 읽기·쓰기 권한을 준 토큰이면 돼요(폰 앱과 같은 토큰을 써도 돼요). 이 기기에만 비밀번호로 잠가 둬요.</p>
+      <button type="button" class="btn btn-ghost btn-small" id="tokClear" hidden>이 기기에서 토큰 지우기</button>
+    </div>
+    <div class="field">
       <span class="label">이 기기</span>
       <p class="help" id="homeKeyNote"></p>
     </div>
@@ -722,8 +730,8 @@ a.btn { text-decoration: none; }
     bunjang: { name: '번개장터', mark: '번', code: 'b', url: (id) => `https://m.bunjang.co.kr/products/${id}` },
   };
   const ORDER = ['joongna', 'daangn', 'bunjang'];
-  // GitHub 판에서 모으는 마켓 (당근은 GitHub 서버에서 검색되지 않는다)
-  const MARKETS = ['joongna', 'bunjang'];
+  // 검색할 수 있는 마켓. 중고나라·번개장터는 GitHub 가, 당근은 폰의 꿀매 레이더 앱이 모아 올린다
+  const MARKETS = ['joongna', 'daangn', 'bunjang'];
   const AUTO_TEXT = '1시간마다';
   // 이 페이지가 있는 GitHub 저장소 (https://<주인>.github.io/<저장소>/)
   const GH = (() => {
@@ -795,6 +803,11 @@ a.btn { text-decoration: none; }
     locked: true,
     waiting: false,
     waitingSince: 0,
+    // GitHub 토큰(선택, 이 기기에 잠가 둠): 있으면 바로 보낸다
+    token: '',
+    tokenFailed: false,
+    tokenLoaded: false,
+    sending: false,
   };
   // GitHub 판: 데이터는 GitHub 저장소의 data 가지(잠근 파일), 숨김·관심·본 시각은 이 기기(localStorage)
   const cap = { db: true, uid: 'local', downloads: true, mcp: null, owner: true, member: false, base: '' };
@@ -1144,7 +1157,9 @@ a.btn { text-decoration: none; }
   function issueUrl(title, body) {
     return `https://github.com/${GH.owner}/${GH.repo}/issues/new?${new URLSearchParams({ title, body })}`;
   }
-  const REFRESH_URL = issueUrl('꿀매 레이더: 지금 모으기', "꿀매 레이더 페이지에서 보낸 '지금 모으기' 요청이에요. 그대로 초록색 Create(또는 Submit new issue) 버튼을 누르면 1~3분 뒤 매물을 새로 모아요. 이 이슈는 다 모으면 저절로 닫혀요.");
+  const REFRESH_TITLE = '꿀매 레이더: 지금 모으기';
+  const REFRESH_BODY = "꿀매 레이더 페이지에서 보낸 '지금 모으기' 요청이에요. 그대로 초록색 Create(또는 Submit new issue) 버튼을 누르면 1~3분 뒤 매물을 새로 모아요. 이 이슈는 다 모으면 저절로 닫혀요.";
+  const REFRESH_URL = issueUrl(REFRESH_TITLE, REFRESH_BODY);
   function lastFetchedAt() {
     let t = 0;
     for (const s of state.searches) { const r = state.results[s.id]; if (r && r.fetchedAt > t) t = r.fetchedAt; }
@@ -1155,7 +1170,7 @@ a.btn { text-decoration: none; }
     const btn = $('refreshBtn');
     el.classList.remove('is-error');
     el.replaceChildren();
-    el.title = `GitHub가 ${AUTO_TEXT}(매시 17분쯤) 중고나라·번개장터를 검색해요. GitHub 사정으로 몇 분 늦을 때가 있어요.`;
+    el.title = `GitHub가 ${AUTO_TEXT}(매시 17분쯤) 중고나라·번개장터를, 폰의 꿀매 레이더 앱이 ${AUTO_TEXT} 당근을 모아요. 늦어질 때가 있어요.`;
     btn.href = REFRESH_URL;
     btn.hidden = !state.ready || !!state.pending;
     const st = state.status;
@@ -1179,6 +1194,8 @@ a.btn { text-decoration: none; }
       return;
     }
     el.textContent = last ? `마지막 수집 ${timeAgo(last)}` : '아직 매물을 모으지 않았어요';
+    const dr = r && r.daangn;
+    if (dr && dr.at) el.append(h('span', { class: dr.st === 'stale' || dr.st === 'error' ? 'd-note is-late' : 'd-note', text: ` · 당근 ${timeAgo(dr.at)}` }));
     el.append(h('span', { class: 'auto-note', text: ` · 자동 ${AUTO_TEXT}` }));
     if (last && state.searches.length && Date.now() - last > 3 * 3600e3) {
       el.classList.add('is-error');
@@ -1324,6 +1341,15 @@ a.btn { text-decoration: none; }
     for (const [sid, r] of Object.entries(state.results)) if (!prevAll[sid] || prevAll[sid].fetchedAt !== r.fetchedAt) syncStars(sid);
     const wasReady = state.ready;
     state.ready = true;
+    if (state.key && !state.tokenLoaded) {
+      state.tokenLoaded = true;
+      loadToken().then(() => {
+        const p = state.pending;
+        if (p && p.sent && Date.now() - p.sent < 10 * 60e3) startWaiting();
+        else scheduleSend();
+        renderSendBar();
+      });
+    }
     if (!wasReady || !getSearch(state.activeId)) {
       const remembered = lsGet('junggo.active');
       const first = state.searches.find((s) => s.id === remembered) || state.searches[0];
@@ -1362,10 +1388,12 @@ a.btn { text-decoration: none; }
     const body = '꿀매 레이더 페이지에서 보낸 검색 저장 요청이에요. 내용은 비밀번호로 잠겨 있어요.\n'
       + '그대로 초록색 Create(또는 Submit new issue) 버튼을 누르면 1~3분 뒤 반영되고 바로 매물을 모아요. 이 이슈는 반영되면 저절로 닫혀요.\n\n'
       + '```junggo\n' + JSON.stringify(box) + '\n```\n';
-    state.pending = { id, at: payload.at, searches, config, url: issueUrl('꿀매 레이더: 검색 저장', body) };
+    const title = '꿀매 레이더: 검색 저장';
+    state.pending = { id, at: payload.at, searches, config, title, body, url: issueUrl(title, body) };
     lsSet('jd.pending', state.pending);
     state.waiting = false;
     syncSearches();
+    scheduleSend();
     // 맨 위의 'GitHub에 보내기' 줄이 보이게 (부른 쪽이 화면을 다시 그린 뒤)
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1379,14 +1407,110 @@ a.btn { text-decoration: none; }
     const p = state.pending;
     bar.hidden = !p || !state.ready;
     if (bar.hidden) return;
-    $('sendLink').href = p.url;
+    const link = $('sendLink');
+    link.href = p.url;
+    // 토큰이 있으면 GitHub 화면을 거치지 않고 바로 보낸다
+    if (directSend()) {
+      link.textContent = p.sent ? '다시 보내기' : '지금 보내기';
+      link.hidden = state.sending || state.waiting;
+      $('sendText').replaceChildren(
+        h('b', { text: state.sending ? 'GitHub에 보내는 중이에요…' : state.waiting ? 'GitHub 반영을 기다리는 중이에요.' : p.sent ? '보냈는데 아직 반영되지 않았어요.' : '바꾼 검색을 곧 GitHub에 보내요.' }),
+        state.waiting ? ' 1~3분 뒤 저절로 반영되고 바로 매물을 모아요.' : state.sending ? '' : p.sent ? " 다시 보내려면 '다시 보내기'를 눌러 주세요." : ' 더 고칠 게 있으면 마저 고치세요. 다 고친 뒤 한 번에 보내요.');
+      return;
+    }
+    link.textContent = 'GitHub에 보내기';
+    link.hidden = false;
     $('sendText').replaceChildren(
       h('b', { text: state.waiting ? 'GitHub 반영을 기다리는 중이에요.' : '바꾼 검색이 아직 GitHub에 반영되지 않았어요.' }),
       state.waiting
         ? " GitHub 화면에서 Create(또는 Submit new issue)를 눌렀다면 1~3분 뒤 저절로 반영돼요. 안 눌렀다면 'GitHub에 보내기'부터 다시 해 주세요."
         : " 'GitHub에 보내기'를 누르고 GitHub 화면에서 초록색 Create(또는 Submit new issue) 버튼을 누르면 1~3분 뒤 반영되고 바로 매물을 모아요.");
   }
+  // ---------- GitHub 토큰 (선택): 있으면 GitHub 화면을 거치지 않고 바로 보낸다 ----------
+  // 토큰은 이 기기 localStorage 에 비밀번호 열쇠로 잠가 둔다(jd.tok = {salt, box}). 페이지를 연(비밀번호를 넣은) 뒤에만 꺼내 쓴다.
+  const TOKEN_LABEL = 'junggo-token';
+  const directSend = () => !!(state.token && !state.tokenFailed && state.pending && state.pending.title && state.pending.body);
+  const sendHint = () => (state.token && !state.tokenFailed ? '곧 GitHub에 저절로 보내요' : "위의 'GitHub에 보내기'를 눌러야 반영돼요");
+  async function loadToken() {
+    state.token = '';
+    const t = lsGet('jd.tok');
+    if (!t || !t.box || !state.key || !state.box || t.salt !== state.box.salt) return;
+    try {
+      const o = await JunggoBox.open(t.box, state.key, TOKEN_LABEL);
+      state.token = o && typeof o.t === 'string' ? o.t : '';
+    } catch {
+      state.token = '';
+    }
+  }
+  async function saveToken(tok) {
+    const box = await JunggoBox.seal({ t: tok }, state.key, state.box.salt, TOKEN_LABEL, state.box.iter);
+    lsSet('jd.tok', { salt: state.box.salt, box });
+    state.token = tok;
+    state.tokenFailed = false;
+  }
+  const ghHeaders = (tok) => ({ Authorization: `Bearer ${tok}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' });
+  async function checkToken(tok) {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}`, { headers: ghHeaders(tok), cache: 'no-store' });
+      if (r.ok) return '';
+      if (r.status === 401) return 'GitHub 토큰이 맞지 않거나 기한이 지났어요.';
+      if (r.status === 403 || r.status === 404) return '이 토큰으로는 이 저장소를 볼 수 없어요. 토큰을 만들 때 이 저장소를 골랐는지 확인해 주세요.';
+      return `GitHub 오류예요 (HTTP ${r.status}). 잠시 뒤 다시 해 주세요.`;
+    } catch {
+      return '인터넷 연결을 확인해 주세요.';
+    }
+  }
+  async function ghIssue(title, body) {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/issues`, {
+        method: 'POST', headers: { ...ghHeaders(state.token), 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body }),
+      });
+      if (r.status === 201) return { ok: true };
+      return { ok: false, why: r.status === 401 ? 'GitHub 토큰이 맞지 않거나 기한이 지났어요' : r.status === 403 || r.status === 404 ? '토큰에 이 저장소의 Issues 쓰기 권한이 없어요' : `GitHub 오류 (HTTP ${r.status})` };
+    } catch {
+      return { ok: false, why: '인터넷 연결을 확인해 주세요' };
+    }
+  }
+  let sendTimer = null;
+  // 저장할 때마다 바로 보내지 않고, 검색 창·설정 창을 다 닫고 6초가 지나면 한 번에 보낸다
+  function scheduleSend() {
+    clearTimeout(sendTimer);
+    if (!directSend() || state.pending.sent) return;
+    sendTimer = setTimeout(() => {
+      if ($('condDialog').open || $('homeDialog').open) { scheduleSend(); return; }
+      sendPending();
+    }, 6000);
+    renderSendBar();
+  }
+  async function sendPending() {
+    clearTimeout(sendTimer);
+    const p = state.pending;
+    if (!p || state.sending || !directSend()) return;
+    state.sending = true;
+    renderSendBar();
+    const r = await ghIssue(p.title, p.body);
+    state.sending = false;
+    if (state.pending !== p) return;
+    if (r.ok) {
+      p.sent = Date.now();
+      lsSet('jd.pending', p);
+      toast('GitHub에 보냈어요. 1~3분 뒤 반영돼요');
+      startWaiting();
+      return;
+    }
+    state.tokenFailed = true;
+    toast(`바로 보내지 못했어요: ${r.why}. 'GitHub에 보내기'로 보내 주세요`);
+    renderSendBar();
+    renderRefresh();
+  }
+  async function sendRefresh() {
+    const r = await ghIssue(REFRESH_TITLE, REFRESH_BODY);
+    if (r.ok) { toast('지금 모으기를 보냈어요. 1~3분 뒤 새로 모여요'); startWaiting(); return; }
+    state.tokenFailed = true;
+    toast(`바로 보내지 못했어요: ${r.why}. '지금 모으기'를 한 번 더 누르면 GitHub 화면으로 보내요`);
+  }
   function discardPending() {
+    clearTimeout(sendTimer);
     state.pending = null;
     lsDel('jd.pending');
     state.waiting = false;
@@ -1529,6 +1653,7 @@ a.btn { text-decoration: none; }
       let label = `${PLATFORMS[pid].name} ${count}건`;
       if (!res) { tail = h('span', { class: 'count', text: '–' }); label = `${PLATFORMS[pid].name} 아직 모으지 않음`; }
       else if (info && info.st === 'error') { tail = h('span', { class: 'warn', text: '오류' }); label = `${PLATFORMS[pid].name} 불러오기 실패`; }
+      else if (info && info.st === 'wait' && !count) { tail = h('span', { class: 'count', text: '–' }); label = `${PLATFORMS[pid].name} 폰 앱 기다리는 중`; }
       else tail = h('span', { class: 'count', text: count.toLocaleString('ko-KR') });
       wrap.append(h('button', {
         type: 'button', class: `pf-toggle p-${pid}`, 'aria-pressed': pressed ? 'true' : 'false',
@@ -1570,6 +1695,16 @@ a.btn { text-decoration: none; }
       const info = res.pf && res.pf[pid];
       if (!info) continue;
       const name = PLATFORMS[pid].name;
+      if (pid === 'daangn') {
+        const dr = state.refresh && state.refresh.daangn;
+        if (info.st === 'wait') {
+          box.append(h('div', { class: 'notice' }, h('b', null, marketMark(pid), name), `${info.note || '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요.'} 앱의 '대시보드' 탭에서 한 번 연결하면 한 시간마다 모아 와요.`));
+          continue;
+        }
+        if (dr && dr.st === 'stale' && dr.at && info.st !== 'error') {
+          box.append(h('div', { class: 'notice is-error' }, h('b', null, marketMark(pid), name), `폰 앱이 ${timeAgo(dr.at)}에 마지막으로 올렸어요. 폰이 꺼져 있었거나 와이파이에 연결되지 않았을 수 있어요.`));
+        }
+      }
       if (info.st === 'error') {
         const msg = h('div', { class: 'notice is-error' }, h('b', null, marketMark(pid), name), info.error || '불러오지 못했어요');
         if (info.carried) msg.append(h('span', { text: `이전에 모은 ${info.carried}건을 대신 보여줘요.` }));
@@ -1587,7 +1722,7 @@ a.btn { text-decoration: none; }
         const names = info.regions.map((r) => r.fullName || r.name).join(', ');
         const anchors = info.regions.reduce((a, r) => a + (r.anchors || 1), 0);
         box.append(h('div', { class: 'notice' }, h('b', null, marketMark(pid), name),
-          `${names}의 동네 ${anchors}곳을 기준으로 찾았어요. 가까운 동네 매물 ${nearN.toLocaleString('ko-KR')}건과 당근이 함께 보여준 다른 지역 매물 ${(all.length - nearN).toLocaleString('ko-KR')}건이에요.`));
+          `${state.refresh && state.refresh.daangn && state.refresh.daangn.at ? `폰 앱이 모은 결과예요(${timeAgo(state.refresh.daangn.at)}). ` : ''}${names}의 동네 ${anchors}곳을 기준으로 찾았어요. 가까운 동네 매물 ${nearN.toLocaleString('ko-KR')}건과 당근이 함께 보여준 다른 지역 매물 ${(all.length - nearN).toLocaleString('ko-KR')}건이에요.`));
       }
       if (info.trimmed) {
         box.append(h('div', { class: 'notice' }, h('b', null, marketMark(pid), name), `매물이 너무 많아 오래된 ${info.trimmed.toLocaleString('ko-KR')}건은 저장하지 못했어요.`));
@@ -1768,7 +1903,7 @@ a.btn { text-decoration: none; }
     state.view.chips = { ex: new Set(), in: new Set() };
     state.shown = CHUNK;
     renderAll();
-    toast("조건에 저장했어요. 위의 'GitHub에 보내기'를 눌러야 다음 수집에도 그대로 걸러요");
+    toast(state.token && !state.tokenFailed ? '조건에 저장했어요. 곧 GitHub에 보내서 다음 수집에도 그대로 걸러요' : "조건에 저장했어요. 위의 'GitHub에 보내기'를 눌러야 다음 수집에도 그대로 걸러요");
   }
   function sortItems(items) {
     const byTime = (a, b) => (b.time || 0) - (a.time || 0);
@@ -1985,7 +2120,7 @@ a.btn { text-decoration: none; }
     const days = Number.isFinite(s.maxAgeDays) ? s.maxAgeDays : state.config && Number.isFinite(state.config.maxAgeDays) ? state.config.maxAgeDays : 30;
     $('listFoot').textContent = mode === 'sold'
       ? '중고나라에서 최근 3개월 안에 판매완료된 매물이에요(번개장터는 검색 결과에 판매완료가 거의 나오지 않아 빠져요). 가격은 판매자가 올린 가격이라 실제 거래가와 조금 다를 수 있어요.'
-      : `한 시간마다 ${days > 0 ? `올리거나 끌올한 지 ${days}일 안 된 ` : ''}매물로 목록을 새로 채워요. 중고나라·번개장터 전국 매물이에요(당근은 GitHub 서버에서 검색되지 않아 빠져요 — 꿀매 레이더 앱에서 보세요). 숨긴 매물은 다시 나와도 안 보이고, 관심 매물은 목록에서 빠져도 관심 탭에 남아요. 숨김·관심은 이 기기에만 저장돼요. 사진은 각 사이트에서 확인하세요.`;
+      : `한 시간마다 ${days > 0 ? `올리거나 끌올한 지 ${days}일 안 된 ` : ''}매물로 목록을 새로 채워요. 중고나라·번개장터는 GitHub가 전국 매물을, 당근은 폰의 꿀매 레이더 앱이 가까운 지역 매물을 모아요. 숨긴 매물은 다시 나와도 안 보이고, 관심 매물은 목록에서 빠져도 관심 탭에 남아요. 숨김·관심은 이 기기에만 저장돼요. 사진은 각 사이트에서 확인하세요.`;
     $('vUpdated').textContent = res && res.fetchedAt ? `${timeAgo(res.fetchedAt)} 모음` : '';
 
     const list = $('list');
@@ -2352,21 +2487,48 @@ a.btn { text-decoration: none; }
       ? '이 기기는 비밀번호를 기억하고 있어요. 다른 사람과 같이 쓰는 기기라면 잠가 주세요.'
       : '이 기기는 비밀번호를 기억하지 않아요. 페이지를 새로 열 때마다 비밀번호를 넣어요.';
     $('homeError').hidden = true;
+    $('tokInput').value = '';
+    $('tokInput').placeholder = state.token ? '저장한 토큰이 있어요 (바꾸려면 새로 넣기)' : 'github_pat_…';
+    $('tokClear').hidden = !state.token;
     $('homeDialog').showModal();
     $('homeInput').focus();
   }
   async function saveHome() {
     const area = $('homeInput').value.trim().replace(/\s+/g, ' ').slice(0, 40);
-    $('homeDialog').close();
-    if (area === homeQ()) return;
-    if (await stageEdit((ss, c) => { c.area = area; })) {
-      renderAll();
-      toast(area ? `가까운 지역을 '${area}'(으)로 바꿨어요. 'GitHub에 보내기'를 눌러야 반영돼요` : "가까운 지역을 지웠어요. 'GitHub에 보내기'를 눌러야 반영돼요");
+    const tok = $('tokInput').value.trim();
+    const err = $('homeError');
+    err.hidden = true;
+    if (tok) {
+      if (!/^(github_pat_|ghp_)\w{20,}$/.test(tok)) {
+        err.textContent = "GitHub 토큰 모양이 아니에요. 'github_pat_' 로 시작하는 글자를 통째로 붙여 넣어 주세요.";
+        err.hidden = false;
+        return;
+      }
+      $('homeSave').disabled = true;
+      const why = await checkToken(tok);
+      $('homeSave').disabled = false;
+      if (why) { err.textContent = why; err.hidden = false; return; }
+      await saveToken(tok);
     }
+    $('homeDialog').close();
+    if (tok) toast('토큰을 저장했어요. 이제 검색을 바꾸면 GitHub에 바로 보내요');
+    if (area !== homeQ()) {
+      if (await stageEdit((ss, c) => { c.area = area; })) {
+        renderAll();
+        toast(area ? `가까운 지역을 '${area}'(으)로 바꿨어요. ${sendHint()}` : `가까운 지역을 지웠어요. ${sendHint()}`);
+      }
+    } else if (tok) {
+      scheduleSend();
+    }
+    renderSendBar();
+    renderRefresh();
   }
   function lockDevice() {
     lsDel('jd.key');
     state.key = null;
+    state.token = '';
+    state.tokenLoaded = false;
+    clearTimeout(sendTimer);
     state.marks = {};
     $('homeDialog').close();
     showLock();
@@ -2502,7 +2664,7 @@ a.btn { text-decoration: none; }
     if (!ok) return;
     $('condDialog').close();
     openSearch(id);
-    toast(`${dlg.mode === 'edit' ? '조건을' : '검색을'} 저장했어요. 위의 'GitHub에 보내기'를 눌러야 반영돼요`);
+    toast(`${dlg.mode === 'edit' ? '조건을' : '검색을'} 저장했어요. ${sendHint()}`);
   }
   async function deleteFromDialog() {
     if (!dlg.armed) {
@@ -2525,7 +2687,7 @@ a.btn { text-decoration: none; }
     const next = state.searches[0];
     if (next) openSearch(next.id); else { state.activeId = null; renderAll(); }
     const { id: _id, ...body } = s;
-    toast(`'${s.keyword}' 검색을 지웠어요. 'GitHub에 보내기'를 눌러야 반영돼요`, { label: '되돌리기', run: () => restoreSearch(id, body) });
+    toast(`'${s.keyword}' 검색을 지웠어요. ${sendHint()}`, { label: '되돌리기', run: () => restoreSearch(id, body) });
     return true;
   }
   async function restoreSearch(id, body) {
@@ -2538,10 +2700,14 @@ a.btn { text-decoration: none; }
   // ---------- 연결 ----------
   function bind() {
     $('refreshBtn').addEventListener('click', (e) => {
-      if (state.pending) { e.preventDefault(); $('sendLink').focus(); toast("바꾼 검색이 있어요. 'GitHub에 보내기'를 누르면 반영하면서 바로 모아요"); return; }
+      if (state.pending) { e.preventDefault(); $('sendLink').focus(); toast(directSend() ? '바꾼 검색을 보내면 반영하면서 바로 모아요' : "바꾼 검색이 있어요. 'GitHub에 보내기'를 누르면 반영하면서 바로 모아요"); return; }
+      if (state.token && !state.tokenFailed) { e.preventDefault(); sendRefresh(); return; }
       startWaiting();
     });
-    $('sendLink').addEventListener('click', () => startWaiting());
+    $('sendLink').addEventListener('click', (e) => {
+      if (directSend()) { e.preventDefault(); sendPending(); return; }
+      startWaiting();
+    });
     $('sendDiscard').addEventListener('click', discardPending);
     $('lockForm').addEventListener('submit', unlock);
     $('newSearch').addEventListener('click', () => openDialog('new', null));
@@ -2558,6 +2724,14 @@ a.btn { text-decoration: none; }
     $('homeBtn').addEventListener('click', openHome);
     $('homeForm').addEventListener('submit', (e) => { e.preventDefault(); saveHome(); });
     $('homeCancel').addEventListener('click', () => $('homeDialog').close());
+    $('tokClear').addEventListener('click', () => {
+      lsDel('jd.tok');
+      state.token = '';
+      $('tokClear').hidden = true;
+      $('tokInput').placeholder = 'github_pat_…';
+      renderSendBar();
+      toast('이 기기에서 토큰을 지웠어요');
+    });
     $('homeClear').addEventListener('click', lockDevice);
     $('list').addEventListener('change', onNoteChange);
     $('list').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.note === 'memo') { e.preventDefault(); e.target.blur(); } });

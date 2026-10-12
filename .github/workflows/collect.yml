@@ -2,12 +2,15 @@ name: 매물 모으기
 
 # 한 시간마다(매시 17분쯤, GitHub 사정으로 몇 분 늦을 수 있음) + 페이지에서 보낸 요청 이슈 + 손으로 실행
 # + 수집기 코드를 main 에 올렸을 때 (바로 새 코드로 한 번)
+# + 폰 앱(꿀매 레이더)이 당근을 daangn 가지에 올리고 알렸을 때 (repository_dispatch: daangn → 바로 합친다)
 on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
   issues:
     types: [opened]
+  repository_dispatch:
+    types: [daangn]
   push:
     branches: [ main ]
     paths: [ 'collector/**', '.github/workflows/collect.yml' ]
@@ -36,16 +39,18 @@ jobs:
 
       - name: 지난 데이터 받기
         run: |
-          mkdir -p prev
+          mkdir -p prev dres
           if git fetch -q --depth=1 origin data 2>/dev/null; then git archive FETCH_HEAD | tar -x -C prev; fi
-          ls -la prev
+          # 폰 앱이 올린 당근 결과 (잠김, 없을 수 있다)
+          if git fetch -q --depth=1 origin daangn 2>/dev/null; then git archive FETCH_HEAD | tar -x -C dres; fi
+          ls -la prev dres
 
       - name: 모으기
         env:
           DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
           INIT_SEARCHES: ${{ vars.INIT_SEARCHES }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: node collector/run.mjs prev out work
+        run: node collector/run.mjs prev out work dres
 
       - name: 데이터 올리기 (data 가지, 기록 없이 한 커밋만)
         env:

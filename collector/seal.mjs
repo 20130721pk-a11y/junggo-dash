@@ -2,12 +2,13 @@
 //
 // 잠근 상자 = { v:1, kdf:"PBKDF2-SHA256", iter, salt, iv, ct }  (salt·iv·ct 는 base64)
 //   열쇠 = PBKDF2-SHA256(비밀번호, salt, iter) → 32바이트, 내용 = AES-256-GCM(gzip(JSON)), ct 끝 16바이트가 인증 태그
-//   추가 인증 데이터(AAD) = 용도 이름(label: junggo-view | junggo-state | junggo-edit) → 다른 용도의 상자로 바꿔치기할 수 없다
+//   추가 인증 데이터(AAD) = 용도 이름(label: junggo-view | junggo-state | junggo-edit | junggo-djob | junggo-dres) → 다른 용도의 상자로 바꿔치기할 수 없다
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 
 export const ITER = 600000;
-export const LABEL = { view: 'junggo-view', state: 'junggo-state', edit: 'junggo-edit' };
+// djob = 폰 앱(꿀매 레이더)이 할 당근 수집(대시보드 → 앱), dres = 앱이 모은 당근 결과(앱 → 대시보드)
+export const LABEL = { view: 'junggo-view', state: 'junggo-state', edit: 'junggo-edit', djob: 'junggo-djob', dres: 'junggo-dres' };
 
 export const newSalt = () => crypto.randomBytes(16).toString('base64');
 
