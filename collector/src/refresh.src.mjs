@@ -596,8 +596,9 @@ function priceStatsOf(rows) {
 }
 
 // partErr: 부분(jb|d)을 통째로 못 모은 까닭 (예: 실행문을 옮겨 적다 틀림) — 그 마켓의 오류 문구로 쓴다
-// carry: 이번에 일부러 모으지 않은 부분 {jb|d: {st, note}} — 지난 매물을 오류 없이 이어 보여준다
+// carry: 이번에 일부러 모으지 않은 부분 {jb|d: {st, note, ok(id, old)}} — 지난 매물을 오류 없이 이어 보여준다
 //        (GitHub 판: 당근은 폰 앱이 올린 결과가 새로 없을 때, 중고나라·번개장터는 당근만 합치러 돈 실행일 때)
+//        ok 가 false 를 주는 검색(예: 폰이 모은 뒤 조건·지역이 바뀜)은 지난 매물을 버리고 st·note 로 기다린다고 알린다
 // partAt: 부분을 실제로 모은 시각 {jb|d: ms} (당근은 폰이 모은 시각) — 다음 번 새 매물 판단의 기준이 된다
 export function buildResults({ searches, prev, ledgers = {}, collected, now = Date.now(), maxAgeDays = 30, home = null, keyOf = (id) => id, skipped = {}, partErr = {}, carry = {}, partAt = {} }) {
   const nowSec = Math.floor(now / 1000);
@@ -650,15 +651,23 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
         } else pf[p] = { ...info, n: mine.length };
         delete pf[p].sold;
       } else if (carry[PART_OF[p]] && !(info && info.st === 'error') && !(skipped[id] && skipped[id][p])) {
-        // 일부러 이번에 모으지 않음 → 지난 매물과 지난 안내를 그대로
-        mine = oldItems.filter((t) => t[0] === code && keep(t)).map((t) => {
-          const x = t[13] && typeof t[13] === 'object' ? { ...t[13] } : {};
-          delete x.pp; delete x.pc;
-          return { t, x, kept: true };
-        });
-        const was = old && old.pf && old.pf[p];
-        const c = carry[PART_OF[p]] || {};
-        pf[p] = was && was.st !== 'error' && was.st !== 'wait' ? { ...was, n: mine.length } : { st: c.st || 'wait', ...(c.note ? { note: c.note } : {}), n: mine.length };
+        const c = carry[PART_OF[p]];
+        const isD = PART_OF[p] === 'd';
+        if (typeof c.ok === 'function' && !c.ok(id, old)) {
+          // 지난 매물이 지금 조건과 맞지 않음 → 보여주지 않고 기다린다
+          mine = [];
+          pf[p] = { st: c.st || 'wait', ...(c.note ? { note: c.note } : {}), n: 0 };
+        } else {
+          // 일부러 이번에 모으지 않음 → 지난 매물과 지난 안내를 그대로 (중고나라·번개장터는 지난 오류 안내도 그대로)
+          mine = oldItems.filter((t) => t[0] === code && keep(t)).map((t) => {
+            const x = t[13] && typeof t[13] === 'object' ? { ...t[13] } : {};
+            delete x.pp; delete x.pc;
+            return { t, x, kept: true };
+          });
+          const was = old && old.pf && old.pf[p];
+          const keepWas = was && (isD ? was.st !== 'error' && was.st !== 'wait' : true);
+          pf[p] = keepWas ? { ...was, n: mine.length } : { st: c.st || (isD ? 'wait' : 'ok'), ...(c.note ? { note: c.note } : {}), n: mine.length };
+        }
       } else {
         mine = oldItems.filter((t) => t[0] === code && keep(t)).map((t) => {
           const x = t[13] && typeof t[13] === 'object' ? { ...t[13] } : {};

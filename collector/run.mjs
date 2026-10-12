@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { buildResults, collectKey, collectorInfo, effectiveSearches, slim, CATEGORIES, ROUND } from './refresh.mjs';
+import { buildResults, collectKey, condKey, collectorInfo, effectiveSearches, slim, CATEGORIES, ROUND } from './refresh.mjs';
 import { ITER, LABEL, isBox, keyring, newSalt, open, seal } from './seal.mjs';
 
 // GitHub 서버가 모으는 마켓. 당근은 폰 앱이 모아 올린다
@@ -304,9 +304,13 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   if (!state.mig || typeof state.mig !== 'object') state.mig = {};
   if (!state.mig.daangnOn) {
     if (prevState) {
-      for (const s of Object.values(state.searches)) {
+      for (const [id, s] of Object.entries(state.searches)) {
         const pf = Array.isArray(s.platforms) ? s.platforms : [];
-        if (pf.length === 2 && pf.includes('joongna') && pf.includes('bunjang')) s.platforms = ALL_MARKETS.slice();
+        if (!(pf.length === 2 && pf.includes('joongna') && pf.includes('bunjang'))) continue;
+        s.platforms = ALL_MARKETS.slice();
+        // 조건 지문도 같이 바꿔 둔다 — 안 그러면 시세 흐름이 처음부터 다시 쌓이고 이번 새 매물 표시가 빠진다
+        const doc = state.docs[id];
+        if (doc) { doc.ckey = collectKey(s); doc.condKey = condKey(s); }
       }
     }
     state.mig.daangnOn = startedAt;
@@ -368,10 +372,13 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const got = readDres(dresDir, keyFor);
   let dNote = '';
   if (got.error) dNote = got.error;
-  const fresh = got.dres && Number(got.dres.at) > (dPrev.at || 0) ? got.dres : null;
+  // 새로 올렸는지는 폰이 적은 시각(raw)이 지난번과 다른지로 본다. 폰 시계가 빠를 수 있어 보여주는 시각(at)은 이번 실행 시각을 넘지 않게
+  const lastRaw = Number.isFinite(dPrev.raw) ? dPrev.raw : dPrev.at || 0;
+  const fresh = got.dres && Number(got.dres.at) !== lastRaw ? got.dres : null;
   let d = { ...dPrev };
   if (fresh) {
-    d = { at: Number(fresh.at), job: String(fresh.job || ''), device: String(fresh.device || '').slice(0, 40), app: String(fresh.app || '').slice(0, 20), ok: !!fresh.ok, error: fresh.ok ? '' : String(fresh.error || '폰 앱이 당근을 모으지 못했어요').slice(0, 160) };
+    const raw = Number(fresh.at);
+    d = { at: Math.min(raw, startedAt), raw, job: String(fresh.job || ''), device: String(fresh.device || '').slice(0, 40), app: String(fresh.app || '').slice(0, 20), ok: !!fresh.ok, error: fresh.ok ? '' : String(fresh.error || '폰 앱이 당근을 모으지 못했어요').slice(0, 160) };
     if (fresh.ok && fresh.result && fresh.result.__junggo === 'v1' && fresh.result.part === 'd' && fresh.result.results && typeof fresh.result.results === 'object') {
       // 폰이 모은 뒤 조건(검색어·지역 등)이 바뀐 검색은 합치지 않는다 → 다음에 폰이 새 조건으로 모을 때까지 지난 매물을 이어 보여준다
       const ck = fresh.ck && typeof fresh.ck === 'object' ? fresh.ck : {};
@@ -386,7 +393,14 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   if (dWanted) {
     if (!area) partErr.d = "'설정'에서 가까운 지역(예: 경기도 시흥시)을 정하면 폰 앱이 당근을 모아요";
     else if (d.at && !d.ok) partErr.d = d.error;
-    else carry.d = d.at ? {} : { st: 'wait', note: '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요' };
+    else {
+      // 지난 당근 매물은 그 매물을 모은 조건(검색·지역 지문 dk)이 지금과 같을 때만 이어 보여준다
+      carry.d = {
+        st: 'wait',
+        note: d.at ? '검색 조건이나 가까운 지역이 바뀌었어요. 폰 앱이 새 조건으로 모으면 보여요' : '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요',
+        ok: (id, old) => !!(collected.d && collected.d.results && collected.d.results[id]) || !!(old && old.pf && old.pf.daangn && old.pf.daangn.dk && old.pf.daangn.dk === dCk[id]),
+      };
+    }
   }
   state.daangn = d;
   const home = state.home && area && state.home.q === area ? state.home : null;
@@ -397,6 +411,13 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   });
   state.docs = built.docs;
   state.ledgers = built.ledgerDocs;
+  // 이번에 합친 당근 매물이 어떤 조건(검색·지역)으로 모은 것인지 적어 둔다 → 조건이 바뀌면 이어 보여주지 않는다
+  if (collected.d && collected.d.results) {
+    for (const id of Object.keys(collected.d.results)) {
+      const pfd = state.docs[id] && state.docs[id].pf && state.docs[id].pf.daangn;
+      if (pfd && pfd.st === 'ok') pfd.dk = dCk[id];
+    }
+  }
 
   // 폰 앱이 할 일 (다음에 앱이 받아 간다)
   const djob = daangnJob({ eff, area, maxAgeDays: state.config.maxAgeDays, now: startedAt, ck: dCk });

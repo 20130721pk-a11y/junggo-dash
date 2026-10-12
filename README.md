@@ -15,9 +15,10 @@
 1. 저장소 **Settings → Secrets and variables → Actions → New repository secret**: 이름 `DASH_PASSWORD`, 값은 페이지 비밀번호(10자 이상).
 2. 저장소 **Settings → Pages**: Source 를 *Deploy from a branch*, Branch 를 `main` / `(root)` 로.
 3. 페이지를 열고 비밀번호를 넣는다. 검색을 만들고 '설정'에서 가까운 지역(예: 경기도 시흥시)을 정한다(당근은 이 지역 근처에서 찾는다).
-4. GitHub 토큰(fine-grained) 하나: **Only select repositories → junggo-dash**, 권한 **Contents: Read and write**, **Issues: Read and write**.
+4. 폰 앱용 GitHub 토큰(fine-grained): **Only select repositories → junggo-dash**, 권한 **Contents: Read and write**(daangn 가지 덮어쓰기 + repository_dispatch).
 5. 폰에 꿀매 레이더 앱(0.2.0 이상)을 깔고 **대시보드** 탭에서 저장소·토큰·대시보드 비밀번호를 넣고 '연결하고 지금 모으기'.
-6. (선택) 페이지 '설정'의 GitHub 토큰 칸에 같은 토큰을 넣으면 검색을 바꿀 때 GitHub 화면을 거치지 않고 바로 보낸다.
+6. (선택) 페이지용 토큰을 따로: 같은 저장소, 권한 **Issues: Read and write** 만. 페이지 '설정'의 GitHub 토큰 칸에 넣으면 검색을 바꿀 때 GitHub 화면을 거치지 않고 바로 보낸다.
+   페이지 토큰은 브라우저(`<주인>.github.io` 출처)에 남으므로 Contents 쓰기 권한이 있는 앱 토큰은 넣지 않는다 — 그 권한이면 main 에 코드를 올려 Actions 의 `DASH_PASSWORD` 까지 닿을 수 있다.
 
 ## 쓰는 법
 
