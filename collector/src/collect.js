@@ -23,6 +23,9 @@ async function junggoCollect(cfg) {
   const LATE_MSG = '시간이 모자라 일부만 모았어요';
   // 검색어를 쉼표로 나눠 적으면 여러 표기로 각각 찾아 합친다 (3개까지)
   const altsOf = (s) => String(s.keyword || '').split(',').map((w) => w.trim()).filter(Boolean).slice(0, 3);
+  // 지역 이름 맞춰 보기: 띄어쓰기와 첫 낱말의 시·도 꼬리(특별시·광역시·특별자치시·특별자치도·도)를 빼고 비교한다
+  //   "서울 강남구" ↔ "서울특별시 강남구 역삼동", "경기 시흥시" ↔ "경기도 시흥시 정왕동", "시흥시" ↔ "경기도 시흥시 정왕동"
+  const areaKey = (v) => String(v || '').trim().split(/\s+/).map((w, i) => (i === 0 ? w.replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') : w)).join('');
   // 조건의 기본값은 보내지 않는다(판매중, 제목·내용, 그 사이트의 마켓 전부). 지역은 cfg.regions 에 한 번만 적고 ID 로 가리킨다.
   const MY = (typeof PART === 'string' ? PART : cfg.part) === 'd' ? ['daangn'] : ['joongna', 'bunjang'];
   for (const s of cfg.searches || []) {
@@ -236,13 +239,13 @@ async function junggoCollect(cfg) {
     await Promise.all([one(), one(), one(), one(), one(), one()]);
     try { localStorage.setItem(BD_KEY, JSON.stringify(cache)); } catch { /* 저장 공간이 모자라면 이번만 쓴다 */ }
     for (const { s, items } of byId) {
-      const home = String(s.homeArea || '').replace(/\s+/g, '');
+      const home = areaKey(s.homeArea);
       for (const it of items) {
         const d = it[0] === 'b' && cache[it[1]];
         if (!d) continue;
         const x = it[12] || (it[12] = {});
         if (d[3]) it[5] = cut(d[3], 12);
-        if (home && d[4]) it[11] = d[4].replace(/\s+/g, '').includes(home) ? 1 : 0;
+        if (home && d[4]) it[11] = areaKey(d[4]).includes(home) ? 1 : 0;
         if (d[1] != null && d[2] != null) { x.lat = d[1]; x.lng = d[2]; }
         const f = (x.f || '') + (d[5] === 'NEW' ? 'N' : '') + (d[6] === 1 ? 'I' : '') + (d[7] === 1 ? 'F' : '');
         if (f) x.f = f;
@@ -276,7 +279,7 @@ async function junggoCollect(cfg) {
     const locs = Array.isArray(r.locationNames) ? r.locationNames.map((x) => String(x || '').trim()).filter(Boolean) : [];
     let loc = r.mainLocationName || '';
     if (!loc && locs[0]) loc = locs[0].split(/\s+/).pop();
-    const near = !home || !locs.length ? null : locs.some((x) => x.replace(/\s+/g, '').includes(home)) ? 1 : 0;
+    const near = !home || !locs.length ? null : locs.some((x) => areaKey(x).includes(home)) ? 1 : 0;
     // 13번째 칸: 덧붙임 정보. f = P 중고나라페이, C 인증셀러 / s = 판매자(가게) 번호
     const x = {};
     const f = (r.jnPayBadgeFlag ? 'P' : '') + (r.certifySellerFlag ? 'C' : '');
@@ -287,7 +290,7 @@ async function junggoCollect(cfg) {
   async function joongna(s) {
     const items = [];
     const partial = [];
-    const home = String(s.homeArea || '').replace(/\s+/g, '');
+    const home = areaKey(s.homeArea);
     let total = null;
     for (let page = 0; page < (cfg.jPages || 8); page++) {
       if (page && late()) { partial.push(LATE_MSG); break; }

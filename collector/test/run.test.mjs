@@ -36,7 +36,7 @@ function fakeSites({ extra = [], robotsBunjang = 404, issues = [], log = [] } = 
         : [
           { seq: 101, title: `${body.searchWord} 판매합니다`, price: 500000, state: 0, sortDate: kst(REAL0 - 3 * 3600e3), locationNames: ['경기도 시흥시 정왕동'], wishCount: 2, chatCount: 1, storeSeq: 7, certifySellerFlag: true, objectType: 'product' },
           { seq: 102, title: `${body.searchWord} 삽니다`, price: 450000, state: 0, sortDate: kst(REAL0 - 4 * 3600e3), locationNames: ['서울 마포구'], objectType: 'product' },
-          ...extra.filter((x) => x.m === 'j').map((x) => ({ seq: x.id, title: `${body.searchWord} ${x.t}`, price: x.p, state: 0, sortDate: kst(REAL0 - 600e3), locationNames: ['부산 해운대구'], objectType: 'product' })),
+          ...extra.filter((x) => x.m === 'j').map((x) => ({ seq: x.id, title: `${body.searchWord} ${x.t}`, price: x.p, state: 0, sortDate: kst(REAL0 - 600e3), locationNames: [x.loc || '부산 해운대구'], objectType: 'product' })),
         ];
       return json({ meta: { code: 0 }, data: { items, totalSize: items.length } });
     }
@@ -118,7 +118,7 @@ test('페이지가 보낸 요청: 검색 바꾸기 + 새로고침 요청을 반�
   ];
   const d = dirs();
   fs.cpSync(first.out, d.prev, { recursive: true });
-  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env(), fetchImpl: fakeSites({ issues, extra: [{ m: 'j', id: 103, t: '새로 올림', p: 480000 }, { m: 'b', id: 203, t: '방금 올림', p: 470000 }] }), now: () => Date.now() + 3600e3, log: quiet });
+  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env(), fetchImpl: fakeSites({ issues, extra: [{ m: 'j', id: 103, t: '새로 올림', p: 480000 }, { m: 'j', id: 104, t: '마포 매물', p: 490000, loc: '서울특별시 마포구 합정동' }, { m: 'b', id: 203, t: '방금 올림', p: 470000 }] }), now: () => Date.now() + 3600e3, log: quiet });
   assert.equal(st.ok, true);
   const close = JSON.parse(fs.readFileSync(path.join(d.work, 'close.json'), 'utf8'));
   assert.deepEqual(close.map((c) => [c.number, c.kind, c.ok]), [[7, 'edit', true], [8, 'refresh', true], [9, 'edit', false]]);
@@ -129,8 +129,10 @@ test('페이지가 보낸 요청: 검색 바꾸기 + 새로고침 요청을 반�
   assert.ok(v.applied.includes('p_test01'));
   const r = v.results.s_aaaa1111;
   const fresh = r.items.filter((t) => t[12] > 0).map((t) => `${t[0]}:${t[1]}`).sort();
-  assert.deepEqual(fresh, ['b:203', 'j:103']);
-  assert.equal(v.refresh.summary.s_aaaa1111.new, 2);
+  assert.deepEqual(fresh, ['b:203', 'j:103', 'j:104']);
+  assert.equal(v.refresh.summary.s_aaaa1111.new, 3);
+  assert.equal(r.items.find((t) => t[1] === '104')[11], 1, "'서울 마포구' 는 '서울특별시 마포구 합정동' 과 맞는다");
+  assert.equal(r.items.find((t) => t[1] === '101')[11], 0, '시흥시 매물은 이제 가깝지 않다');
   assert.ok(v.results.s_cccc3333, '새 검색도 모았다');
   assert.equal(r.hist.length >= 1, true);
   first = d;
