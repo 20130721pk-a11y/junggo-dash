@@ -1,0 +1,4 @@
+[꿀매 레이더] 완료 ·  · 검색 2개 · 매물 3185건 · 새 매물 0건 · 12.4초
+s_citest0001 {"pf":{"joongna":{"st":"ok","raw":753,"n":750,"total":6228},"bunjang":{"st":"ok","raw":887,"n":884,"total":5542}},"items":{"j":750,"b":884},"sold":1,"near":0,"withDetail":300}
+s_citest0002 {"pf":{"joongna":{"st":"ok","raw":700,"n":697,"total":5738},"bunjang":{"st":"ok","raw":860,"n":854,"total":8066}},"items":{"j":697,"b":854},"sold":5,"near":0,"withDetail":0}
+bd {"asked":1747,"got":300,"left":1447} status {"ok":true,"message":"","searches":2,"items":3185,"fresh":0,"markets":{"joongna":"ok","bunjang":"ok"},"requests":0,"bootstrapped":true} sec 12.5 view bytes 152217 state bytes 204945
