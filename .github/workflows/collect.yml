@@ -1,0 +1,65 @@
+name: 매물 모으기
+
+# 한 시간마다(매시 17분쯤, GitHub 사정으로 몇 분 늦을 수 있음) + 페이지에서 보낸 요청 이슈 + 손으로 실행
+# + 수집기 코드를 main 에 올렸을 때 (바로 새 코드로 한 번)
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  issues:
+    types: [opened]
+  push:
+    branches: [ main ]
+    paths: [ 'collector/**', '.github/workflows/collect.yml' ]
+
+# 한 번에 하나씩 (요청이 몰려 기다리던 실행이 취소돼도 열린 요청 이슈는 다음 실행이 다시 읽는다)
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  collect:
+    # 이슈는 저장소 주인이 '꿀매 레이더'로 시작하는 제목으로 연 것만
+    if: github.event_name != 'issues' || (github.event.issue.user.login == github.repository_owner && startsWith(github.event.issue.title, '꿀매 레이더'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 지난 데이터 받기
+        run: |
+          mkdir -p prev
+          if git fetch -q --depth=1 origin data 2>/dev/null; then git archive FETCH_HEAD | tar -x -C prev; fi
+          ls -la prev
+
+      - name: 모으기
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          INIT_SEARCHES: ${{ vars.INIT_SEARCHES }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node collector/run.mjs prev out work
+
+      - name: 데이터 올리기 (data 가지, 기록 없이 한 커밋만)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "데이터 $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -qf "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - name: 요청 이슈 닫기
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node collector/close.mjs work/close.json
