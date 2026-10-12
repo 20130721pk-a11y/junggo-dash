@@ -315,6 +315,40 @@ test('페이지 쪽(box.js)과 수집기 쪽(seal.mjs)이 서로 연다', async 
   assert.deepEqual(await Box.open(box, again, Box.LABEL.view), v);
 });
 
+test('한 번만: 당근을 고를 수 없던 때 만든 검색(중고나라·번개장터)은 당근을 켠다', async () => {
+  // 예전 버전이 만든 상태: 마이그레이션 표시가 없다
+  const d0 = dirs();
+  const init = JSON.stringify({ searches: [
+    { id: 's_old00001', keyword: '옛 검색', platforms: ['joongna', 'bunjang'], createdAt: 1 },
+    { id: 's_old00002', keyword: '번개만', platforms: ['bunjang'], createdAt: 2 },
+  ], config: { area: '경기도 시흥시' } });
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: init }), fetchImpl: fakeSites(), log: quiet });
+  // 처음 만든 상태에는 표시가 이미 있다 → 지우고 예전 상태처럼 만든다
+  const box = readOut(d0, 'state.enc');
+  const key = keyring(PW)(box.salt, box.iter);
+  const st0 = open(box, () => key, LABEL.state);
+  assert.ok(st0.mig && st0.mig.daangnOn, '새로 시작하면 표시만 남긴다');
+  assert.deepEqual(st0.searches.s_old00001.platforms, ['joongna', 'bunjang'], '새로 시작한 상태의 검색은 그대로');
+  delete st0.mig;
+  fs.mkdirSync(d0.prev, { recursive: true });
+  fs.writeFileSync(path.join(d0.prev, 'state.enc'), JSON.stringify(seal(st0, key, box.salt, LABEL.state, box.iter)));
+  fs.copyFileSync(path.join(d0.out, 'view.enc'), path.join(d0.prev, 'view.enc'));
+  const d1 = { ...dirs(), prev: d0.prev };
+  await run({ prevDir: d1.prev, outDir: d1.out, workDir: d1.work, env: env(), fetchImpl: fakeSites(), log: quiet });
+  const v = openView(d1);
+  assert.deepEqual(v.searches.find((x) => x.id === 's_old00001').platforms, ['joongna', 'daangn', 'bunjang']);
+  assert.deepEqual(v.searches.find((x) => x.id === 's_old00002').platforms, ['bunjang'], '직접 고른 것은 그대로');
+  assert.deepEqual(Object.keys(openJob(d1).ck), ['s_old00001'], '폰 앱 할 일에 들어간다');
+  // 다음 실행부터는 다시 켜지 않는다 (사용자가 끈 것을 존중)
+  const st1 = open(readOut(d1, 'state.enc'), () => key, LABEL.state);
+  st1.searches.s_old00001.platforms = ['joongna', 'bunjang'];
+  const d2 = dirs();
+  fs.mkdirSync(d2.prev, { recursive: true });
+  fs.writeFileSync(path.join(d2.prev, 'state.enc'), JSON.stringify(seal(st1, key, box.salt, LABEL.state, box.iter)));
+  await run({ prevDir: d2.prev, outDir: d2.out, workDir: d2.work, env: env(), fetchImpl: fakeSites(), log: quiet });
+  assert.deepEqual(openView(d2).searches.find((x) => x.id === 's_old00001').platforms, ['joongna', 'bunjang']);
+});
+
 test('작은 도우미들', () => {
   assert.equal(payloadOf('없음'), null);
   assert.equal(payloadOf('```junggo\n{nope}\n```'), 'bad');

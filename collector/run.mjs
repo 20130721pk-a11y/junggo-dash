@@ -299,6 +299,19 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     requestError = String((e && e.message) || e).slice(0, 120);
   }
 
+  // 한 번만: 당근을 고를 수 없던 때(2026-10-13 전) 만든 검색은 당근을 켠다. 그때는 중고나라·번개장터 둘이 기본이었다.
+  // (끄고 싶으면 페이지에서 그 검색의 마켓에서 당근을 끄면 된다 — 다시 켜지 않는다)
+  if (!state.mig || typeof state.mig !== 'object') state.mig = {};
+  if (!state.mig.daangnOn) {
+    if (prevState) {
+      for (const s of Object.values(state.searches)) {
+        const pf = Array.isArray(s.platforms) ? s.platforms : [];
+        if (pf.length === 2 && pf.includes('joongna') && pf.includes('bunjang')) s.platforms = ALL_MARKETS.slice();
+      }
+    }
+    state.mig.daangnOn = startedAt;
+  }
+
   // 모으기
   const ids = Object.keys(state.searches).sort((a, b) => ((state.searches[a].createdAt || 0) - (state.searches[b].createdAt || 0)) || (a < b ? -1 : 1));
   const area = state.config.area;
