@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node test/real-check.mjs | tee ci-result.txt
+      - run: node test/robots-probe.mjs | tee ci-result.txt
       - name: 결과 올리기
         run: |
           git config user.name "github-actions[bot]"
