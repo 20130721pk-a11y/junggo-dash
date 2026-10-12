@@ -3,7 +3,7 @@ on:
   push:
     branches: [ ci-test ]
 permissions:
-  contents: read
+  contents: write
 jobs:
   real:
     runs-on: ubuntu-latest
@@ -13,4 +13,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node test/real-check.mjs
+      - run: node test/real-check.mjs | tee ci-result.txt
+      - name: 결과 올리기
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-result.txt
+          git commit -qm "실제 사이트 시험 결과"
+          git push -q
