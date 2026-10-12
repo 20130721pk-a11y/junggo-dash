@@ -1,0 +1,16 @@
+name: 실제 사이트 시험 (ci-test 가지)
+on:
+  push:
+    branches: [ ci-test ]
+permissions:
+  contents: read
+jobs:
+  real:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node test/real-check.mjs
