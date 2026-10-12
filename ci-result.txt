@@ -1,4 +1,6 @@
-[꿀매 레이더] 완료 ·  · 검색 2개 · 매물 3247건 · 새 매물 0건 · 15.9초
-s_citest0001 {"pf":{"joongna":{"st":"ok","raw":717,"n":714,"total":6228},"bunjang":{"st":"ok","raw":887,"n":884,"total":5542}},"items":{"j":714,"b":884},"sold":2,"near":9,"withDetail":300}
-s_citest0002 {"pf":{"joongna":{"st":"ok","raw":800,"n":796,"total":5738},"bunjang":{"st":"ok","raw":859,"n":853,"total":8066}},"items":{"j":796,"b":853},"sold":8,"near":21,"withDetail":0}
-bd {"asked":1746,"got":300,"left":1446} status {"ok":true,"message":"","searches":2,"items":3247,"fresh":0,"markets":{"joongna":"ok","bunjang":"ok"},"requests":0,"bootstrapped":true} sec 16.0 view bytes 154693 state bytes 207761
+status 200 bytes 1802
+groups 3
+- agents(8): OAI-SearchBot, ChatGPT-User, Claude-SearchBot, Claude-User, PerplexityBot, Perplexity-User … | rules(6): Disallow: / ; Allow: /kr/local-profile/ ; Allow: /kr/search/local-profile/ ; Allow: /wv/faqs ; Allow: /wv/faqs/ ; Allow: /wv/feedbacks/new
+- agents(43): AI2Bot, Ai2Bot-Dolma, Amazonbot, anthropic-ai, Applebot, Applebot-Extended … | rules(1): Disallow: /
+- agents(1): * | rules(11): Disallow: /ad/ ; Disallow: /admin ; Disallow: /wv/ ; Disallow: /kr/buy-sell/s/ ; Disallow: /kr/cars/s/ ; Disallow: /kr/community/s/ ; Disallow: /kr/group/s/ ; Allow: /wv/faqs ; Allow: /wv/faqs/ ; Allow: /wv/feedbacks/new ; Sitemap: https://www.daangn.com/kr/sitemap-index.xml
+other Sitemap: https://www.daangn.com/kr/sitemap-index.xml
