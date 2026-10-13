@@ -48,6 +48,7 @@ jobs:
       - name: 모으기
         env:
           DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          DASH_SHARE_PASSWORD: ${{ secrets.DASH_SHARE_PASSWORD }}
           INIT_SEARCHES: ${{ vars.INIT_SEARCHES }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node collector/run.mjs prev out work dres

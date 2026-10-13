@@ -10,7 +10,7 @@
 //   당근은 GitHub 서버(해외)에서 검색되지 않아 사용자의 폰이 모은다. 당근 robots.txt 는 AI 에이전트만 막고 일반 프로그램(*)은
 //   검색 경로를 허용한다 → 앱이 robots.txt 를 보고, 막혀 있으면 모으지 않고 그 사실만 올린다.
 //
-// 환경 변수: DASH_PASSWORD(저장소 Secret), GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_REPOSITORY_OWNER,
+// 환경 변수: DASH_PASSWORD(저장소 Secret), DASH_SHARE_PASSWORD(선택, 보는 사람용 공용 비밀번호 Secret), GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_REPOSITORY_OWNER,
 //            INIT_SEARCHES(처음 한 번만 쓰는 검색 목록, 저장소 Variable — 없어도 된다)
 // 로그는 공개되므로 검색어·매물 제목은 찍지 않는다(건수만).
 import fs from 'node:fs';
@@ -254,6 +254,19 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const password = env.DASH_PASSWORD;
   if (!password) return keepOld('GitHub 저장소 설정(Secrets)에 DASH_PASSWORD 가 없어요');
   const keyFor = keyring(password);
+  // 보는 사람(페이지·앱)이 쓰는 비밀번호: DASH_SHARE_PASSWORD(공용 비밀번호)가 있으면 그것, 없으면 DASH_PASSWORD.
+  // state.enc(수집기 안쪽)는 늘 DASH_PASSWORD 로 잠가서, 공용 비밀번호를 바꾸거나 잘못 넣어도 검색·기록은 그대로 남는다.
+  const sharePassword = env.DASH_SHARE_PASSWORD || password;
+  const shareFor = sharePassword === password ? keyFor : keyring(sharePassword);
+  // 페이지가 보낸 요청·폰 앱이 올린 결과: 공용 비밀번호 열쇠로, 안 되면(공용 비밀번호를 정하기 전에 잠근 것) DASH_PASSWORD 열쇠로
+  const openShared = (box, label) => {
+    try {
+      return open(box, shareFor, label);
+    } catch (e) {
+      if (shareFor === keyFor) throw e;
+      return open(box, keyFor, label);
+    }
+  };
 
   let state;
   if (prevState) {
@@ -268,6 +281,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   for (const k of ['searches', 'docs', 'ledgers', 'ls']) if (!state[k] || typeof state[k] !== 'object') state[k] = {};
   state.config = cleanConfig(state.config);
   const key = keyFor(state.salt, ITER);
+  const viewKey = shareFor(state.salt, ITER);
 
   // 처음 한 번: 저장소 Variable 로 넣어 둔 검색 목록
   let bootstrapped = false;
@@ -288,11 +302,11 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
       if (!box) { requests.push({ number: it.number, kind: 'refresh', ok: true }); continue; }
       if (box === 'bad') { requests.push({ number: it.number, kind: 'edit', ok: false, note: '요청 내용을 읽지 못했어요. 페이지에서 다시 보내 주세요.' }); continue; }
       try {
-        applyEdit(state, open(box, keyFor, LABEL.edit), startedAt);
+        applyEdit(state, openShared(box, LABEL.edit), startedAt);
         requests.push({ number: it.number, kind: 'edit', ok: true });
       } catch (e) {
         const wrong = /unable to authenticate|auth/i.test(String(e && e.message));
-        requests.push({ number: it.number, kind: 'edit', ok: false, note: wrong ? '비밀번호가 GitHub 설정(DASH_PASSWORD)과 달라 반영하지 못했어요.' : '요청을 반영하지 못했어요. 페이지에서 다시 보내 주세요.' });
+        requests.push({ number: it.number, kind: 'edit', ok: false, note: wrong ? '대시보드 비밀번호가 바뀌어 반영하지 못했어요. 페이지를 새로 열어 새 비밀번호로 연 뒤 다시 보내 주세요.' : '요청을 반영하지 못했어요. 페이지에서 다시 보내 주세요.' });
       }
     }
   } catch (e) {
@@ -369,7 +383,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const dWanted = eff.some((s) => s.platforms.includes('daangn'));
   const dCk = Object.fromEntries(eff.filter((s) => s.platforms.includes('daangn')).map((s) => [s.id, dKey(s, area)]));
   const dPrev = state.daangn && typeof state.daangn === 'object' ? state.daangn : {};
-  const got = readDres(dresDir, keyFor);
+  const got = readDres(dresDir, openShared);
   let dNote = '';
   if (got.error) dNote = got.error;
   // 새로 올렸는지는 폰이 적은 시각(raw)이 지난번과 다른지로 본다. 폰 시계가 빠를 수 있어 보여주는 시각(at)은 이번 실행 시각을 넘지 않게
@@ -456,8 +470,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     { ok: !failedAll, message: requestError ? `${message ? `${message} · ` : ''}요청 이슈를 읽지 못했어요` : message, searches: ids.length, items, fresh: freshN, markets, requests: requests.length, bootstrapped, reusedJb: !!reuseJb, daangnAt: d.at || 0 },
     {
       'state.enc': seal(state, key, state.salt, LABEL.state),
-      'view.enc': seal(view, key, state.salt, LABEL.view),
-      'djob.enc': seal(djob, key, state.salt, LABEL.djob),
+      'view.enc': seal(view, viewKey, state.salt, LABEL.view),
+      'djob.enc': seal(djob, viewKey, state.salt, LABEL.djob),
     },
   );
 }
@@ -491,16 +505,16 @@ export function daangnJob({ eff, area, maxAgeDays, now, ck }) {
 }
 
 // 폰 앱이 올린 결과 (없거나 열 수 없으면 dres 없이)
-function readDres(dir, keyFor) {
+function readDres(dir, openBox) {
   if (!dir) return {};
   const box = readJson(path.join(dir, 'dres.enc'));
   if (!box) return {};
   try {
-    const dres = open(box, keyFor, LABEL.dres);
+    const dres = openBox(box, LABEL.dres);
     if (!dres || dres.v !== 1 || !Number.isFinite(Number(dres.at))) return { error: '폰 앱이 올린 당근 결과 형식이 달라요. 앱을 새 버전으로 바꿔 주세요' };
     return { dres };
   } catch {
-    return { error: '폰 앱이 올린 당근 결과를 열지 못했어요. 앱에 넣은 비밀번호가 대시보드 비밀번호와 같은지 확인해 주세요' };
+    return { error: '폰 앱이 올린 당근 결과를 열지 못했어요. 대시보드 비밀번호가 바뀌었다면 앱의 대시보드 화면에서 새 비밀번호(또는 연결 코드)를 다시 넣어 주세요' };
   }
 }
 

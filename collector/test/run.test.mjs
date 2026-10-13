@@ -403,6 +403,48 @@ test('한 번만: 당근을 고를 수 없던 때 만든 검색(중고나라·�
   assert.deepEqual(openView(d2).searches.find((x) => x.id === 's_old00001').platforms, ['joongna', 'bunjang']);
 });
 
+test('공용 비밀번호(DASH_SHARE_PASSWORD): 보는 쪽은 공용 비밀번호로 잠그고, 안쪽 기록은 DASH_PASSWORD 그대로', async () => {
+  const SHARE = 'share-공용-2026';
+  const job0 = openJob(first);
+  const d = dirs();
+  fs.cpSync(first.out, d.prev, { recursive: true });
+  d.prevOut = first.out;
+  const t0 = Date.now() + 3600e3 + 10 * 60e3;
+  // 공용 비밀번호를 정하기 전에 폰 앱이 DASH_PASSWORD 열쇠로 올린 결과
+  writeDres(d, dresOf(job0, { at: t0 - 2 * 60e3 }));
+  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: d.dres, env: env({ DASH_SHARE_PASSWORD: SHARE, GITHUB_EVENT_NAME: 'repository_dispatch' }), fetchImpl: fakeSites(), now: () => t0, log: quiet });
+  assert.equal(st.ok, true);
+  assert.throws(() => openView(d));
+  const v = openView(d, SHARE);
+  assert.equal(v.results.s_aaaa1111.pf.daangn.st, 'ok', '정하기 전에 올린 당근 결과도 합친다');
+  assert.ok(openJob(d, SHARE).id, '당근 할 일도 공용 비밀번호로 잠근다');
+  assert.throws(() => openJob(d));
+  assert.ok(open(readOut(d, 'state.enc'), keyring(PW), LABEL.state).searches, '안쪽 기록은 DASH_PASSWORD 로 그대로');
+
+  // 공용 비밀번호를 다시 바꿔도(잘못 넣었다 고쳐도) 검색·기록은 그대로 이어진다
+  const SHARE2 = 'another-share-pw';
+  const d2 = dirs();
+  fs.cpSync(d.out, d2.prev, { recursive: true });
+  const st2 = await run({ prevDir: d2.prev, outDir: d2.out, workDir: d2.work, env: env({ DASH_SHARE_PASSWORD: SHARE2 }), fetchImpl: fakeSites(), now: () => t0 + 3600e3, log: quiet });
+  assert.equal(st2.ok, true);
+  assert.equal(openView(d2, SHARE2).searches.length, v.searches.length);
+  assert.throws(() => openView(d2, SHARE));
+
+  // 페이지가 공용 비밀번호 열쇠로 보낸 요청을 반영한다
+  const vb = readOut(d2, 'view.enc');
+  const k2 = await Box.deriveKey(SHARE2, vb.salt, vb.iter);
+  const searches = [...openView(d2, SHARE2).searches, { id: 's_dddd4444', keyword: '공용으로 추가', platforms: ['joongna'], createdAt: 4 }];
+  const payload = await Box.seal({ v: 1, id: 'p_share01', at: Date.now(), searches, config: { area: '경기도 시흥시' } }, k2, vb.salt, Box.LABEL.edit, vb.iter);
+  const issues = [{ number: 21, title: '꿀매 레이더: 검색 저장', body: `페이지에서 보낸 요청\n\n\`\`\`junggo\n${JSON.stringify(payload)}\n\`\`\`\n`, user: { login: 'me' } }];
+  const d3 = dirs();
+  fs.cpSync(d2.out, d3.prev, { recursive: true });
+  const st3 = await run({ prevDir: d3.prev, outDir: d3.out, workDir: d3.work, env: env({ DASH_SHARE_PASSWORD: SHARE2 }), fetchImpl: fakeSites({ issues }), now: () => t0 + 2 * 3600e3, log: quiet });
+  assert.equal(st3.ok, true);
+  assert.ok(openView(d3, SHARE2).searches.some((x) => x.keyword === '공용으로 추가'));
+  const close = JSON.parse(fs.readFileSync(path.join(d3.work, 'close.json'), 'utf8'));
+  assert.deepEqual(close.map((c) => [c.number, c.ok]), [[21, true]]);
+});
+
 test('작은 도우미들', () => {
   assert.equal(payloadOf('없음'), null);
   assert.equal(payloadOf('```junggo\n{nope}\n```'), 'bad');
