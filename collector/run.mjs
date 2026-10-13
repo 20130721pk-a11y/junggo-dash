@@ -516,6 +516,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   return finish(
     {
       ok: !failedAll, message: requestError ? `${message ? `${message} · ` : ''}요청 이슈를 읽지 못했어요` : message, searches: ids.length, items, fresh: freshN, markets, requests: requests.length, bootstrapped, reusedJb: !!reuseJb, daangnAt: d.at || 0,
+      // 중고나라·번개장터를 마지막으로 모은 시각 — 워크플로가 이 시각 한 시간 뒤로 다음 수집 시계(timer.yml)를 맞춘다
+      jbAt: state.jbAt || 0,
       // 당근 요약 (건수만 — 비밀번호 없이도 당근이 붙었는지 볼 수 있게): 당근을 켠 검색 수, 그중 매물을 보여주는 수·기다리는 수·오류 수, 당근 매물 수,
       // 이번에 새로 받은 폰 결과를 합쳤으면 upload = { 폰이 모은 검색 수, 합친 수, 조건이 바뀌어 안 합친 수 }
       ...(dWanted ? { daangn: { ...dSum, by: d.by || '', ...(dUp ? { upload: dUp } : {}) } } : {}),

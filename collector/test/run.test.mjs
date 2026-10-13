@@ -535,12 +535,14 @@ test('정각 실행도 45분 안에 모은 중고나라·번개장터는 다시 
   const log1 = [];
   const r1 = await nextRun(d0.out, { at: T + 30 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' }, log: log1 });
   assert.equal(r1.st.reusedJb, true, '30분 전에 모았으면 이번 정각 실행은 건너뛴다');
+  assert.equal(r1.status.jbAt, T, 'status.json 의 jbAt 은 실제로 모은 시각 그대로 (다음 수집 시계가 이걸 본다)');
   assert.ok(!log1.some((x) => x.host === 'search-api.joongna.com' || x.host === 'api.bunjang.co.kr'));
   assert.equal(r1.v.results.s_aaaa1111.pf.joongna.st, 'ok', '지난 매물을 그대로 보여준다');
   assert.ok(r1.v.results.s_aaaa1111.items.some((t) => t[0] === 'j'));
   const log2 = [];
   const r2 = await nextRun(r1.d.out, { at: T + 50 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' }, log: log2 });
   assert.equal(r2.st.reusedJb, false, '45분이 지났으면 모은다');
+  assert.equal(r2.status.jbAt, T + 50 * 60e3);
   assert.ok(log2.some((x) => x.host === 'search-api.joongna.com'));
   const r3 = await nextRun(r2.d.out, { at: T + 60 * 60e3, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' } });
   assert.equal(r3.st.reusedJb, false, '손으로 돌린 실행은 늘 모은다');

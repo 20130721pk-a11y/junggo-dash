@@ -3,7 +3,9 @@
 중고나라·당근·번개장터 매물을 저장한 검색별로 모아 보는 개인용 매물판.
 
 - 페이지: https://20130721pk-a11y.github.io/junggo-dash/
-- GitHub Actions 가 **한 시간마다** 중고나라·번개장터를 모아 `data` 가지에 올린다. 정각 실행은 GitHub 가 자주 늦추거나 빠뜨려서 매시 17분·47분 두 번 걸어 두고, 45분 안에 모았으면 다시 모으지 않는다.
+- GitHub Actions 가 **한 시간마다** 중고나라·번개장터를 모아 `data` 가지에 올린다. GitHub 의 정각 실행(schedule)은 바쁘면 늦거나 아예 빠져서(2026-10-13: 06시~16시에 한 번만 돎),
+  '매물 모으기'가 끝날 때마다 **다음 수집 시계**(`timer.yml`)를 '중고나라·번개장터를 모은 지 한 시간 뒤'로 맞춘다. 시계는 그 시각까지 기다렸다가 '매물 모으기'를 부른다(시계는 늘 하나 — 새로 맞추면 기다리던 것은 취소).
+  정각 실행(매시 17분·47분)은 시계가 끊겼을 때 다시 잇는 예비. 45분 안에 모았으면 정각 실행·폰 앱 알림 때는 다시 모으지 않는다.
 - **당근은 폰의 꿀매 레이더 앱이 모아 올린다.** GitHub 서버(해외)에서는 당근 검색 결과가 0건이라서다.
   앱이 `data` 가지의 `djob.enc`(할 일: 수집기 코드 + 조건, 잠김)를 받아 폰에서 돌리고, 결과를 잠가 `daangn` 가지(`dres.enc`)에 올린 뒤
   `repository_dispatch`(daangn)로 알리면 Actions 가 바로 합친다. 당근 robots.txt 는 AI 에이전트만 막고 일반 프로그램(`*`)에는 검색 경로를 열어 두었다 —
@@ -39,7 +41,8 @@
 | 파일 | 내용 |
 |---|---|
 | `index.html`, `box.js` | 페이지 (GitHub Pages). `box.js` 는 잠그기/열기(WebCrypto) |
-| `.github/workflows/collect.yml` | 한 시간마다 · 요청 이슈 · 폰 앱의 당근 알림(repository_dispatch) · 손으로 실행 |
+| `.github/workflows/collect.yml` | 시계 · 요청 이슈 · 폰 앱의 당근 알림(repository_dispatch) · 손으로 실행 · 정각 실행(예비). 끝날 때마다 다음 수집 시계를 맞춘다 |
+| `.github/workflows/timer.yml` | 다음 수집 시계: 정한 시각까지 기다렸다가 '매물 모으기'를 부른다 (GITHUB_TOKEN 으로 부른 workflow_dispatch 는 새 실행을 만든다) |
 | `collector/run.mjs` | 지난 데이터 열기 → 요청 반영 → 모으기 + 폰 앱 당근 합치기 → 잠가서 쓰기 + 폰 앱 할 일(djob) |
 | `collector/close.mjs` | 처리한 요청 이슈 닫기 |
 | `collector/seal.mjs` | 잠그기/열기 (Node). `box.js` 와 형식이 같아야 한다 |
@@ -87,4 +90,5 @@ node collector/src/build.mjs
 - 수집기에 `\u` 이스케이프나 보이지 않는 글자를 쓰지 말 것 (`build.mjs` 가 막는다).
 - 페이지의 `condKey`·`collectKey`·`CATEGORIES`·`BUY_WORDS` 와 `collector/src/refresh.src.mjs` 의 것이 같아야 한다.
 - 사이트마다 `robots.txt` 를 먼저 보고, 검색 경로를 막아 두었으면 그 마켓은 부르지 않는다. 요청에는 `junggo-dash/1.0` 이름을 밝힌다.
-- 공개 저장소의 예약 실행은 60일 동안 저장소에 활동이 없으면 GitHub 가 멈춘다. `data` 가지에 매시간 커밋하므로 보통은 괜찮지만, 멈췄다면 Actions 탭에서 다시 켠다.
+- 공개 저장소의 예약 실행은 60일 동안 저장소에 활동이 없으면 GitHub 가 멈춘다(예비인 정각 실행만 해당 — 시계는 그대로 돈다).
+- 시계가 끊겼으면(Actions 탭에 '다음 수집 시계'가 돌고 있지 않으면) Actions → 매물 모으기 → Run workflow 를 한 번 누르면 다시 이어진다.
