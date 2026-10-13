@@ -445,6 +445,107 @@ test('공용 비밀번호(DASH_SHARE_PASSWORD): 보는 쪽은 공용 비밀번�
   assert.deepEqual(close.map((c) => [c.number, c.ok]), [[21, true]]);
 });
 
+// 폰 앱이 할 일(job)의 검색마다 당근 매물 하나씩 모아 올린 결과 (앱 0.2.3 처럼 trigger 를 적는다)
+function dresAll(job, { at, trigger = 'auto', ids = Object.keys(job.ck) } = {}) {
+  const t = sec(at - 20 * 60e3);
+  const results = {};
+  ids.forEach((id, i) => {
+    results[id] = {
+      pf: { daangn: { st: 'ok', raw: 1, n: 1, regions: [{ id: '1613', name: '시흥시', fullName: '경기도 시흥시', q: '경기도 시흥시', anchors: 3, geo: { names: ['정왕동'], centers: [[37.34, 126.73]] } }] } },
+      items: [['d', `k${i}x${String(at).slice(-5)}`, `당근 매물 ${i}`, 300000 + i, 's', '정왕동', t, t, 0, 0, 0, 1, {}]],
+    };
+  });
+  const result = { __junggo: 'v1', part: 'd', at, results, homes: { '': { q: '경기도 시흥시', id: '1613', name: '시흥시', fullName: '경기도 시흥시', lat: 37.38, lng: 126.8 } } };
+  return { v: 1, job: job.id, ck: job.ck, at, startedAt: at - 60e3, by: 'app', app: '0.2.3', device: 'Test Phone', trigger, ok: true, result };
+}
+// 지난 실행 결과(prevOut)를 이어받는 다음 실행
+async function nextRun(prevOut, { at, dres, envx = {}, issues = [], log = [] } = {}) {
+  const d = dirs();
+  fs.cpSync(prevOut, d.prev, { recursive: true });
+  if (dres) { d.prevOut = prevOut; writeDres(d, dres); }
+  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: dres ? d.dres : '', env: env(envx), fetchImpl: fakeSites({ issues, log }), now: () => at, log: quiet });
+  return { d, st, status: readOut(d, 'status.json'), v: openView(d) };
+}
+// 페이지처럼 검색 목록을 바꿔 보내는 요청 이슈
+async function editIssue(prevOut, change, number = 31) {
+  const box = readOut({ out: prevOut }, 'view.enc');
+  const key = await Box.deriveKey(PW, box.salt, box.iter);
+  const searches = change(open(box, keyring(PW), LABEL.view).searches);
+  const payload = await Box.seal({ v: 1, id: `p_edit${number}`, at: Date.now(), searches }, key, box.salt, Box.LABEL.edit, box.iter);
+  return [{ number, title: '꿀매 레이더: 검색 저장', body: `\`\`\`junggo\n${JSON.stringify(payload)}\n\`\`\``, user: { login: 'me' } }];
+}
+
+test('당근을 기다리는 까닭을 새 검색/조건 바뀜으로 나눠 알리고, status.json 에 당근 건수를 남긴다', async () => {
+  const T = Date.now() + 20 * 3600e3;
+  const d0 = dirs();
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  const s0 = readOut(d0, 'status.json');
+  assert.deepEqual(s0.daangn, { searches: 1, shown: 0, waiting: 1, errors: 0, items: 0, by: '' }, '폰이 아직 안 올림');
+  assert.ok(!JSON.stringify(s0).includes('테스트'), 'status.json 에는 검색어가 없다');
+
+  // 폰이 '지금 모으기'로 올림 → 합친다
+  const job0 = openJob(d0);
+  const r1 = await nextRun(d0.out, { at: T + 10 * 60e3, dres: dresAll(job0, { at: T + 8 * 60e3, trigger: 'manual' }), envx: { GITHUB_EVENT_NAME: 'repository_dispatch' } });
+  assert.deepEqual(r1.status.daangn, { searches: 1, shown: 1, waiting: 0, errors: 0, items: 1, by: 'manual', upload: { searches: 1, merged: 1, changed: 0 } });
+  assert.equal(r1.v.refresh.daangn.by, 'manual');
+
+  // 페이지에서 검색어를 바꾸고 당근 검색을 하나 더 만든다 (폰은 아직 안 모음)
+  const issues = await editIssue(r1.d.out, (list) => [
+    ...list.map((x) => (x.id === 's_aaaa1111' ? { ...x, keyword: '바꾼 물건' } : x)),
+    { id: 's_ffff6666', keyword: '새 당근 검색', platforms: ['daangn'], createdAt: 9 },
+  ]);
+  const r2 = await nextRun(r1.d.out, { at: T + 20 * 60e3, issues });
+  const pa = r2.v.results.s_aaaa1111.pf.daangn;
+  const pf = r2.v.results.s_ffff6666.pf.daangn;
+  assert.equal(pa.st, 'wait');
+  assert.equal(pa.why, 'changed');
+  assert.match(pa.note, /조건이나 가까운 지역이 바뀌었어요/);
+  assert.equal(pf.st, 'wait');
+  assert.equal(pf.why, 'new');
+  assert.match(pf.note, /아직 이 검색으로 당근을 모으지 않았어요/);
+  assert.equal(r2.v.results.s_aaaa1111.items.filter((t) => t[0] === 'd').length, 0, '옛 검색어로 모은 당근 매물은 빼고');
+  assert.deepEqual(r2.status.daangn, { searches: 2, shown: 0, waiting: 2, errors: 0, items: 0, by: 'manual' });
+
+  // 폰이 새로 안 올린 채 정각 실행이 한 번 더 돌아도 까닭은 그대로
+  const r3 = await nextRun(r2.d.out, { at: T + 2 * 3600e3, envx: { GITHUB_EVENT_NAME: 'schedule' } });
+  assert.equal(r3.v.results.s_aaaa1111.pf.daangn.why, 'changed');
+  assert.equal(r3.v.results.s_ffff6666.pf.daangn.why, 'new');
+
+  // 폰이 바뀌기 전의 할 일(job0)로 모은 결과가 늦게 올라오면: 합치지 않고 '조건 바뀜'으로 센다
+  const r4 = await nextRun(r3.d.out, { at: T + 2 * 3600e3 + 5 * 60e3, dres: dresAll(job0, { at: T + 2 * 3600e3 + 4 * 60e3 }), envx: { GITHUB_EVENT_NAME: 'repository_dispatch' } });
+  assert.deepEqual(r4.status.daangn.upload, { searches: 1, merged: 0, changed: 1 });
+  assert.equal(r4.status.daangn.shown, 0);
+  assert.equal(r4.v.results.s_aaaa1111.pf.daangn.why, 'changed');
+  assert.equal(r4.status.daangn.by, 'auto');
+
+  // 폰이 새 할 일로 모으면 둘 다 붙는다
+  const job4 = openJob(r4.d);
+  assert.deepEqual(Object.keys(job4.ck).sort(), ['s_aaaa1111', 's_ffff6666']);
+  assert.notEqual(job4.id, job0.id, '조건이 바뀌면 할 일 ID 도 바뀐다 (앱이 바로 다시 모으는 기준)');
+  const r5 = await nextRun(r4.d.out, { at: T + 2 * 3600e3 + 20 * 60e3, dres: dresAll(job4, { at: T + 2 * 3600e3 + 19 * 60e3 }), envx: { GITHUB_EVENT_NAME: 'repository_dispatch' } });
+  assert.deepEqual(r5.status.daangn, { searches: 2, shown: 2, waiting: 0, errors: 0, items: 2, by: 'auto', upload: { searches: 2, merged: 2, changed: 0 } });
+  assert.equal(r5.v.results.s_aaaa1111.pf.daangn.why, undefined);
+  assert.equal(r5.v.results.s_ffff6666.items.filter((t) => t[0] === 'd').length, 1);
+});
+
+test('정각 실행도 45분 안에 모은 중고나라·번개장터는 다시 모으지 않는다 (17분·47분 두 번 걸어 둠)', async () => {
+  const T = Date.now() + 30 * 3600e3;
+  const d0 = dirs();
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  const log1 = [];
+  const r1 = await nextRun(d0.out, { at: T + 30 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' }, log: log1 });
+  assert.equal(r1.st.reusedJb, true, '30분 전에 모았으면 이번 정각 실행은 건너뛴다');
+  assert.ok(!log1.some((x) => x.host === 'search-api.joongna.com' || x.host === 'api.bunjang.co.kr'));
+  assert.equal(r1.v.results.s_aaaa1111.pf.joongna.st, 'ok', '지난 매물을 그대로 보여준다');
+  assert.ok(r1.v.results.s_aaaa1111.items.some((t) => t[0] === 'j'));
+  const log2 = [];
+  const r2 = await nextRun(r1.d.out, { at: T + 50 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' }, log: log2 });
+  assert.equal(r2.st.reusedJb, false, '45분이 지났으면 모은다');
+  assert.ok(log2.some((x) => x.host === 'search-api.joongna.com'));
+  const r3 = await nextRun(r2.d.out, { at: T + 60 * 60e3, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' } });
+  assert.equal(r3.st.reusedJb, false, '손으로 돌린 실행은 늘 모은다');
+});
+
 test('작은 도우미들', () => {
   assert.equal(payloadOf('없음'), null);
   assert.equal(payloadOf('```junggo\n{nope}\n```'), 'bad');

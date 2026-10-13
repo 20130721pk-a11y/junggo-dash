@@ -26,10 +26,17 @@ export const ALL_MARKETS = ['joongna', 'daangn', 'bunjang'];
 const NAME = { joongna: '중고나라', daangn: '당근', bunjang: '번개장터' };
 // 폰 앱이 당근에서 부르는 경로 (앱이 robots.txt 의 일반(*) 규칙으로 하나씩 본다)
 export const D_PATHS = ['/kr/search/buy-sell/', '/kr/buy-sell/', '/kr/regions/', '/kr/api/v1/regions/keyword'];
-// 당근만 합치러 돈 실행(폰 앱의 알림)에서는 중고나라·번개장터를 이만큼 안에 모았으면 다시 모으지 않는다
+// 당근만 합치러 돈 실행(폰 앱의 알림)과 정각 실행(매시 17분·47분 — GitHub 가 정각 실행을 자주 빠뜨려 두 번 걸어 둔다)에서는
+// 중고나라·번개장터를 이만큼 안에 모았으면 다시 모으지 않는다 → 실제로 모으는 건 한 시간에 한 번쯤
 const JB_REUSE_MS = 45 * 60 * 1000;
+const REUSE_EVENTS = ['repository_dispatch', 'schedule'];
 // 폰 앱이 이보다 오래 당근을 올리지 않았으면 페이지에 알린다
 export const D_STALE_MS = 3 * 3600 * 1000;
+// 당근을 기다리는 까닭 (페이지가 뒤에 '바로 보려면 앱에서 지금 모으기' 안내를 붙인다)
+export const D_NOTE = {
+  new: '폰 앱이 아직 이 검색으로 당근을 모으지 않았어요. 앱이 다음에 모으면 보여요.',
+  changed: '검색 조건이나 가까운 지역이 바뀌었어요. 폰 앱이 새 조건으로 다시 모으면 보여요.',
+};
 // 수집기가 부르는 주소 (robots.txt 로 허용 여부를 먼저 본다)
 const ENDPOINTS = {
   joongna: [{ origin: 'https://search-api.joongna.com', path: '/v3/search/all' }],
@@ -245,7 +252,9 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     for (const [name, v] of Object.entries(files)) if (v) writeJson(path.join(outDir, name), v);
     writeJson(path.join(outDir, 'status.json'), { v: 1, at: now(), ...status });
     writeJson(path.join(workDir, 'close.json'), requests);
-    log(`[꿀매 레이더] ${status.ok ? '완료' : '실패'} · ${status.message || ''} · 검색 ${status.searches ?? '-'}개 · 매물 ${status.items ?? '-'}건 · 새 매물 ${status.fresh ?? '-'}건 · ${((now() - startedAt) / 1000).toFixed(1)}초`);
+    const dn = status.daangn;
+    const dLog = dn ? ` · 당근 ${dn.shown}/${dn.searches}개 검색 ${dn.items}건${dn.waiting ? ` (폰 기다림 ${dn.waiting})` : ''}${dn.upload ? ` · 폰 결과 합침 ${dn.upload.merged}/${dn.upload.searches}` : ''}` : '';
+    log(`[꿀매 레이더] ${status.ok ? '완료' : '실패'} · ${status.message || ''} · 검색 ${status.searches ?? '-'}개 · 매물 ${status.items ?? '-'}건 · 새 매물 ${status.fresh ?? '-'}건${dLog} · ${((now() - startedAt) / 1000).toFixed(1)}초`);
     return status;
   };
   // 지난 데이터를 그대로 둘 때 (비밀번호 문제 등)
@@ -345,14 +354,14 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
 
   // ---- 중고나라·번개장터 (GitHub 서버가 모은다) ----
   const jbWanted = eff.some((s) => s.platforms.some((m) => MARKETS.includes(m)));
-  // 폰 앱의 당근 알림으로 돈 실행이고, 중고나라·번개장터를 조금 전에 지금 조건 그대로 모았으면 이번엔 다시 모으지 않는다
+  // 폰 앱의 당근 알림이나 정각 실행으로 돈 실행이고, 중고나라·번개장터를 조금 전에 지금 조건 그대로 모았으면 이번엔 다시 모으지 않는다
   const jbSame = ids.every((id) => {
     const s = state.searches[id];
     if (!(s.platforms || []).some((m) => MARKETS.includes(m))) return true;
     const d = state.docs[id];
     return !!(d && d.ckey === collectKey(s));
   });
-  const reuseJb = jbWanted && env.GITHUB_EVENT_NAME === 'repository_dispatch' && !requests.length && jbSame
+  const reuseJb = jbWanted && REUSE_EVENTS.includes(env.GITHUB_EVENT_NAME) && !requests.length && jbSame
     && state.jbAt && startedAt - state.jbAt < JB_REUSE_MS;
   const ua = `junggo-dash/1.0 (+https://github.com/${env.GITHUB_REPOSITORY || 'junggo-dash'}; personal use, hourly)`;
   const mfetch = marketFetch(fetchImpl, ua);
@@ -390,14 +399,27 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const lastRaw = Number.isFinite(dPrev.raw) ? dPrev.raw : dPrev.at || 0;
   const fresh = got.dres && Number(got.dres.at) !== lastRaw ? got.dres : null;
   let d = { ...dPrev };
+  // 이번에 새로 받은 폰 결과를 얼마나 합쳤는지 (status.json 요약용 — 건수만)
+  let dUp = null;
+  // 폰이 모은 뒤 조건이 바뀌어 이번에 합치지 않은 검색
+  const dChanged = new Set();
   if (fresh) {
     const raw = Number(fresh.at);
-    d = { at: Math.min(raw, startedAt), raw, job: String(fresh.job || ''), device: String(fresh.device || '').slice(0, 40), app: String(fresh.app || '').slice(0, 20), ok: !!fresh.ok, error: fresh.ok ? '' : String(fresh.error || '폰 앱이 당근을 모으지 못했어요').slice(0, 160) };
+    d = {
+      at: Math.min(raw, startedAt), raw, job: String(fresh.job || ''), device: String(fresh.device || '').slice(0, 40), app: String(fresh.app || '').slice(0, 20),
+      // 앱 0.2.3 부터: 사용자가 '지금 모으기'를 눌렀는지(manual) 백그라운드 작업이 모았는지(auto)
+      by: ['manual', 'auto'].includes(fresh.trigger) ? fresh.trigger : '',
+      ok: !!fresh.ok, error: fresh.ok ? '' : String(fresh.error || '폰 앱이 당근을 모으지 못했어요').slice(0, 160),
+    };
     if (fresh.ok && fresh.result && fresh.result.__junggo === 'v1' && fresh.result.part === 'd' && fresh.result.results && typeof fresh.result.results === 'object') {
       // 폰이 모은 뒤 조건(검색어·지역 등)이 바뀐 검색은 합치지 않는다 → 다음에 폰이 새 조건으로 모을 때까지 지난 매물을 이어 보여준다
       const ck = fresh.ck && typeof fresh.ck === 'object' ? fresh.ck : {};
       const results = {};
-      for (const [sid, r] of Object.entries(fresh.result.results)) if (dCk[sid] && ck[sid] === dCk[sid]) results[sid] = r;
+      for (const [sid, r] of Object.entries(fresh.result.results)) {
+        if (dCk[sid] && ck[sid] === dCk[sid]) results[sid] = r;
+        else if (dCk[sid]) dChanged.add(sid);
+      }
+      dUp = { searches: Object.keys(fresh.result.results).length, merged: Object.keys(results).length, changed: dChanged.size };
       collected.d = { ...fresh.result, results };
       partAt.d = d.at;
       const h = fresh.result.homes && fresh.result.homes[''];
@@ -410,9 +432,10 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     else if (d.at && !d.ok) partErr.d = d.error;
     else {
       // 지난 당근 매물은 그 매물을 모은 조건(검색·지역 지문 dk)이 지금과 같을 때만 이어 보여준다
+      // (기다리는 까닭은 아래 buildResults 뒤에 검색마다 '새 검색' / '조건이 바뀜'으로 나눠 적는다)
       carry.d = {
         st: 'wait',
-        note: d.at ? '검색 조건이나 가까운 지역이 바뀌었어요. 폰 앱이 새 조건으로 모으면 보여요' : '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요',
+        note: d.at ? D_NOTE.changed : '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요',
         ok: (id, old) => !!(collected.d && collected.d.results && collected.d.results[id]) || !!(old && old.pf && old.pf.daangn && old.pf.daangn.dk && old.pf.daangn.dk === dCk[id]),
       };
     }
@@ -420,6 +443,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   state.daangn = d;
   const home = state.home && area && state.home.q === area ? state.home : null;
 
+  const prevDocs = state.docs;
   const built = buildResults({
     searches: wrap(state.searches), prev: wrap(state.docs), ledgers: wrap(state.ledgers), collected,
     now: startedAt, maxAgeDays: state.config.maxAgeDays, home, keyOf: (id) => id, skipped, partErr, carry, partAt,
@@ -431,6 +455,29 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     for (const id of Object.keys(collected.d.results)) {
       const pfd = state.docs[id] && state.docs[id].pf && state.docs[id].pf.daangn;
       if (pfd && pfd.st === 'ok') pfd.dk = dCk[id];
+    }
+  }
+  // 당근 요약(건수만) + 기다리는 검색은 까닭을 나눠 알린다:
+  //   new     = 이 검색으로는 폰이 아직 당근을 모은 적이 없다 (새 검색, 당근을 막 켬)
+  //   changed = 폰이 모은 뒤 검색 조건이나 가까운 지역이 바뀌었다 (다음에 폰이 새 조건으로 모으면 보인다)
+  const dSum = { searches: 0, shown: 0, waiting: 0, errors: 0, items: 0 };
+  for (const id of Object.keys(dCk)) {
+    const doc = state.docs[id];
+    const pfd = doc && doc.pf && doc.pf.daangn;
+    if (!pfd) continue;
+    dSum.searches++;
+    if (pfd.st === 'ok') {
+      dSum.shown++;
+      dSum.items += (doc.parts && doc.parts.d) || 0;
+    } else if (pfd.st === 'error') {
+      dSum.errors++;
+    } else if (pfd.st === 'wait') {
+      dSum.waiting++;
+      if (pfd.need || !d.at) continue;
+      const was = prevDocs[id] && prevDocs[id].pf && prevDocs[id].pf.daangn;
+      const why = dChanged.has(id) || (was && (was.dk || was.why === 'changed')) ? 'changed' : 'new';
+      pfd.why = why;
+      pfd.note = D_NOTE[why];
     }
   }
 
@@ -456,7 +503,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const refresh = {
     status: failedAll ? 'failed' : 'done', by: 'github', startedAt, finishedAt: now(), message, summary: built.summary,
     jbAt: state.jbAt || 0, reusedJb: !!reuseJb,
-    ...(dWanted ? { daangn: { st: dStatus, at: d.at || 0, device: d.device || '', app: d.app || '', error: d.ok === false ? d.error || '' : '', note: dNote } } : {}),
+    ...(dWanted ? { daangn: { st: dStatus, at: d.at || 0, device: d.device || '', app: d.app || '', by: d.by || '', error: d.ok === false ? d.error || '' : '', note: dNote } } : {}),
     ...(collected.jb && collected.jb.bd ? { bd: collected.jb.bd } : {}),
     ...(requestError ? { requestError } : {}),
   };
@@ -467,7 +514,12 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     refresh, config: state.config, applied: (state.applied || []).slice(-KEEP_APPLIED),
   };
   return finish(
-    { ok: !failedAll, message: requestError ? `${message ? `${message} · ` : ''}요청 이슈를 읽지 못했어요` : message, searches: ids.length, items, fresh: freshN, markets, requests: requests.length, bootstrapped, reusedJb: !!reuseJb, daangnAt: d.at || 0 },
+    {
+      ok: !failedAll, message: requestError ? `${message ? `${message} · ` : ''}요청 이슈를 읽지 못했어요` : message, searches: ids.length, items, fresh: freshN, markets, requests: requests.length, bootstrapped, reusedJb: !!reuseJb, daangnAt: d.at || 0,
+      // 당근 요약 (건수만 — 비밀번호 없이도 당근이 붙었는지 볼 수 있게): 당근을 켠 검색 수, 그중 매물을 보여주는 수·기다리는 수·오류 수, 당근 매물 수,
+      // 이번에 새로 받은 폰 결과를 합쳤으면 upload = { 폰이 모은 검색 수, 합친 수, 조건이 바뀌어 안 합친 수 }
+      ...(dWanted ? { daangn: { ...dSum, by: d.by || '', ...(dUp ? { upload: dUp } : {}) } } : {}),
+    },
     {
       'state.enc': seal(state, key, state.salt, LABEL.state),
       'view.enc': seal(view, viewKey, state.salt, LABEL.view),

@@ -893,6 +893,18 @@ a.btn { text-decoration: none; }
     const d = new Date(ms);
     return d.getFullYear() === new Date(now).getFullYear() ? `${d.getMonth() + 1}월 ${d.getDate()}일` : `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
   }
+  // 폰 앱 버전(예: '0.2.2')이 min 보다 낮은지. 버전을 모르면 false
+  function appBefore(v, min) {
+    if (!/^\d+(\.\d+)*$/.test(String(v || ''))) return false;
+    const a = String(v).split('.').map(Number);
+    const b = min.split('.').map(Number);
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      const x = a[i] || 0;
+      const y = b[i] || 0;
+      if (x !== y) return x < y;
+    }
+    return false;
+  }
   function parsePriceInput(raw) {
     const s = String(raw == null ? '' : raw).replace(/[,\s원₩]/g, '');
     if (!s) return null;
@@ -1177,7 +1189,7 @@ a.btn { text-decoration: none; }
     const btn = $('refreshBtn');
     el.classList.remove('is-error');
     el.replaceChildren();
-    el.title = `GitHub가 ${AUTO_TEXT}(매시 17분쯤) 중고나라·번개장터를, 폰의 꿀매 레이더 앱이 ${AUTO_TEXT} 당근을 모아요. 늦어질 때가 있어요.`;
+    el.title = `GitHub가 ${AUTO_TEXT}(매시 17분이나 47분쯤) 중고나라·번개장터를, 폰의 꿀매 레이더 앱이 ${AUTO_TEXT} 당근을 모아요(검색을 고치면 앱이 15분 안에 다시 모아요). 늦어질 때가 있어요.`;
     btn.href = REFRESH_URL;
     btn.hidden = !state.ready || !!state.pending;
     const st = state.status;
@@ -1711,7 +1723,11 @@ a.btn { text-decoration: none; }
           continue;
         }
         if (info.st === 'wait') {
-          box.append(h('div', { class: 'notice' }, h('b', null, marketMark(pid), name), `${info.note || '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요.'} 앱의 '대시보드' 탭에서 한 번 연결하면 한 시간마다 모아 와요.`));
+          // 폰 앱이 한 번이라도 올렸으면(연결됨) 바로 모으는 방법을, 아니면 연결하는 방법을 붙인다
+          const tip = dr && dr.at
+            ? `${appBefore(dr.app, '0.2.3') ? '앱을 새 버전(0.2.3 이상)으로 바꾸면 검색을 고친 뒤 15분 안에 알아서 다시 모아요. ' : ''}바로 보려면 폰 앱의 '대시보드' 탭에서 '지금 모으기'를 눌러 주세요.`
+            : "앱의 '대시보드' 탭에서 한 번 연결하면 한 시간마다 모아 와요.";
+          box.append(h('div', { class: 'notice' }, h('b', null, marketMark(pid), name), `${info.note || '폰 앱(꿀매 레이더)이 아직 당근을 올리지 않았어요.'} ${tip}`));
           continue;
         }
         if (dr && dr.st === 'stale' && dr.at && info.st !== 'error') {
