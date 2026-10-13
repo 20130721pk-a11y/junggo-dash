@@ -325,7 +325,10 @@ test('당근 할 일: 당근 검색이 없거나 지역을 정하지 않았으�
   assert.equal(job.idle, true);
   assert.match(job.reason, /가까운 지역/);
   assert.equal(st.markets.daangn, 'noarea');
-  assert.match(openView(d2).results.s_eeee5555.pf.daangn.error, /가까운 지역/);
+  const pfd = openView(d2).results.s_eeee5555.pf.daangn;
+  assert.equal(pfd.st, 'wait', '지역을 안 정한 것은 오류가 아니다');
+  assert.equal(pfd.need, 'area');
+  assert.match(pfd.note, /가까운 지역/);
 });
 
 test('비밀번호가 없거나 다르면 지난 데이터를 그대로 둔다', async () => {

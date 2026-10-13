@@ -391,7 +391,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     }
   }
   if (dWanted) {
-    if (!area) partErr.d = "'설정'에서 가까운 지역(예: 경기도 시흥시)을 정하면 폰 앱이 당근을 모아요";
+    // 지역을 아직 안 정한 것은 오류가 아니라 처음 설정이 남은 것 → '기다림'으로 알린다(페이지가 설정 열기 단추를 붙인다)
+    if (!area) carry.d = { st: 'wait', need: 'area', note: "당근을 찾을 동네가 아직 없어요. '설정'에서 가까운 지역(예: 경기도 시흥시)을 정해 주세요", ok: () => false };
     else if (d.at && !d.ok) partErr.d = d.error;
     else {
       // 지난 당근 매물은 그 매물을 모은 조건(검색·지역 지문 dk)이 지금과 같을 때만 이어 보여준다

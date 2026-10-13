@@ -656,7 +656,7 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
         if (typeof c.ok === 'function' && !c.ok(id, old)) {
           // 지난 매물이 지금 조건과 맞지 않음 → 보여주지 않고 기다린다
           mine = [];
-          pf[p] = { st: c.st || 'wait', ...(c.note ? { note: c.note } : {}), n: 0 };
+          pf[p] = { st: c.st || 'wait', ...(c.note ? { note: c.note } : {}), ...(c.need ? { need: c.need } : {}), n: 0 };
         } else {
           // 일부러 이번에 모으지 않음 → 지난 매물과 지난 안내를 그대로 (중고나라·번개장터는 지난 오류 안내도 그대로)
           mine = oldItems.filter((t) => t[0] === code && keep(t)).map((t) => {
