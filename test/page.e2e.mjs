@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { run } = await import(`${REPO}/collector/run.mjs`);
-const { keyring, open, seal, LABEL } = await import(`${REPO}/collector/seal.mjs`);
+const { keyring, open, seal, LABEL, deriveKey } = await import(`${REPO}/collector/seal.mjs`);
 const OUT = process.argv[2] || path.join(os.tmpdir(), 'junggo-e2e-shots');
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -228,6 +228,26 @@ await page.waitForTimeout(300);
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow <= 0, `휴대폰에서 가로로 넘치지 않음 (${overflow})`);
 await page.screenshot({ path: `${OUT}/5-mobile.png` });
+
+// 설정 → 앱 연결 코드 (비밀번호 대신 폰 앱에 넣는 잠금 열쇠)
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.evaluate(() => { window.__copied = null; navigator.clipboard.writeText = async (t) => { window.__copied = t; }; });
+await page.click('#homeBtn');
+await page.click('#appCodeBtn');
+await page.waitForFunction(() => window.__copied, null, { timeout: 5000 });
+const appCode = await page.evaluate(() => window.__copied);
+const [cTag, cSalt, cIter, cKey] = appCode.split(':');
+const linkView = JSON.parse(fs.readFileSync(path.join(data, 'view.enc'), 'utf8'));
+check(cTag === 'jdk1' && cSalt === linkView.salt && Number(cIter) === linkView.iter, '앱 연결 코드 모양 (jdk1:salt:반복:열쇠)');
+check(Buffer.from(cKey, 'base64').equals(deriveKey(PW, cSalt, Number(cIter))), '앱 연결 코드 = 비밀번호로 만든 열쇠');
+const linkJob = JSON.parse(fs.readFileSync(path.join(data, 'djob.enc'), 'utf8'));
+check(open(linkJob, () => Buffer.from(cKey, 'base64'), LABEL.djob) != null, '앱 연결 코드로 당근 할 일이 열린다');
+await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new Error('no clipboard'); }; });
+await page.click('#appCodeBtn');
+await page.waitForSelector('#appCodeOut:not([hidden])');
+check(await page.inputValue('#appCodeOut') === appCode, '자동 복사가 안 되면 코드를 보여 준다');
+await page.click('#homeCancel');
+check(await page.inputValue('#appCodeOut') === '' && await page.isHidden('#appCodeOut'), '설정 창을 닫으면 보여 준 코드를 지운다');
 
 // 설정 → 이 기기에서 잠그기
 await page.setViewportSize({ width: 1280, height: 900 });

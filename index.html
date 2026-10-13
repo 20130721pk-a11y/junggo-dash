@@ -391,6 +391,7 @@ fieldset.field legend { width: 100%; float: left; }
 fieldset.field > .help { width: 100%; margin-top: 0; }
 .field input[type="text"] { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 8px; background: var(--surface); }
 .field input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+#appCodeOut { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .help { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
 .help.is-error { color: var(--danger); }
 .price-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
@@ -698,6 +699,12 @@ a.btn { text-decoration: none; }
       <input id="tokInput" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
       <p class="help" id="tokNote">넣어 두면 검색을 바꿀 때 GitHub 화면을 거치지 않고 바로 보내요. 폰 앱 토큰과 따로, 이 저장소만 고르고 <b>Issues 읽기·쓰기만</b> 준 토큰을 만들어 넣어 주세요(페이지에는 권한이 작은 토큰이 안전해요). 이 기기에만 비밀번호로 잠가 둬요.</p>
       <button type="button" class="btn btn-ghost btn-small" id="tokClear" hidden>이 기기에서 토큰 지우기</button>
+    </div>
+    <div class="field">
+      <span class="label">꿀매 레이더 앱 연결</span>
+      <p class="help">앱의 '대시보드 비밀번호' 칸에 비밀번호 대신 이 코드를 붙여 넣어도 연결돼요. 비밀번호와 같은 힘이 있으니 다른 사람에게 보내지 마세요.</p>
+      <button type="button" class="btn btn-small" id="appCodeBtn">앱 연결 코드 복사</button>
+      <input id="appCodeOut" type="text" readonly hidden spellcheck="false" autocomplete="off" aria-label="앱 연결 코드">
     </div>
     <div class="field">
       <span class="label">이 기기</span>
@@ -2496,8 +2503,35 @@ a.btn { text-decoration: none; }
     $('tokInput').value = '';
     $('tokInput').placeholder = state.token ? '저장한 토큰이 있어요 (바꾸려면 새로 넣기)' : 'github_pat_…';
     $('tokClear').hidden = !state.token;
+    hideAppCode();
     $('homeDialog').showModal();
     $('homeInput').focus();
+  }
+  // 앱 연결 코드 = jdk1:<salt>:<반복 횟수>:<열쇠> — 비밀번호 대신 앱에 넣는 잠금 열쇠(비밀번호와 같은 힘)
+  async function appLinkCode() {
+    if (!state.key || !state.box) throw new Error('locked');
+    const iter = Number.isInteger(state.box.iter) ? state.box.iter : JunggoBox.ITER;
+    return `jdk1:${state.box.salt}:${iter}:${await JunggoBox.exportKey(state.key)}`;
+  }
+  function hideAppCode() {
+    $('appCodeOut').value = '';
+    $('appCodeOut').hidden = true;
+  }
+  async function copyAppCode() {
+    hideAppCode();
+    let code;
+    try { code = await appLinkCode(); } catch { toast('먼저 대시보드를 열어 주세요'); return; }
+    try {
+      await navigator.clipboard.writeText(code);
+      toast('앱 연결 코드를 복사했어요. 앱의 비밀번호 칸에 붙여 넣으세요');
+    } catch {
+      const out = $('appCodeOut');
+      out.value = code;
+      out.hidden = false;
+      out.focus();
+      out.select();
+      toast('자동으로 복사하지 못해 코드를 보여 드려요. 선택된 글자를 복사(Ctrl+C)해 주세요');
+    }
   }
   async function saveHome() {
     const area = $('homeInput').value.trim().replace(/\s+/g, ' ').slice(0, 40);
@@ -2730,6 +2764,8 @@ a.btn { text-decoration: none; }
     $('homeBtn').addEventListener('click', openHome);
     $('homeForm').addEventListener('submit', (e) => { e.preventDefault(); saveHome(); });
     $('homeCancel').addEventListener('click', () => $('homeDialog').close());
+    $('appCodeBtn').addEventListener('click', copyAppCode);
+    $('homeDialog').addEventListener('close', hideAppCode);
     $('tokClear').addEventListener('click', () => {
       lsDel('jd.tok');
       state.token = '';
