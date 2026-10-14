@@ -361,7 +361,23 @@ select { height: 34px; padding: 0 8px; border: 1px solid var(--hair-strong); bor
 .hist-tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .hist figcaption { margin-top: 6px; color: var(--muted); font-size: 12px; }
 .insight-toggle { display: none; margin-top: 12px; }
-.home-dialog { width: min(440px, calc(100vw - 32px)); padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); }
+.home-dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); overflow: auto; }
+.area-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.area-list:empty { display: none; }
+.area-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 4px 3px 11px; border: 1px solid var(--hair-strong); border-radius: 999px; background: var(--surface-2); font-size: 13px; }
+.area-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-chip em { color: var(--muted); font-size: 11.5px; font-style: normal; }
+.area-chip button { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); font-size: 15px; line-height: 1; cursor: pointer; }
+.area-chip button:hover { background: var(--surface-3); color: var(--ink); }
+.area-add { display: flex; gap: 8px; }
+.area-add input { flex: 1; min-width: 0; }
+.area-add .btn { height: 40px; }
+.area-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; color: var(--muted); font-size: 12.5px; }
+.area-suggest button { padding: 3px 10px; border: 1px dashed var(--hair-strong); border-radius: 999px; background: transparent; color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+.area-suggest button:hover { border-style: solid; background: var(--surface-2); color: var(--ink); }
+.area-suggest b { color: var(--muted); font-weight: 500; }
+.label-note { color: var(--muted); font-weight: 400; }
+.home-send-note { margin-top: 14px; }
 .home-dialog::backdrop { background: rgba(14, 20, 28, 0.5); }
 .home-dialog form { padding: 22px 24px 20px; }
 .home-dialog h2 { margin: 0; font-family: var(--font-sign); font-size: 25px; font-weight: 400; }
@@ -389,7 +405,7 @@ select { height: 34px; padding: 0 8px; border: 1px solid var(--hair-strong); bor
 fieldset.field { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 fieldset.field legend { width: 100%; float: left; }
 fieldset.field > .help { width: 100%; margin-top: 0; }
-.field input[type="text"] { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 8px; background: var(--surface); }
+.field input[type="text"], .field input[type="password"] { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 8px; background: var(--surface); }
 .field input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
 #appCodeOut { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .help { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
@@ -543,7 +559,17 @@ a.btn { text-decoration: none; }
       <div class="filters" role="toolbar" aria-label="결과 거르기">
         <div class="pf-toggles" id="pfToggles"></div>
         <div class="filter-rest">
-          <label class="check" id="fNearWrap" title="당근은 기준 지역 안, 중고나라·번개장터는 판매 지역이 기준 지역인 매물만 보여요"><input type="checkbox" id="fNear"> 가까운 동네만</label>
+          <label class="sel" id="fWhereWrap" for="fWhere" title="가까운 지역: 판매 지역이 설정의 가까운 지역인 매물(당근은 그 지역 안 동네). 거리: 설정의 거리 기준에서 거래 위치까지 직선거리">지역
+            <select id="fWhere">
+              <option value="all">전체</option>
+              <option value="near">가까운 지역만</option>
+              <option value="5">5km 안</option>
+              <option value="10">10km 안</option>
+              <option value="20">20km 안</option>
+              <option value="30">30km 안</option>
+            </select>
+          </label>
+          <label class="check" id="fUnknownWrap" hidden title="판매 지역을 적지 않아 어디인지 모르는 매물도 함께 보여요 (중고나라는 절반쯤, 번개장터는 3분의 1쯤만 지역이 있어요)"><input type="checkbox" id="fUnknown"> 지역 모르는 매물도</label>
           <label class="check"><input type="checkbox" id="fNew"> 새 매물만</label>
           <label class="check" title="제목과 가격이 같은 글을 한 줄로 묶어요 (여러 마켓에 올린 글, 다시 올린 글)"><input type="checkbox" id="fGroup" checked> 같은 글 묶기</label>
           <label class="check" title="이 검색에서 같은 판매자가 3개 이상 올린 매물을 빼요 (중고나라·번개장터)"><input type="checkbox" id="fNoDealer"> 업자 의심 빼기</label>
@@ -690,10 +716,22 @@ a.btn { text-decoration: none; }
   <form id="homeForm" novalidate>
     <h2 id="homeTitle">설정</h2>
     <div class="field">
-      <label for="homeInput">가까운 지역</label>
-      <input id="homeInput" type="text" placeholder="예: 경기도 시흥시, 서울 강남구" autocomplete="off" maxlength="40">
-      <p class="help">시·도와 시·군·구를 적어 주세요(예: 경기도 시흥시, 서울 강남구). 판매 지역이 여기인 매물에 '근처'가 붙고 '가까운 동네만'으로 볼 수 있어요. 바꾸면 GitHub에 보내야 다음 수집부터 반영돼요.</p>
+      <span class="label" id="areaLabel">가까운 지역</span>
+      <ul class="area-list" id="areaList" aria-labelledby="areaLabel"></ul>
+      <div class="area-add">
+        <input id="areaInput" type="text" placeholder="예: 경기도 시흥시, 인천 남동구" autocomplete="off" maxlength="40" aria-label="가까운 지역 더하기">
+        <button type="button" class="btn" id="areaAddBtn">더하기</button>
+      </div>
+      <p class="help is-error" id="areaError" role="alert" hidden></p>
+      <div class="area-suggest" id="areaSuggest" hidden></div>
+      <p class="help" id="areaHelp">시·도와 시·군·구로 5곳까지 적어요(예: 경기도 시흥시, 서울 강남구). 판매 지역이 이 가운데 하나면 '근처'가 붙고, 당근은 폰 앱이 이 지역들에서 찾아요. 지역이 많을수록 당근은 지역마다 덜 꼼꼼히 찾아요.</p>
     </div>
+    <div class="field">
+      <label for="homePoint">거리 기준 <span class="label-note">(선택)</span></label>
+      <input id="homePoint" type="text" placeholder="예: 경기도 시흥시 정왕동" autocomplete="off" maxlength="40">
+      <p class="help" id="homePointHelp">매물까지 거리를 여기서부터 재요. 동까지 적으면 더 정확해요. 비워 두면 첫 번째 가까운 지역의 가운데에서 재요.</p>
+    </div>
+    <p class="help home-send-note">지역을 바꾸면 GitHub에 보내야 다음 수집부터 반영돼요. 당근은 폰 앱이 새 지역으로 다시 모은 뒤에 보여요.</p>
     <div class="field">
       <label for="tokInput">GitHub 토큰 (선택)</label>
       <input id="tokInput" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
@@ -789,7 +827,8 @@ a.btn { text-decoration: none; }
     marks: {},
     activeId: null,
     baseline: {},
-    view: { mode: 'all', off: new Set(), near: false, newOnly: false, sort: 'recent', text: '', group: true, noDealer: false, chips: { ex: new Set(), in: new Set() } },
+    // where: 지역 거르기 'all' | 'near'(가까운 지역만) | 숫자(거리 기준에서 km 안), unknown: 지역 모르는 매물도 보기
+    view: { mode: 'all', off: new Set(), where: 'all', unknown: false, newOnly: false, sort: 'recent', text: '', group: true, noDealer: false, chips: { ex: new Set(), in: new Set() } },
     insightOpen: false,
     shown: CHUNK,
     // 같이 쓰는 사람: 내 문서 u/<id> (당근 기본 지역·내 동네·찾은 결과), 모두에게 보이는 안내 pub/info (자동 새로고침 일정)
@@ -1012,7 +1051,7 @@ a.btn { text-decoration: none; }
     if (!Array.isArray(t)) return null;
     const platform = BY_CODE[t[0]];
     if (!platform) return null;
-    // 14번째 칸: 덧붙임 정보 (pp 이전 가격, pc 가격이 바뀐 시각, f 표시, s 판매자, sn 설명 앞부분, km 내 동네에서 거리)
+    // 14번째 칸: 덧붙임 정보 (pp 이전 가격, pc 가격이 바뀐 시각, f 표시, s 판매자, sn 설명 앞부분, km 거리 기준에서 거리, ap 거리가 대략(판매 지역 동 가운데까지))
     const x = t[13] && typeof t[13] === 'object' ? t[13] : {};
     return {
       key: `${platform}:${t[1]}`, mk: `${t[0]}:${t[1]}`, raw: t, platform, id: String(t[1]), title: String(t[2] || ''),
@@ -1022,7 +1061,7 @@ a.btn { text-decoration: none; }
       firstSeen: t[12] ? t[12] * 1000 : 0, url: PLATFORMS[platform].url(t[1]),
       prevPrice: typeof x.pp === 'number' ? x.pp : null, priceChangedAt: x.pc ? x.pc * 1000 : 0,
       flags: typeof x.f === 'string' ? x.f : '', seller: x.s ? `${t[0]}:${x.s}` : '', snippet: typeof x.sn === 'string' ? x.sn : '',
-      km: typeof x.km === 'number' ? x.km : null,
+      km: typeof x.km === 'number' ? x.km : null, kmRough: !!x.ap,
     };
   }
   // 결과 문서가 바뀌지 않으면 같은 배열을 돌려준다 (렌더할 때마다 다시 만들지 않게)
@@ -1167,9 +1206,42 @@ a.btn { text-decoration: none; }
     const keep = condFilter(s);
     return itemsOf(state.results[s.id]).filter((it) => it.firstSeen > seen && passesNear(it) && !isHidden(s.id, it) && keep(it)).length;
   }
-  // "가까운 동네만": 가까운 걸 아는 매물만(당근 기준 지역 안, 중고나라·번개장터 판매 지역). 지역을 모르는 매물은 빠진다
+  // 지역 거르기
+  //   가까운 지역만: 가까운 걸 아는 매물(당근은 가까운 지역 안 동네, 중고나라·번개장터는 판매 지역이 가까운 지역)
+  //   N km 안: 거리를 아는 매물은 거리로(중고나라는 판매 지역 동 가운데까지라 대략), 거리를 모르지만 가까운 지역 매물은 넣는다
+  //   지역 모르는 매물(판매 지역을 안 적음)은 '지역 모르는 매물도'를 켰을 때만
+  const isUnknownPlace = (it) => it.near == null && it.km == null;
   function passesNear(it) {
-    return !state.view.near || it.near === true;
+    const w = state.view.where;
+    if (w === 'all') return true;
+    if (isUnknownPlace(it)) return state.view.unknown;
+    if (w === 'near') return it.near === true;
+    return it.km != null ? it.km <= w : it.near === true;
+  }
+  const whereLabel = (w = state.view.where) => (w === 'near' ? '가까운 지역만' : w === 'all' ? '전체 지역' : `${w}km 안`);
+  const KM_STEPS = [5, 10, 20, 30];
+  const whereOf = (v) => (v === 'near' ? 'near' : KM_STEPS.includes(Number(v)) ? Number(v) : 'all');
+  function setWhere(v) {
+    state.view.where = whereOf(v);
+    $('fWhere').value = String(state.view.where);
+    $('fUnknownWrap').hidden = state.view.mode !== 'all' || state.view.where === 'all';
+    lsSet('junggo.where', state.view.where);
+    state.shown = CHUNK;
+    if (!state.ready || !getSearch(state.activeId)) return;
+    renderSidebar();
+    renderFilters();
+    renderBody();
+    if (state.view.where !== 'all' && !areasOf().length) toast("위의 '설정'에서 가까운 지역을 정하면 지역으로 거를 수 있어요");
+  }
+  function setUnknown(on) {
+    state.view.unknown = !!on;
+    $('fUnknown').checked = state.view.unknown;
+    lsSet('junggo.unknown', state.view.unknown);
+    state.shown = CHUNK;
+    if (!state.ready || !getSearch(state.activeId)) return;
+    renderSidebar();
+    renderFilters();
+    renderBody();
   }
 
   // ---------- 새로고침 · 데이터 (GitHub) ----------
@@ -1387,14 +1459,22 @@ a.btn { text-decoration: none; }
     const base = state.pending ? state.pending.searches : state.bundle && Array.isArray(state.bundle.searches) ? state.bundle.searches : [];
     state.searches = base.filter((s) => s && s.id && s.keyword).map((s) => ({ ...s })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     const c = (state.bundle && state.bundle.config) || {};
-    state.config = { ...c, ...((state.pending && state.pending.config) || {}), auto: AUTO_TEXT };
+    const pc = (state.pending && state.pending.config) || {};
+    state.config = { ...c, ...pc, auto: AUTO_TEXT };
+    // 지역 하나만 알던 예전 페이지가 남긴 보낼 변경: 첫 지역만 바꾼 것으로 본다
+    if (typeof pc.area === 'string' && !Array.isArray(pc.areas)) {
+      const rest = (Array.isArray(c.areas) ? c.areas : []).slice(1).filter((a) => a !== pc.area);
+      state.config.areas = pc.area ? [pc.area, ...rest] : [];
+    }
     if (state.activeId && !getSearch(state.activeId)) state.activeId = state.searches[0] ? state.searches[0].id : null;
   }
   async function stageEdit(mutate) {
     if (!state.key || !state.box) { toast('먼저 비밀번호로 열어 주세요'); return false; }
     const searches = state.searches.map((s) => ({ ...s }));
-    const config = { area: (state.config && state.config.area) || '', maxAgeDays: state.config && Number.isFinite(state.config.maxAgeDays) ? state.config.maxAgeDays : 30 };
+    // 설정: areas 가까운 지역들, home 거리 기준, area = 첫 지역(지역 하나만 알던 예전 수집기·페이지와 맞추려고 같이 보낸다)
+    const config = { areas: areasOf().slice(), home: homePointQ(), maxAgeDays: state.config && Number.isFinite(state.config.maxAgeDays) ? state.config.maxAgeDays : 30 };
     mutate(searches, config);
+    config.area = config.areas[0] || '';
     const id = `p_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
     const payload = { v: 1, id, at: Date.now(), searches, config };
     let box;
@@ -1622,7 +1702,7 @@ a.btn { text-decoration: none; }
       const got = res && res.pf && res.pf.daangn && res.pf.daangn.regions;
       const defs = defaultRegions();
       if (s.regions && s.regions.length) chips.push(chip('당근 동네', s.regions.map((r) => r.q || r.name).join(', ')));
-      else if (defs.length) chips.push(chip('당근 동네', `${defs.map((r) => r.name || r.q).join(', ')} (기본)`));
+      else if (defs.length) chips.push(chip('당근 동네', `${defs.map((r) => shortArea(r.name || r.q)).join(', ')} (기본)`));
       else chips.push(chip('당근 동네', '설정에서 정해 주세요'));
     }
     if (matchMode(s) === 'title') chips.push(chip('제목에 모두 들어간 것만'));
@@ -1633,28 +1713,30 @@ a.btn { text-decoration: none; }
     return chips;
   }
 
-  // 가까운 동네의 기준 지역 이름 (예: 경기도 시흥시)
-  function homeAreaOf(s, res) {
-    const got = res && res.pf && res.pf.daangn && res.pf.daangn.regions;
-    if (got && got[0] && got[0].fullName) return got[0].fullName;
-    const r = (s.regions && s.regions[0]) || defaultRegions()[0];
-    return r ? r.fullName || r.name || r.q || '' : '';
-  }
-
   function nextSlotText() { return ''; }
   const searchLimit = () => 50;
-  // 가까운 지역 (설정의 area, 예: 경기도 시흥시)
-  function defaultRegions() {
-    const a = state.config && typeof state.config.area === 'string' ? state.config.area.trim() : '';
-    return a ? [{ q: a, name: a, fullName: a }] : [];
+  // 가까운 지역들 (설정의 areas, 예: 경기도 시흥시 · 인천 남동구). 예전 기록은 area 하나
+  const MAX_AREAS = 5;
+  function areasOf() {
+    const c = state.config || {};
+    const list = Array.isArray(c.areas) ? c.areas : typeof c.area === 'string' ? [c.area] : [];
+    return list.map((a) => String(a == null ? '' : a).trim()).filter(Boolean);
   }
+  function defaultRegions() { return areasOf().map((a) => ({ q: a, name: a, fullName: a })); }
+  // 거리 기준 (설정의 home, 비었으면 첫 지역의 가운데)
+  function homePointQ() { return state.config && typeof state.config.home === 'string' ? state.config.home.trim() : ''; }
+  // 지역 이름 줄여 보이기: "경기도 시흥시" → "시흥시", "서울특별시 강남구" → "강남구", "경기도 안산시 단원구" → "안산시 단원구"
+  const PROV_WORD = /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)$|(도|특별시|광역시|특별자치시|특별자치도)$/;
+  const shortArea = (a) => { const w = String(a || '').trim().split(/\s+/); return w.length > 1 && PROV_WORD.test(w[0]) ? w.slice(1).join(' ') : w.join(' '); };
+  const areasText = (list = areasOf()) => list.map(shortArea).join(', ');
 
   function renderHead() {
     const s = getSearch(state.activeId);
     const res = state.results[s.id];
     $('vKeyword').textContent = s.keyword;
     $('vConds').replaceChildren(...condChips(s, res));
-    $('fNearWrap').hidden = state.view.mode !== 'all';
+    $('fWhereWrap').hidden = state.view.mode !== 'all';
+    $('fUnknownWrap').hidden = state.view.mode !== 'all' || state.view.where === 'all';
   }
 
   function renderFilters() {
@@ -1689,6 +1771,34 @@ a.btn { text-decoration: none; }
     renderNotices();
   }
 
+  // 지역 거르기 안내: 무엇으로 거르는지, 판매 지역을 안 적은 매물이 몇 건 빠졌는지(또는 함께 보이는지)
+  function whereNotice(s, res) {
+    const w = state.view.where;
+    const areas = areasOf();
+    const head = h('b', { text: `${whereLabel(w)} 보는 중` });
+    if (!areas.length) {
+      return h('div', { class: 'notice' }, head, '가까운 지역을 아직 정하지 않아 거를 수 없어요. ',
+        h('button', { type: 'button', class: 'linkish', text: '설정 열기', onclick: openHome }));
+    }
+    const keep = condFilter(s);
+    const m = marksOf(s.id);
+    const unknown = itemsOf(res).filter((it) => !m.hidden[it.mk] && keep(it) && isUnknownPlace(it)).length;
+    const places = state.bundle && state.bundle.places;
+    const from = homePointQ() || areas[0];
+    let body;
+    if (w === 'near') body = `판매 지역이 ${areasText(areas)}인 매물(당근은 이 지역 안 동네)만 보여요.`;
+    else {
+      body = `${shortArea(from)}에서 거래 위치(당근·번개장터)나 판매 지역 동 가운데(중고나라, ≈ 표시)까지 직선거리예요. 거리를 모르는 매물은 가까운 지역(${areasText(areas)}) 매물만 넣어요.`;
+      if (places && !places.home && !state.pending) body += ` 거리 기준 '${from}'을(를) 찾지 못해 거리를 잴 수 없었어요. 설정에서 '경기도 시흥시 정왕동'처럼 적어 주세요.`;
+    }
+    const box = h('div', { class: 'notice' }, head, body);
+    if (unknown) {
+      if (state.view.unknown) box.append(` 판매 지역을 적지 않은 매물 ${unknown.toLocaleString('ko-KR')}건도 함께 보여요.`);
+      else box.append(` 판매 지역을 적지 않은 매물 ${unknown.toLocaleString('ko-KR')}건은 빠졌어요. `, h('button', { type: 'button', class: 'linkish', text: '함께 보기', onclick: () => setUnknown(true) }));
+    }
+    return box;
+  }
+
   function renderNotices() {
     const s = getSearch(state.activeId);
     const res = state.results[s.id];
@@ -1704,11 +1814,7 @@ a.btn { text-decoration: none; }
       box.append(h('div', { class: 'notice' }, h('b', { text: '조건을 바꾼 뒤 아직 새로고침 전이에요' }),
         state.pending ? "지금 목록은 이전 조건으로 모은 매물이에요. 'GitHub에 보내기'로 보내면 새 조건으로 다시 모아요." : '지금 목록은 이전 조건으로 모은 매물이에요. 다음 수집 때 새 조건으로 다시 모아요.'));
     }
-    if (state.view.near) {
-      const area = homeAreaOf(s, res) || '기준 지역';
-      box.append(h('div', { class: 'notice' }, h('b', { text: '가까운 동네만 보는 중' }),
-        defaultRegions().length ? `판매 지역이 ${area}인 매물만 보여요. 판매 지역을 적지 않은 매물은 어디인지 알 수 없어서 빠져요(중고나라는 절반쯤, 번개장터는 3분의 1쯤만 지역이 있어요).` : "위의 '설정'에서 가까운 지역(예: 경기도 시흥시)을 정하고 GitHub에 보내면 다음 수집부터 근처 매물을 알아봐요."));
-    }
+    if (state.view.where !== 'all') box.append(whereNotice(s, res));
     for (const pid of ORDER) {
       if (!(s.platforms || []).includes(pid)) continue;
       const info = res.pf && res.pf[pid];
@@ -1996,7 +2102,13 @@ a.btn { text-decoration: none; }
     const meta = h('div', { class: 'r-meta' }, h('span', { class: `pf p-${it.platform}`, title: PLATFORMS[it.platform].name }, marketMark(it.platform), h('span', { class: 'sr-only', text: PLATFORMS[it.platform].name })));
     if (mode === 'star' && it.stage) meta.append(h('span', { class: 'stage', text: STAGES[it.stage] }));
     if (it.near === true) meta.append(h('span', { class: 'near', text: '근처' }));
-    if (it.km != null) meta.append(h('span', { class: 'km', title: '내 동네에서 거래 위치까지 거리(직선)', text: `${it.km < 10 ? it.km.toFixed(1) : Math.round(it.km)}km` }));
+    if (it.km != null) {
+      meta.append(h('span', {
+        class: 'km',
+        title: it.kmRough ? '거리 기준에서 판매 지역(동) 가운데까지 직선거리라 대략이에요' : '거리 기준에서 거래 위치까지 직선거리',
+        text: `${it.kmRough ? '≈' : ''}${it.km < 10 ? it.km.toFixed(1) : Math.round(it.km)}km`,
+      }));
+    }
     // 시세보다 지나치게 싼 매물 (사기 주의). 목록의 중앙값이 3만원 이상일 때만
     if (mode === 'all' && ctx.median >= 30000 && it.price != null && it.price > 0 && it.price <= ctx.median * CHEAP_RATIO) {
       meta.append(h('span', { class: 'badge is-warn', title: `지금 목록 시세(중앙값 ${formatWon(roundPrice(ctx.median))})의 ${Math.round(CHEAP_RATIO * 100)}% 이하예요. 부품·액세서리일 수도 있고, 사기일 수도 있어요. 직거래나 안전결제로 거래하세요.`, text: '시세보다 많이 쌈' }));
@@ -2164,8 +2276,8 @@ a.btn { text-decoration: none; }
       empty.hidden = false;
       const unfilter = () => h('button', { type: 'button', class: 'linkish', text: '거르기 풀기', onclick: resetView });
       if (base.length) empty.append('거르기 조건에 맞는 매물이 없어요. ', unfilter());
-      else if (mode === 'all' && state.view.near && itemsOf(res).length) {
-        empty.append('가까운 동네 매물이 없어요. ', h('button', { type: 'button', class: 'linkish', text: '전체 지역 보기', onclick: () => { $('fNear').checked = false; $('fNear').dispatchEvent(new Event('change')); } }));
+      else if (mode === 'all' && state.view.where !== 'all' && itemsOf(res).length) {
+        empty.append(`${state.view.where === 'near' ? '가까운 지역' : `${state.view.where}km 안`} 매물이 없어요. `, h('button', { type: 'button', class: 'linkish', text: '전체 지역 보기', onclick: () => setWhere('all') }));
       }
       else if (mode === 'star') empty.append('아직 관심 표시한 매물이 없어요. 매물 목록에서 ☆를 누르면 여기에 모여요.');
       else if (mode === 'sold') empty.append('중고나라에서 최근 3개월 안에 판매완료된 매물이 없어요.');
@@ -2503,15 +2615,76 @@ a.btn { text-decoration: none; }
     $('histCap').textContent = `${day(t0)}부터 중앙값이 ${diff === 0 ? '그대로예요' : `${formatManWon(Math.abs(diff))} ${diff < 0 ? '내렸어요' : '올랐어요'}`}. 굵은 선은 중앙값, 옅은 띠는 매물 절반이 몰린 가격대${sold.length >= 2 ? ', 점선은 중고나라 판매완료 중앙값' : ''}이에요. 단어 칩·마켓 거르기와 상관없이 검색 조건 전체 기준이에요.`;
   }
 
-  // ---------- 설정 (가까운 지역 · 이 기기 잠금) ----------
-  function homeQ() { return state.config && state.config.area ? String(state.config.area) : ''; }
+  // ---------- 설정 (가까운 지역 · 거리 기준 · 이 기기 잠금) ----------
+  function homeQ() { return areasOf()[0] || ''; }
   function renderHomeBtn() {
     const btn = $('homeBtn');
     btn.hidden = !state.ready;
-    btn.textContent = homeQ() ? `설정 · ${homeQ()}` : '설정';
+    const a = areasOf();
+    btn.textContent = a.length ? `설정 · ${shortArea(a[0])}${a.length > 1 ? ` 외 ${a.length - 1}곳` : ''}` : '설정';
+  }
+  // 설정 창에서 고치는 중인 가까운 지역들 (저장을 눌러야 보낼 변경이 된다)
+  let areaDraft = [];
+  const placeText = (v) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, 40);
+  // 같은 곳·겹치는 곳: 띄어쓰기와 시·도 꼬리를 빼고 비교 ("경기도 시흥시" = "경기 시흥시", "경기도 안산시" ⊃ "경기 안산시 단원구")
+  const placeKey = (v) => placeText(v).split(' ').map((w, i) => (i === 0 ? w.replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') : w)).join('');
+  const areaOverlaps = (a, b) => { const x = placeKey(a); const y = placeKey(b); return !!x && !!y && (x.includes(y) || y.includes(x)); };
+  // 시·군·구나 읍·면·동까지 적었는지 ("서울"·"부산광역시"·"경기도"처럼 시·도만은 너무 넓다. "광주시"는 경기도 광주시)
+  const TOO_WIDE = /^(서울|부산|대구|인천|광주|대전|울산)(특별시|광역시)?$|^(서울|부산|대구|인천|대전|울산)시$|^(경기|강원|충북|충남|전북|전남|경북|경남|제주|충청북|충청남|전라북|전라남|경상북|경상남)(도|특별자치도)?$|^전남광주(통합특별시)?$/;
+  const placeLooksOk = (v) => /[시군구동읍면리가]$/.test(v) && !TOO_WIDE.test(v.replace(/\s+/g, ''));
+  function areaErr(msg) {
+    $('areaError').textContent = msg || '';
+    $('areaError').hidden = !msg;
+    if (msg) $('areaInput').setAttribute('aria-invalid', 'true'); else $('areaInput').removeAttribute('aria-invalid');
+  }
+  function renderAreaDraft() {
+    const ownHome = !!placeText($('homePoint').value);
+    $('areaList').replaceChildren(...areaDraft.map((a, i) => h('li', { class: 'area-chip' },
+      h('span', { text: a, title: a }),
+      i === 0 && !ownHome ? h('em', { text: '거리 기준' }) : null,
+      h('button', { type: 'button', 'aria-label': `${a} 빼기`, title: '빼기', text: '×', onclick: () => { areaDraft.splice(i, 1); areaErr(''); renderAreaDraft(); $('areaInput').focus(); } }))));
+    const full = areaDraft.length >= MAX_AREAS;
+    $('areaInput').disabled = full;
+    $('areaAddBtn').disabled = full;
+    $('areaInput').placeholder = full ? `${MAX_AREAS}곳까지예요. 하나를 빼야 더할 수 있어요` : areaDraft.length ? '예: 인천 남동구 (더할 지역)' : '예: 경기도 시흥시';
+    // 둘레의 시·군·구 추천 (지난 수집 때 거리 기준 둘레에서 찾은 곳, 가까운 순)
+    const near = ((state.bundle && state.bundle.places && state.bundle.places.near) || [])
+      .filter((x) => x && typeof x.q === 'string' && Number.isFinite(x.km) && !areaDraft.some((a) => areaOverlaps(a, x.q))).slice(0, 6);
+    const sug = $('areaSuggest');
+    sug.hidden = full || !near.length;
+    sug.replaceChildren(h('b', { text: '둘레' }), ...near.map((x) => h('button', {
+      type: 'button', title: `${x.q} 더하기 (가장 가까운 동네까지 ${x.km}km)`, text: `+ ${shortArea(x.q)} ${x.km < 10 ? x.km.toFixed(1) : Math.round(x.km)}km`,
+      onclick: () => { addArea(x.q); },
+    })));
+  }
+  function addArea(v) {
+    const a = placeText(v);
+    areaErr('');
+    if (!a) return true;
+    if (areaDraft.length >= MAX_AREAS) { areaErr(`가까운 지역은 ${MAX_AREAS}곳까지예요. 하나를 빼고 더해 주세요.`); return false; }
+    if (!placeLooksOk(a)) { areaErr(`'${a}'은(는) 너무 넓거나 알아보기 어려워요. 시·군·구까지 적어 주세요(예: 서울 강남구, 경기도 안산시).`); return false; }
+    const same = areaDraft.find((x) => placeKey(x) === placeKey(a));
+    if (same) { areaErr(`'${same}'이(가) 이미 있어요.`); return false; }
+    areaDraft.push(a);
+    $('areaInput').value = '';
+    renderAreaDraft();
+    return true;
+  }
+  function renderHomePointHelp() {
+    const p = state.bundle && state.bundle.places;
+    let now = '';
+    if (p && p.home && p.home.name) now = ` 지금은 ${p.home.name}${p.home.level === 'dong' ? '' : ' 가운데'}에서 재요.`;
+    else if (p && !p.home && (homePointQ() || homeQ())) now = ' 지금은 거리 기준을 지도에서 찾지 못해 거리를 재지 못했어요. 시·군·구와 동을 함께 적어 주세요.';
+    $('homePointHelp').textContent = `매물까지 거리를 여기서부터 재요. 동까지 적으면 더 정확해요(예: 경기도 시흥시 정왕동). 비워 두면 첫 번째 가까운 지역의 가운데에서 재요.${now}`;
   }
   function openHome() {
-    $('homeInput').value = homeQ();
+    areaDraft = areasOf().slice();
+    $('areaInput').value = '';
+    $('homePoint').value = homePointQ();
+    $('homePoint').removeAttribute('aria-invalid');
+    areaErr('');
+    renderAreaDraft();
+    renderHomePointHelp();
     $('homeKeyNote').textContent = lsGet('jd.key')
       ? '이 기기는 비밀번호를 기억하고 있어요. 다른 사람과 같이 쓰는 기기라면 잠가 주세요.'
       : '이 기기는 비밀번호를 기억하지 않아요. 페이지를 새로 열 때마다 비밀번호를 넣어요.';
@@ -2521,7 +2694,7 @@ a.btn { text-decoration: none; }
     $('tokClear').hidden = !state.token;
     hideAppCode();
     $('homeDialog').showModal();
-    $('homeInput').focus();
+    if (!areaDraft.length) $('areaInput').focus();
   }
   // 앱 연결 코드 = jdk1:<salt>:<반복 횟수>:<열쇠> — 비밀번호 대신 앱에 넣는 잠금 열쇠(비밀번호와 같은 힘)
   async function appLinkCode() {
@@ -2550,7 +2723,15 @@ a.btn { text-decoration: none; }
     }
   }
   async function saveHome() {
-    const area = $('homeInput').value.trim().replace(/\s+/g, ' ').slice(0, 40);
+    // '더하기'를 누르지 않고 저장해도 칸에 적은 지역을 더한다
+    if (!addArea($('areaInput').value)) { $('areaInput').focus(); return; }
+    const home = placeText($('homePoint').value);
+    if (home && !placeLooksOk(home)) {
+      $('homePoint').setAttribute('aria-invalid', 'true');
+      $('homePointHelp').textContent = `'${home}'은(는) 너무 넓거나 알아보기 어려워요. 시·군·구나 동까지 적어 주세요(예: 경기도 시흥시 정왕동).`;
+      $('homePoint').focus();
+      return;
+    }
     const tok = $('tokInput').value.trim();
     const err = $('homeError');
     err.hidden = true;
@@ -2568,10 +2749,17 @@ a.btn { text-decoration: none; }
     }
     $('homeDialog').close();
     if (tok) toast('토큰을 저장했어요. 이제 검색을 바꾸면 GitHub에 바로 보내요');
-    if (area !== homeQ()) {
-      if (await stageEdit((ss, c) => { c.area = area; })) {
+    const before = areasOf();
+    const draft = areaDraft.slice();
+    const areasChanged = before.length !== draft.length || before.some((a, i) => a !== draft[i]);
+    const homeChanged = home !== homePointQ();
+    if (areasChanged || homeChanged) {
+      if (await stageEdit((ss, c) => { c.areas = draft; c.home = home; })) {
         renderAll();
-        toast(area ? `가까운 지역을 '${area}'(으)로 바꿨어요. ${sendHint()}` : `가까운 지역을 지웠어요. ${sendHint()}`);
+        const what = areasChanged
+          ? (draft.length ? `가까운 지역을 ${areasText(draft)}(으)로 바꿨어요.` : '가까운 지역을 지웠어요.')
+          : `거리 기준을 ${home ? `'${home}'` : '첫 지역 가운데'}(으)로 바꿨어요.`;
+        toast(`${what} ${sendHint()}`);
       }
     } else if (tok) {
       scheduleSend();
@@ -2620,10 +2808,10 @@ a.btn { text-decoration: none; }
     const s = getSearch(state.activeId);
     const items = sortItems(visibleItems());
     if (!s || !items.length) { toast('저장할 매물이 없어요'); return; }
-    const lines = [['마켓', '제목', '가격', '상태', '지역', '올린 시각', '링크'].map(csvCell).join(',')];
+    const lines = [['마켓', '제목', '가격', '상태', '지역', '거리(km)', '올린 시각', '링크'].map(csvCell).join(',')];
     for (const it of items) {
       const when = it.time ? new Date(it.time).toLocaleString('ko-KR', { hour12: false }) : '';
-      lines.push([PLATFORMS[it.platform].name, it.title, it.price == null ? '' : it.price, STATUS_LABEL[it.status], it.location, when, it.url].map(csvCell).join(','));
+      lines.push([PLATFORMS[it.platform].name, it.title, it.price == null ? '' : it.price, STATUS_LABEL[it.status], it.location, it.km == null ? '' : it.km, when, it.url].map(csvCell).join(','));
     }
     const d = new Date();
     const p2 = (n) => String(n).padStart(2, '0');
@@ -2771,7 +2959,13 @@ a.btn { text-decoration: none; }
     $('brandLink').addEventListener('click', (e) => { e.preventDefault(); if (!state.ready) return; state.activeId = null; renderAll(); });
     $('vEdit').addEventListener('click', () => openDialog('edit', getSearch(state.activeId)));
     $('vDelete').addEventListener('click', () => deleteSearch(state.activeId));
-    $('fNear').addEventListener('change', (e) => { state.view.near = e.target.checked; lsSet('junggo.near2', state.view.near); state.shown = CHUNK; renderSidebar(); renderFilters(); renderBody(); });
+    $('fWhere').addEventListener('change', (e) => setWhere(e.target.value));
+    $('fUnknown').addEventListener('change', (e) => setUnknown(e.target.checked));
+    $('areaAddBtn').addEventListener('click', () => { addArea($('areaInput').value); $('areaInput').focus(); });
+    // 한글 입력 중(조합 중)의 Enter 는 글자를 마무리하는 것이라 더하지 않는다
+    $('areaInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); addArea(e.target.value); } });
+    $('areaInput').addEventListener('input', () => { if (!$('areaError').hidden) areaErr(''); });
+    $('homePoint').addEventListener('input', () => { $('homePoint').removeAttribute('aria-invalid'); renderAreaDraft(); });
     $('fNew').addEventListener('change', (e) => { state.view.newOnly = e.target.checked; state.shown = CHUNK; renderBody(); });
     $('fGroup').addEventListener('change', (e) => { state.view.group = e.target.checked; lsSet('junggo.group', state.view.group); state.shown = CHUNK; renderBody(); });
     $('wordChipList').addEventListener('click', onChipClick);
@@ -2779,7 +2973,7 @@ a.btn { text-decoration: none; }
     $('insightToggle').addEventListener('click', () => { state.insightOpen = !state.insightOpen; lsSet('junggo.insight', state.insightOpen); renderBody(); });
     $('homeBtn').addEventListener('click', openHome);
     $('homeForm').addEventListener('submit', (e) => { e.preventDefault(); saveHome(); });
-    $('homeCancel').addEventListener('click', () => $('homeDialog').close());
+    $('homeCancel').addEventListener('click', () => { hideAppCode(); $('homeDialog').close(); });
     $('appCodeBtn').addEventListener('click', copyAppCode);
     $('homeDialog').addEventListener('close', hideAppCode);
     $('tokClear').addEventListener('click', () => {
@@ -2839,8 +3033,10 @@ a.btn { text-decoration: none; }
 
   async function start() {
     bind();
-    // 기본은 전체 지역. "가까운 동네만"을 켜 두면 이 기기에서 기억한다
-    if (lsGet('junggo.near2') === true) { state.view.near = true; $('fNear').checked = true; }
+    // 기본은 전체 지역. 지역 거르기·'지역 모르는 매물도'는 이 기기에서 기억한다 (예전 '가까운 동네만'을 켜 두었으면 '가까운 지역만')
+    state.view.where = whereOf(lsGet('junggo.where') ?? (lsGet('junggo.near2') === true ? 'near' : 'all'));
+    $('fWhere').value = String(state.view.where);
+    if (lsGet('junggo.unknown') === true) { state.view.unknown = true; $('fUnknown').checked = true; }
     if (lsGet('junggo.group') === false) { state.view.group = false; $('fGroup').checked = false; }
     if (lsGet('junggo.nodealer') === true) { state.view.noDealer = true; $('fNoDealer').checked = true; }
     if (lsGet('junggo.insight') === true) state.insightOpen = true;

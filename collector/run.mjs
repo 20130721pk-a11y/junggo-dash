@@ -19,6 +19,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildResults, collectKey, condKey, collectorInfo, effectiveSearches, slim, CATEGORIES, ROUND } from './refresh.mjs';
 import { ITER, LABEL, isBox, keyring, newSalt, open, seal } from './seal.mjs';
+import { areaKey, findPlace, kmBetween, nearbyAreas } from './places.mjs';
 
 // GitHub 서버가 모으는 마켓. 당근은 폰 앱이 모아 올린다
 export const MARKETS = ['joongna', 'bunjang'];
@@ -91,14 +92,34 @@ export function cleanSearch(raw, now = Date.now()) {
   if (age != null && age >= 0 && age <= 365) s.maxAgeDays = Math.round(age);
   return { id, ...s };
 }
-export function cleanConfig(raw, prev = {}) {
-  const c = { area: typeof prev.area === 'string' ? prev.area : '', maxAgeDays: num(prev.maxAgeDays) ?? 30 };
-  if (raw && typeof raw === 'object') {
-    if (typeof raw.area === 'string') c.area = raw.area.replace(/\s+/g, ' ').trim().slice(0, 40);
-    const a = num(raw.maxAgeDays);
-    if (a != null && a >= 0 && a <= 365) c.maxAgeDays = Math.round(a);
+// 가까운 지역은 5곳까지 (당근은 지역이 늘수록 지역마다 덜 꼼꼼히 찾는다 — collect.js 의 dCalls)
+export const MAX_AREAS = 5;
+const placeText = (v) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 40) : '');
+function areaList(list) {
+  const out = [];
+  for (const v of Array.isArray(list) ? list : []) {
+    const t = placeText(v);
+    if (t && !out.some((x) => areaKey(x) === areaKey(t))) out.push(t);
+    if (out.length >= MAX_AREAS) break;
   }
-  return c;
+  return out;
+}
+// 설정: areas = 가까운 지역들(판매 지역이 여기면 '근처', 당근은 폰 앱이 이 지역들에서 찾는다), home = 거리 기준(비우면 첫 지역),
+//       area = areas[0] (지역 하나만 알던 예전 페이지·기록과 맞추려고 같이 둔다), maxAgeDays
+export function cleanConfig(raw, prev = {}) {
+  const p = prev && typeof prev === 'object' ? prev : {};
+  let areas = areaList(Array.isArray(p.areas) ? p.areas : [p.area]);
+  let home = placeText(p.home);
+  let maxAgeDays = num(p.maxAgeDays) ?? 30;
+  if (raw && typeof raw === 'object') {
+    if (Array.isArray(raw.areas)) areas = areaList(raw.areas);
+    // 예전 페이지(지역 하나만 아는 판)가 보낸 요청: 첫 지역만 바꾸고 이웃 지역은 그대로 (지우면 다 지운다)
+    else if (typeof raw.area === 'string') { const a = placeText(raw.area); areas = a ? areaList([a, ...areas.slice(1)]) : []; }
+    if (typeof raw.home === 'string') home = placeText(raw.home);
+    const a = num(raw.maxAgeDays);
+    if (a != null && a >= 0 && a <= 365) maxAgeDays = Math.round(a);
+  }
+  return { area: areas[0] || '', areas, home, maxAgeDays };
 }
 // 검색 목록 통째로 바꾸기 (페이지는 언제나 전체 목록을 보낸다)
 export function applyEdit(state, payload, now = Date.now()) {
@@ -183,8 +204,9 @@ function storageShim(store) {
     get length() { return Object.keys(store).length; },
   };
 }
+// (당근 부분 'd' 는 폰 앱이 돌린다 — 여기서는 시험할 때만)
 export async function runCollector(cfg, { fetchImpl, store }) {
-  const { fnSrc } = collectorInfo('jb');
+  const { fnSrc } = collectorInfo(cfg.part === 'd' ? 'd' : 'jb');
   const g = globalThis;
   const had = { fetch: Object.getOwnPropertyDescriptor(g, 'fetch'), localStorage: Object.getOwnPropertyDescriptor(g, 'localStorage') };
   Object.defineProperty(g, 'fetch', { value: fetchImpl, configurable: true, writable: true });
@@ -341,9 +363,11 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
 
   // 모으기
   const ids = Object.keys(state.searches).sort((a, b) => ((state.searches[a].createdAt || 0) - (state.searches[b].createdAt || 0)) || (a < b ? -1 : 1));
-  const area = state.config.area;
+  // 가까운 지역들 (첫 번째가 내 동네). 당근은 폰 앱이 이 지역들에서 찾고, 중고나라·번개장터는 판매 지역이 이 가운데 하나면 '근처'
+  const areas = state.config.areas;
+  const area = areas[0] || '';
   const person = {
-    uid: '', base: '', doc: null, defaults: area ? [{ q: area }] : [], home: null,
+    uid: '', base: '', doc: null, defaults: areas.map((q) => ({ q })), home: null,
     searchDocs: wrap(state.searches), prev: wrap(state.docs), ledgers: wrap(state.ledgers), active: ids,
   };
   const eff = effectiveSearches([person]);
@@ -390,7 +414,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
 
   // ---- 당근 (폰 앱이 모아 올린 것) ----
   const dWanted = eff.some((s) => s.platforms.includes('daangn'));
-  const dCk = Object.fromEntries(eff.filter((s) => s.platforms.includes('daangn')).map((s) => [s.id, dKey(s, area)]));
+  const dCk = Object.fromEntries(eff.filter((s) => s.platforms.includes('daangn')).map((s) => [s.id, dKey(s, dSig(areas))]));
   const dPrev = state.daangn && typeof state.daangn === 'object' ? state.daangn : {};
   const got = readDres(dresDir, openShared);
   let dNote = '';
@@ -423,12 +447,12 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
       collected.d = { ...fresh.result, results };
       partAt.d = d.at;
       const h = fresh.result.homes && fresh.result.homes[''];
-      if (h && Number.isFinite(h.lat) && Number.isFinite(h.lng)) state.home = { q: String(h.q || ''), lat: h.lat, lng: h.lng };
+      if (h && Number.isFinite(h.lat) && Number.isFinite(h.lng)) state.home = { q: String(h.q || ''), lat: h.lat, lng: h.lng, name: String(h.fullName || h.name || '').slice(0, 60) };
     }
   }
   if (dWanted) {
     // 지역을 아직 안 정한 것은 오류가 아니라 처음 설정이 남은 것 → '기다림'으로 알린다(페이지가 설정 열기 단추를 붙인다)
-    if (!area) carry.d = { st: 'wait', need: 'area', note: "당근을 찾을 동네가 아직 없어요. '설정'에서 가까운 지역(예: 경기도 시흥시)을 정해 주세요", ok: () => false };
+    if (!areas.length) carry.d = { st: 'wait', need: 'area', note: "당근을 찾을 동네가 아직 없어요. '설정'에서 가까운 지역(예: 경기도 시흥시)을 정해 주세요", ok: () => false };
     else if (d.at && !d.ok) partErr.d = d.error;
     else {
       // 지난 당근 매물은 그 매물을 모은 조건(검색·지역 지문 dk)이 지금과 같을 때만 이어 보여준다
@@ -441,12 +465,35 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     }
   }
   state.daangn = d;
-  const home = state.home && area && state.home.q === area ? state.home : null;
+
+  // 거리 기준: 설정의 거리 기준(home, 예: 경기도 시흥시 정왕동) → 비었으면 첫 지역.
+  // 지역 표(places.json)로 가운데를 찾고, 표에 없는 이름이면 폰 앱이 당근에서 찾아 준 가운데를 쓴다
+  const homeQ = state.config.home || area;
+  let home = null;
+  if (homeQ) {
+    const p = findPlace(homeQ);
+    if (p) home = { q: homeQ, lat: p.lat, lng: p.lng, name: p.name, level: p.level };
+    else if (state.home && state.home.q === homeQ && Number.isFinite(state.home.lat) && Number.isFinite(state.home.lng)) home = { q: homeQ, lat: state.home.lat, lng: state.home.lng, name: state.home.name || homeQ, level: 'daangn' };
+  }
+  // 좌표가 없는 새 매물의 대략 위치 (거리 '≈'): 중고나라·번개장터는 판매 지역 이름의 동 가운데(여럿이면 거리 기준에서 가장 가까운 곳),
+  // 당근은 가까운 동네(근처)인데 거래 좌표가 없으면 가까운 지역들 안에서 그 동 이름으로 찾는다
+  const locate = (t, x) => {
+    let best = null;
+    let bestKm = Infinity;
+    const consider = (p) => {
+      if (!p) return;
+      const k = home ? kmBetween([p.lat, p.lng], [home.lat, home.lng]) : 0;
+      if (!best || k < bestKm) { best = p; bestKm = k; }
+    };
+    if (Array.isArray(x.ar)) for (const n of x.ar.slice(0, 3)) consider(findPlace(n));
+    else if (t[0] === 'd' && t[11] === 1 && t[5]) for (const a of areas) { const p = findPlace(`${a} ${t[5]}`); if (p && p.level === 'dong') consider(p); }
+    return best ? [best.lat, best.lng] : null;
+  };
 
   const prevDocs = state.docs;
   const built = buildResults({
     searches: wrap(state.searches), prev: wrap(state.docs), ledgers: wrap(state.ledgers), collected,
-    now: startedAt, maxAgeDays: state.config.maxAgeDays, home, keyOf: (id) => id, skipped, partErr, carry, partAt,
+    now: startedAt, maxAgeDays: state.config.maxAgeDays, home, locate, keyOf: (id) => id, skipped, partErr, carry, partAt,
   });
   state.docs = built.docs;
   state.ledgers = built.ledgerDocs;
@@ -482,7 +529,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   }
 
   // 폰 앱이 할 일 (다음에 앱이 받아 간다)
-  const djob = daangnJob({ eff, area, maxAgeDays: state.config.maxAgeDays, now: startedAt, ck: dCk });
+  const djob = daangnJob({ eff, areas, homeQ, maxAgeDays: state.config.maxAgeDays, now: startedAt, ck: dCk });
 
   // 요약 (검색어 없이)
   const sums = Object.values(built.summary);
@@ -512,6 +559,11 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     searches: ids.map((id) => ({ id, ...state.searches[id] })),
     results: viewResults(state.docs),
     refresh, config: state.config, applied: (state.applied || []).slice(-KEEP_APPLIED),
+    // 설정 창의 안내: 거리 기준으로 찾은 곳(이름·정밀도), 둘레의 시·군·구(가까운 지역 추천 — 이미 고른 곳은 빼고)
+    places: {
+      home: home ? { q: home.q, name: home.name, level: home.level } : null,
+      near: home ? nearbyAreas(home, { skip: areas }) : [],
+    },
   };
   return finish(
     {
@@ -532,21 +584,25 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
 
 // ---------- 당근 (폰 앱) ----------
 const sha256 = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
-// 당근을 다시 모아야 하는 조건 지문 (검색 조건 + 가까운 지역). 앱이 할 일과 함께 받아 결과에 그대로 돌려준다
-export const dKey = (s, area) => sha256(`${collectKey(s)}|${area || ''}`).slice(0, 16);
+// 당근을 다시 모아야 하는 조건 지문 (검색 조건 + 가까운 지역들). 앱이 할 일과 함께 받아 결과에 그대로 돌려준다
+// 지역이 하나면 그 이름 그대로 넣어 예전(지역 하나일 때) 지문과 같게 한다. 거리 기준(home)은 넣지 않는다 — 거리는 합칠 때 다시 잰다
+export const dSig = (areas) => (areas.length <= 1 ? areas[0] || '' : areas.join(' + '));
+export const dKey = (s, sig) => sha256(`${collectKey(s)}|${sig || ''}`).slice(0, 16);
 
 // 폰 앱이 할 일: 수집기(당근 부분) 코드 + 조건. 앱은 이걸 열어 당근 사이트에서 그대로 돌린다
-export function daangnJob({ eff, area, maxAgeDays, now, ck }) {
+export function daangnJob({ eff, areas, homeQ, maxAgeDays, now, ck }) {
   const want = eff.filter((s) => s.platforms.includes('daangn'));
   const base = { v: 1, at: now };
   if (!want.length) return { ...base, id: 'idle-none', idle: true, reason: '당근으로 찾을 검색이 없어요. 대시보드에서 검색의 마켓에 당근을 켜 주세요' };
-  if (!area) return { ...base, id: 'idle-area', idle: true, reason: "대시보드 '설정'에서 가까운 지역(예: 경기도 시흥시)을 정하면 당근을 모아요" };
+  if (!areas.length) return { ...base, id: 'idle-area', idle: true, reason: "대시보드 '설정'에서 가까운 지역(예: 경기도 시흥시)을 정하면 당근을 모아요" };
   const regionDefs = {};
-  const cfg = { part: 'd', maxAgeDays, plain: true, budgetMs: 150000 };
-  if (want.length > ROUND.d) cfg.dAnchors = 3;
+  // 지역이 여럿이면 지역마다 기준 동네를 줄이고(collect.js 의 dCalls) 시간을 조금 더 준다
+  const cfg = { part: 'd', maxAgeDays, plain: true, budgetMs: areas.length > 1 ? 210000 : 150000 };
+  if (want.length > ROUND.d) { cfg.dAnchors = 3; if (areas.length > 1) cfg.dCalls = 5; }
   const searches = want.map((s) => slim(s, 'd', regionDefs));
   if (Object.keys(regionDefs).length) cfg.regions = regionDefs;
-  cfg.homes = [{ k: '', q: area }];
+  // 거리 기준 동네의 가운데 (표에 없는 이름일 때만 쓰인다)
+  cfg.homes = [{ k: '', q: homeQ || areas[0] }];
   cfg.searches = searches;
   const { fnSrc } = collectorInfo('d');
   return {
@@ -554,7 +610,7 @@ export function daangnJob({ eff, area, maxAgeDays, now, ck }) {
     id: sha256(`${fnSrc}\n${JSON.stringify(cfg)}`).slice(0, 16),
     start: 'https://www.daangn.com/robots.txt',
     robots: { origin: 'https://www.daangn.com', paths: D_PATHS },
-    code: fnSrc, cfg, ck, everyMin: 60, timeoutMs: 240000,
+    code: fnSrc, cfg, ck, everyMin: 60, timeoutMs: cfg.budgetMs + 90000,
   };
 }
 

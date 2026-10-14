@@ -347,11 +347,12 @@ export function effectiveSearches(people) {
       });
       let platforms = ORDER.filter((x) => (s.platforms || []).includes(x));
       if (noRegion(p, s)) platforms = platforms.filter((x) => x !== 'daangn');
+      // 중고나라·번개장터 가까움: 판매 지역이 이 지역들 가운데 하나면 가깝다. 이름만 적은 동네(예: "안산시")는 그 이름으로 본다
+      const homeAreas = [...new Set(regions.map((r) => areaOf(r.fullName) || (!r.id ? r.q : '')).filter(Boolean))];
       out.push({
         id: keyOf(p, id), keyword: String(s.keyword).trim(), exclude: s.exclude || [], minPrice: s.minPrice ?? null, maxPrice: s.maxPrice ?? null,
         status: s.status || 'selling', platforms,
-        // 중고나라 가까움은 첫 동네 기준. 이름만 적은 동네(예: "안산시")는 그 이름으로 본다
-        regions, homeArea: areaOf(regions[0] && regions[0].fullName) || (regions[0] && !regions[0].id ? regions[0].q : ''),
+        regions, homeAreas, homeArea: homeAreas[0] || '',
         match: matchMode(s), excludeProShop: !!s.excludeProShop,
         category: CATEGORIES[s.category] ? s.category : '',
         maxAgeDays: Number.isFinite(s.maxAgeDays) ? s.maxAgeDays : null,
@@ -413,7 +414,9 @@ export function slim(s, part, regionDefs) {
   if (s.minPrice != null) o.minPrice = s.minPrice;
   if (s.maxPrice != null) o.maxPrice = s.maxPrice;
   if (part === 'jb' && s.excludeProShop) o.excludeProShop = true;
-  if (part === 'jb' && s.homeArea) o.homeArea = s.homeArea;
+  // 가까운 지역 (수집기는 예전 조건의 homeArea 하나도 알아듣는다)
+  if (part === 'jb' && s.homeAreas && s.homeAreas.length) o.homeAreas = s.homeAreas;
+  else if (part === 'jb' && s.homeArea) o.homeArea = s.homeArea;
   if (s.category) {
     const c = CATEGORIES[s.category];
     o.cat = part === 'jb' ? { j: c.j, b: c.b } : { d: c.d };
@@ -600,7 +603,8 @@ function priceStatsOf(rows) {
 //        (GitHub 판: 당근은 폰 앱이 올린 결과가 새로 없을 때, 중고나라·번개장터는 당근만 합치러 돈 실행일 때)
 //        ok 가 false 를 주는 검색(예: 폰이 모은 뒤 조건·지역이 바뀜)은 지난 매물을 버리고 st·note 로 기다린다고 알린다
 // partAt: 부분을 실제로 모은 시각 {jb|d: ms} (당근은 폰이 모은 시각) — 다음 번 새 매물 판단의 기준이 된다
-export function buildResults({ searches, prev, ledgers = {}, collected, now = Date.now(), maxAgeDays = 30, home = null, keyOf = (id) => id, skipped = {}, partErr = {}, carry = {}, partAt = {} }) {
+// home: 거리 기준 {lat, lng} / locate(t, x): 좌표가 없는 새 매물의 대략 위치 [위도, 경도] 또는 null (판매 지역 이름 → 동 가운데)
+export function buildResults({ searches, prev, ledgers = {}, collected, now = Date.now(), maxAgeDays = 30, home = null, locate = null, keyOf = (id) => id, skipped = {}, partErr = {}, carry = {}, partAt = {} }) {
   const nowSec = Math.floor(now / 1000);
   const docs = {};
   const ledgerDocs = {};
@@ -705,14 +709,24 @@ export function buildResults({ searches, prev, ledgers = {}, collected, now = Da
           const row = [t[0], String(t[1]), t[2], price, t[4], t[5] || '', t[6] || 0, t[7] || 0, t[8] || 0, t[9] || 0, t[10] ? 1 : 0, near, fs0];
           // 14번째 칸: 덧붙임 정보 (있을 때만)
           //   pp 이전 가격, pc 바뀐 시각(초), f 표시(P 중고나라페이 C 인증셀러 O 공식셀러 K 번개케어 N 새상품 I 직거래 F 무료배송),
-          //   s 판매자(짧은 지문), sn 설명 앞부분, km 내 동네에서 거리
+          //   s 판매자(짧은 지문), sn 설명 앞부분, km 거리 기준(내 동네)에서 거리, ll 거리를 잰 위치 [위도, 경도], ap 대략(판매 지역 동 가운데)
           const e = {};
           if (pp != null) { e.pp = pp; e.pc = pc; }
           if (x.f) e.f = String(x.f);
           if (x.s) e.s = kept ? String(x.s) : shortId(`${t[0]}:${x.s}`);
           if (x.sn) e.sn = String(x.sn);
-          if (kept && x.km != null) e.km = x.km;
-          else if (home && Number.isFinite(x.lat) && Number.isFinite(x.lng)) e.km = Math.round(kmBetween([x.lat, x.lng], [home.lat, home.lng]) * 10) / 10;
+          // 거리: 거래 좌표(당근·번개장터 상세)나 판매 지역 동 가운데(중고나라 등 — locate, 대략)를 ll 로 적어 두고
+          // 실행할 때마다 지금의 거리 기준(home)에서 다시 잰다 → 거리 기준을 바꿔도 매물을 다시 모을 필요가 없다
+          let ll = null;
+          let ap = 0;
+          if (Number.isFinite(x.lat) && Number.isFinite(x.lng)) ll = [x.lat, x.lng];
+          else if (Array.isArray(x.ll) && x.ll.length === 2 && x.ll.every(Number.isFinite)) { ll = x.ll; ap = x.ap ? 1 : 0; }
+          else if (!kept && locate) { const at = locate(t, x); if (at) { ll = at; ap = 1; } }
+          if (ll) {
+            e.ll = [Math.round(ll[0] * 1000) / 1000, Math.round(ll[1] * 1000) / 1000];
+            if (ap) e.ap = 1;
+            if (home) e.km = Math.round(kmBetween(e.ll, [home.lat, home.lng]) * 10) / 10;
+          } else if (kept && x.km != null) e.km = x.km; // 위치를 적어 두기 전에 모은 매물
           if (Object.keys(e).length) row.push(e);
           return row;
         })

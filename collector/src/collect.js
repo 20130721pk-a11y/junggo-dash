@@ -23,9 +23,20 @@ async function junggoCollect(cfg) {
   const LATE_MSG = '시간이 모자라 일부만 모았어요';
   // 검색어를 쉼표로 나눠 적으면 여러 표기로 각각 찾아 합친다 (3개까지)
   const altsOf = (s) => String(s.keyword || '').split(',').map((w) => w.trim()).filter(Boolean).slice(0, 3);
-  // 지역 이름 맞춰 보기: 띄어쓰기와 첫 낱말의 시·도 꼬리(특별시·광역시·특별자치시·특별자치도·도)를 빼고 비교한다
-  //   "서울 강남구" ↔ "서울특별시 강남구 역삼동", "경기 시흥시" ↔ "경기도 시흥시 정왕동", "시흥시" ↔ "경기도 시흥시 정왕동"
-  const areaKey = (v) => String(v || '').trim().split(/\s+/).map((w, i) => (i === 0 ? w.replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') : w)).join('');
+  // 지역 이름 맞춰 보기: 띄어쓰기와 첫 낱말의 시·도 꼬리(특별시·광역시·특별자치시·특별자치도·도)를 빼고, 시·도 줄임말·옛 이름을 하나로 맞춰 비교한다
+  //   "서울 강남구" ↔ "서울특별시 강남구 역삼동", "경기 시흥시" ↔ "경기도 시흥시 정왕동", "시흥시" ↔ "경기도 시흥시 정왕동",
+  //   "전라북도 전주시" ↔ "전북특별자치도 전주시", "광주광역시 북구" ↔ "전남광주통합특별시 북구"(2026-07 통합)
+  //   도우미(collector/places.mjs)의 PROV_ALIAS·areaKey 와 같아야 한다
+  const PROV_ALIAS = {
+    충청북: '충북', 충청남: '충남', 전라북: '전북', 경상북: '경북', 경상남: '경남',
+    전라남: '전남광주', 전남: '전남광주', 광주: '전남광주', 전남광주통합: '전남광주', 광주전남: '전남광주',
+    서울시: '서울', 부산시: '부산', 대구시: '대구', 인천시: '인천', 대전시: '대전', 울산시: '울산', 세종시: '세종',
+  };
+  const provWord = (w) => { const p = String(w || '').replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, ''); return PROV_ALIAS[p] || p; };
+  const areaKey = (v) => String(v || '').trim().split(/\s+/).filter(Boolean).map((w, i) => (i === 0 ? provWord(w) : w)).join('');
+  // 가까운 지역들(검색마다 도우미가 정해 보낸다)의 열쇠. 예전 조건은 homeArea 하나
+  const homesOf = (s) => (Array.isArray(s.homeAreas) ? s.homeAreas : s.homeArea ? [s.homeArea] : []).map(areaKey).filter(Boolean);
+  const inHomes = (homes, v) => { const k = areaKey(v); return !!k && homes.some((h) => k.includes(h)); };
   // 조건의 기본값은 보내지 않는다(판매중, 제목·내용, 그 사이트의 마켓 전부). 지역은 cfg.regions 에 한 번만 적고 ID 로 가리킨다.
   const MY = (typeof PART === 'string' ? PART : cfg.part) === 'd' ? ['daangn'] : ['joongna', 'bunjang'];
   for (const s of cfg.searches || []) {
@@ -239,14 +250,16 @@ async function junggoCollect(cfg) {
     await Promise.all([one(), one(), one(), one(), one(), one()]);
     try { localStorage.setItem(BD_KEY, JSON.stringify(cache)); } catch { /* 저장 공간이 모자라면 이번만 쓴다 */ }
     for (const { s, items } of byId) {
-      const home = areaKey(s.homeArea);
+      const homes = homesOf(s);
       for (const it of items) {
         const d = it[0] === 'b' && cache[it[1]];
         if (!d) continue;
         const x = it[12] || (it[12] = {});
         if (d[3]) it[5] = cut(d[3], 12);
-        if (home && d[4]) it[11] = areaKey(d[4]).includes(home) ? 1 : 0;
+        if (homes.length && d[4]) it[11] = inHomes(homes, d[4]) ? 1 : 0;
         if (d[1] != null && d[2] != null) { x.lat = d[1]; x.lng = d[2]; }
+        // 좌표 없이 주소만 있으면 도우미가 동 가운데로 거리를 어림한다
+        else if (d[4]) x.ar = [d[4]];
         const f = (x.f || '') + (d[5] === 'NEW' ? 'N' : '') + (d[6] === 1 ? 'I' : '') + (d[7] === 1 ? 'F' : '');
         if (f) x.f = f;
         if (d[8]) x.sn = d[8];
@@ -274,23 +287,25 @@ async function junggoCollect(cfg) {
     if (!d || !Array.isArray(d.items)) throw new Error('응답 형식이 바뀌어 읽지 못했어요');
     return d;
   }
-  function joongnaItem(r, home) {
+  function joongnaItem(r, homes) {
     const st = { 0: 's', 1: 'r', 3: 'x' }[r.state] || 'o';
     const locs = Array.isArray(r.locationNames) ? r.locationNames.map((x) => String(x || '').trim()).filter(Boolean) : [];
     let loc = r.mainLocationName || '';
     if (!loc && locs[0]) loc = locs[0].split(/\s+/).pop();
-    const near = !home || !locs.length ? null : locs.some((x) => areaKey(x).includes(home)) ? 1 : 0;
+    const near = !homes.length || !locs.length ? null : locs.some((x) => inHomes(homes, x)) ? 1 : 0;
     // 13번째 칸: 덧붙임 정보. f = P 중고나라페이, C 인증셀러 / s = 판매자(가게) 번호
+    //   ar = 판매 지역 이름들 — 도우미가 동 가운데까지 거리를 어림한다(좌표가 없어서)
     const x = {};
     const f = (r.jnPayBadgeFlag ? 'P' : '') + (r.certifySellerFlag ? 'C' : '');
     if (f) x.f = f;
     if (r.storeSeq != null) x.s = String(r.storeSeq);
+    if (locs.length) x.ar = locs.slice(0, 3).map((l) => cut(l, 40));
     return ['j', String(r.seq), cut(r.title, 90), num(r.price), st, cut(loc, 12), sec(kst(r.sortDate)), 0, num(r.wishCount) || 0, num(r.chatCount) || 0, 0, near, x];
   }
   async function joongna(s) {
     const items = [];
     const partial = [];
-    const home = areaKey(s.homeArea);
+    const home = homesOf(s);
     let total = null;
     for (let page = 0; page < (cfg.jPages || 8); page++) {
       if (page && late()) { partial.push(LATE_MSG); break; }
@@ -333,31 +348,34 @@ async function junggoCollect(cfg) {
     }
     return list;
   }
-  // 시·군·구 찾기. "시흥시", "경기 시흥시", "분당구", "분당", "성남 분당구", "부산 중구" 를 알아듣는다.
-  // 당근 목록에서 구가 있는 시는 "성남시 분당구" 처럼 구마다 따로라, 시 이름만 적으면("성남시") 그 시의 구들(3곳까지)을 돌려준다.
+  // 시·군·구 찾기. "시흥시", "경기 시흥시", "경기도 시흥시", "분당구", "분당", "성남 분당구", "부산 중구" 를 알아듣는다.
+  // 시·도 이름은 areaKey 처럼 맞춘다("전라북도"="전북특별자치도", "광주광역시"="전남광주통합특별시").
+  // 당근 목록에서 구가 있는 시는 "성남시 분당구" 처럼 구마다 따로라, 시 이름만 적으면("성남시", "경기도 수원시") 그 시의 구들(5곳까지)을 돌려준다.
   async function daangnCities(q) {
-    const key = String(q || '').replace(/\s+/g, '');
-    if (!key) return [];
+    // 맞춘 열쇠와 띄어쓰기만 뺀 글자 둘 다로 본다 (붙여 쓴 "경기도시흥시"도)
+    const keys = [areaKey(q), String(q || '').replace(/\s+/g, '')].filter(Boolean);
+    if (!keys.length) return [];
     if (!cityListP) cityListP = loadCities();
     const cityList = await cityListP;
-    const short = (t) => t.replace(/(특별자치도|특별자치시|특별시|광역시|도)$/, '');
     const trim = (t) => t.replace(/[시군구]$/, '');
     const one = (c) => ({ id: c.id, name: c.name, fullName: `${c.top} ${c.name}`.trim() });
     for (const c of cityList) {
       const name = c.name.replace(/\s+/g, '');
+      const tops = [areaKey(c.top), c.top.replace(/\s+/g, '')];
       const ws = c.name.trim().split(/\s+/);
-      const forms = [name, c.top.replace(/\s+/g, '') + name, short(c.top) + name, trim(name)];
+      const forms = [name, trim(name), ...tops.map((t) => t + name)];
       if (ws.length > 1) {
         const last = ws[ws.length - 1];
-        forms.push(last, trim(last), trim(ws[0]) + last, short(c.top) + last);
+        forms.push(last, trim(last), trim(ws[0]) + last, ...tops.map((t) => t + last));
       }
-      if (forms.includes(key)) return [one(c)];
+      if (forms.some((f) => keys.includes(f))) return [one(c)];
     }
+    const want = keys.map(trim);
     const many = cityList.filter((c) => {
       const ws = c.name.trim().split(/\s+/);
-      return ws.length > 1 && (trim(ws[0]) === trim(key) || short(c.top) + trim(ws[0]) === trim(key));
+      return ws.length > 1 && [trim(ws[0]), areaKey(c.top) + trim(ws[0]), c.top.replace(/\s+/g, '') + trim(ws[0])].some((f) => want.includes(f));
     });
-    return many.slice(0, 3).map(one);
+    return many.slice(0, 5).map(one);
   }
   async function daangnRegion(q) {
     const city = (await daangnCities(q))[0];
@@ -421,7 +439,10 @@ async function junggoCollect(cfg) {
       if (cs.length > 1) for (const c of cs) asked.push({ ...c, q: r.q || r.name, few: true });
       else asked.push(r);
     }
-    const targets = asked.length ? asked.slice(0, 4) : [null];
+    const targets = asked.length ? asked.slice(0, 8) : [null];
+    // 가까운 지역이 여럿이면 지역마다 기준 동네를 줄여, 한 검색에서 당근을 부르는 횟수를 cfg.dCalls(기본 8)번 안팎으로 맞춘다
+    // (지역 하나: 처음 1번 + 기준 동네 5곳 / 둘: 1+3씩 / 셋·넷: 1+1씩 / 다섯 이상: 처음 1번씩만)
+    const per = targets.length > 1 ? Math.max(0, Math.floor((cfg.dCalls || 8) / targets.length) - 1) : 99;
     const items = [];
     const texts = new Map();
     const regions = [];
@@ -442,9 +463,9 @@ async function junggoCollect(cfg) {
         const nearList = isCity ? nb.filter((x) => String(x.name2Id) === String(region.id)) : nb;
         const nearNames = new Set(nearList.map((x) => x.name).filter(Boolean));
         let anchors = [];
-        if (region && Array.isArray(r.anchors)) anchors = r.anchors.map(String).filter((a) => /-\d+$/.test(a));
+        if (region && Array.isArray(r.anchors)) anchors = r.anchors.map(String).filter((a) => /-\d+$/.test(a)).slice(0, per);
         else if (isCity) {
-          const k = Math.min(nearList.length, r && r.few ? 2 : cfg.dAnchors || 5);
+          const k = Math.min(nearList.length, per, r && r.few ? 2 : cfg.dAnchors || 5);
           for (let i = 0; i < k; i++) {
             const x = nearList[Math.floor((i * nearList.length) / k)];
             anchors.push(`${x.name}-${x.id}`);

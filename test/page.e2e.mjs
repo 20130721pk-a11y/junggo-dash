@@ -31,7 +31,7 @@ function fake(issues = []) {
       const items = [];
       for (let i = 0; i < (sold ? 6 : 40); i++) {
         const price = 300000 + ((i * 37) % 23) * 10000;
-        items.push({ seq: (sold ? 9000 : 100) + i, title: `${b.searchWord} ${['풀박스', '단품', 'S급', '급처', '케이스 포함'][i % 5]} ${i}`, price, state: sold ? 3 : 0, sortDate: kst(NOW - (i + 1) * 3600e3), locationNames: [i % 3 ? '서울 강남구 역삼동' : '경기도 시흥시 정왕동'], wishCount: i % 4, chatCount: i % 3, storeSeq: i % 7 === 0 ? 77 : 1000 + i, certifySellerFlag: i % 6 === 0, objectType: 'product' });
+        items.push({ seq: (sold ? 9000 : 100) + i, title: `${b.searchWord} ${['풀박스', '단품', 'S급', '급처', '케이스 포함'][i % 5]} ${i}`, price, state: sold ? 3 : 0, sortDate: kst(NOW - (i + 1) * 3600e3), locationNames: i % 7 === 6 ? [] : [i % 3 ? '서울 강남구 역삼동' : '경기도 시흥시 정왕동'], wishCount: i % 4, chatCount: i % 3, storeSeq: i % 7 === 0 ? 77 : 1000 + i, certifySellerFlag: i % 6 === 0, objectType: 'product' });
       }
       return json({ meta: { code: 0 }, data: { items, totalSize: items.length } });
     }
@@ -172,6 +172,73 @@ check(/당근 방금|당근 \d+분 전/.test(await page.textContent('#refreshSta
 check(/폰 앱이 모은 결과/.test(await page.textContent('#notices')), '당근은 폰 앱이 모았다고 안내');
 check((await page.textContent('#list')).includes('플스5 당근 직거래'), '목록에 당근 매물');
 await page.screenshot({ path: `${OUT}/4b-daangn.png`, fullPage: false });
+
+// 지역 거르기: N km 안 / 지역 모르는 매물도 / 가까운 지역만
+await page.selectOption('#fWhere', '10');
+await page.waitForTimeout(300);
+const kmTexts = await page.$$eval('#list .r-meta .km', (l) => l.map((x) => x.textContent));
+check(kmTexts.length > 0 && kmTexts.every((t) => parseFloat(t.replace('≈', '')) <= 10), `10km 안만 (${kmTexts.length}줄)`);
+check(kmTexts.some((t) => t.startsWith('≈')), '중고나라 거리는 ≈ (판매 지역 동 가운데까지 대략)');
+check(!(await page.textContent('#list')).includes('당근 먼 곳'), '먼 당근 매물은 빠진다');
+check(await page.isVisible('#fUnknownWrap'), "'지역 모르는 매물도' 칸이 보인다");
+check(/10km 안 보는 중/.test(await page.textContent('#notices')) && /빠졌어요/.test(await page.textContent('#notices')), '안내: 지역 모르는 매물이 빠졌다');
+const n10 = await page.$$eval('#list > li.item', (l) => l.length);
+await page.click('#notices button:has-text("함께 보기")');
+await page.waitForTimeout(300);
+check(await page.isChecked('#fUnknown'), "'함께 보기' → '지역 모르는 매물도' 켜짐");
+check((await page.$$eval('#list > li.item', (l) => l.length)) > n10, '지역 모르는 매물이 더해졌다');
+await page.screenshot({ path: `${OUT}/4c-km.png`, fullPage: false });
+await page.selectOption('#fWhere', '5');
+await page.click('#fUnknown');
+await page.waitForTimeout(300);
+check(/5km 안 매물이 없어요/.test(await page.textContent('#listEmpty')), '5km 안에는 없다고 알림');
+await page.click('#listEmpty button');
+await page.waitForTimeout(300);
+check((await page.inputValue('#fWhere')) === 'all' && (await page.isHidden('#fUnknownWrap')), "'전체 지역 보기' → 전체");
+await page.selectOption('#fWhere', 'near');
+await page.reload();
+await page.waitForSelector('#view:not([hidden])', { timeout: 15000 });
+check((await page.inputValue('#fWhere')) === 'near', '지역 거르기를 이 기기에서 기억한다');
+const nearBefore = await page.$$eval('#list > li.item', (l) => l.length);
+
+// 설정: 가까운 지역 여러 곳 + 거리 기준
+await page.click('#homeBtn');
+check((await page.$$eval('#areaList .area-chip span', (l) => l.map((x) => x.textContent))).join('|') === '경기도 시흥시', '지금 가까운 지역');
+check(await page.isVisible('#areaSuggest') && (await page.$$('#areaSuggest button')).length > 0, '둘레 시·군·구 추천');
+const sug1 = (await page.textContent('#areaSuggest button >> nth=0')).trim();
+await page.click('#areaSuggest button >> nth=0');
+await page.fill('#areaInput', '서울 강남구');
+await page.press('#areaInput', 'Enter');
+await page.fill('#areaInput', '경기도');
+await page.click('#areaAddBtn');
+check(await page.isVisible('#areaError'), '시·도만 적으면 알려준다');
+await page.fill('#areaInput', '경기 시흥시');
+await page.press('#areaInput', 'Enter');
+check(/이미 있어요/.test(await page.textContent('#areaError')), '같은 지역은 한 번만');
+await page.fill('#areaInput', '');
+const chips = await page.$$eval('#areaList .area-chip span', (l) => l.map((x) => x.textContent));
+check(chips.length === 3 && chips[2] === '서울 강남구', `지역 3곳 (${chips.join(', ')}, 추천: ${sug1})`);
+await page.fill('#homePoint', '경기도 시흥시 정왕동');
+await page.screenshot({ path: `${OUT}/4d-areas.png`, fullPage: false });
+await page.click('#homeSave');
+await page.waitForSelector('#sendBar:not([hidden])', { timeout: 5000 });
+const areaHref = await page.getAttribute('#sendLink', 'href');
+const areaBox = JSON.parse(/```junggo\n([\s\S]*?)\n```/.exec(new URL(areaHref).searchParams.get('body'))[1]);
+const areaPay = open(areaBox, keyring(PW), LABEL.edit);
+check(areaPay.config.areas.length === 3 && areaPay.config.area === '경기도 시흥시' && areaPay.config.areas[2] === '서울 강남구' && areaPay.config.home === '경기도 시흥시 정왕동', '보낼 설정: 지역 3곳 + 거리 기준');
+const prev3b = fs.mkdtempSync(path.join(os.tmpdir(), 'jd-prev-'));
+fs.cpSync(data, prev3b, { recursive: true });
+await run({ prevDir: prev3b, outDir: data, workDir: work, env: { ...env, INIT_SEARCHES: '' }, fetchImpl: fake([{ number: 3, title: '꿀매 레이더: 검색 저장', body: new URL(areaHref).searchParams.get('body'), user: { login: 'me' } }]), now: () => dAt + 30 * 60e3, log: () => {} });
+await page.reload();
+await page.waitForSelector('#view:not([hidden])', { timeout: 15000 });
+await page.waitForTimeout(300);
+check(await page.isHidden('#sendBar'), '반영되면 보낼 요청 줄이 사라짐 (설정)');
+check(/설정 · 시흥시 외 2곳/.test(await page.textContent('#homeBtn')), `설정 단추: ${await page.textContent('#homeBtn')}`);
+check((await page.$$eval('#list > li.item', (l) => l.length)) > nearBefore, '강남구도 가까운 지역 → 근처 매물이 늘었다');
+await page.click('#homeBtn');
+check(/지금은 경기도 시흥시 정왕동에서 재요/.test(await page.textContent('#homePointHelp')), '거리 기준을 찾았다고 알려준다');
+await page.click('#homeCancel');
+await page.selectOption('#fWhere', 'all');
 
 // 토큰: GitHub 화면을 거치지 않고 바로 보낸다 (GitHub API 는 가짜로)
 const TOK = `github_pat_${'A1b2C3'.repeat(14)}`;

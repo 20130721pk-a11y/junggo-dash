@@ -5,8 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { run, payloadOf, robotsAllows, cleanSearch, D_PATHS } from '../run.mjs';
+import crypto from 'node:crypto';
+import { run, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS } from '../run.mjs';
 import { keyring, open, seal, LABEL } from '../seal.mjs';
+import { collectKey } from '../refresh.mjs';
+import { findPlace, nearbyAreas, areaKey, sameArea } from '../places.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 new Function('self', fs.readFileSync(path.join(here, '..', '..', 'box.js'), 'utf8'))(globalThis);
@@ -562,4 +565,176 @@ test('작은 도우미들', () => {
   assert.deepEqual(cleanSearch({ id: 's_abcd1235', keyword: 'y', platforms: ['nope'] }).platforms, ['joongna', 'daangn', 'bunjang']);
   assert.equal(s.category, '');
   assert.deepEqual(s.exclude, ['x']);
+});
+
+test('설정: 가까운 지역 여러 곳 + 거리 기준 (예전 페이지가 보낸 지역 하나도 알아듣는다)', () => {
+  assert.deepEqual(cleanConfig(null, { area: '경기도 시흥시', maxAgeDays: 30 }), { area: '경기도 시흥시', areas: ['경기도 시흥시'], home: '', maxAgeDays: 30 }, '예전 기록');
+  const c = cleanConfig({ areas: ['경기도 시흥시', ' 경기  시흥시 ', '인천 남동구', '', 3, '서울 마포구', '경기도 안산시', '경기도 광명시', '경기도 부천시'], home: ' 경기도 시흥시   정왕동 ' });
+  assert.deepEqual(c.areas, ['경기도 시흥시', '인천 남동구', '서울 마포구', '경기도 안산시', '경기도 광명시'], '같은 곳은 한 번, 5곳까지');
+  assert.equal(c.area, '경기도 시흥시');
+  assert.equal(c.home, '경기도 시흥시 정왕동');
+  // 지역 하나만 아는 예전 페이지: 첫 지역만 바꾸고 이웃 지역·거리 기준은 그대로
+  assert.deepEqual(cleanConfig({ area: '서울 마포구', maxAgeDays: 60 }, c), { area: '서울 마포구', areas: ['서울 마포구', '인천 남동구', '경기도 안산시', '경기도 광명시'], home: '경기도 시흥시 정왕동', maxAgeDays: 60 });
+  assert.deepEqual(cleanConfig({ area: '' }, c).areas, [], '지우면 다 지운다');
+  assert.deepEqual(cleanConfig({ areas: [] }, c), { area: '', areas: [], home: '경기도 시흥시 정왕동', maxAgeDays: 30 });
+  // 당근 조건 지문: 지역이 하나면 예전과 똑같다 (지금 모아 둔 당근 매물을 버리지 않게)
+  const s = { keyword: '플스5', platforms: ['joongna', 'daangn', 'bunjang'], regions: [{ q: '경기도 시흥시' }], match: 'content' };
+  assert.equal(dKey(s, dSig(['경기도 시흥시'])), crypto.createHash('sha256').update(`${collectKey(s)}|경기도 시흥시`, 'utf8').digest('hex').slice(0, 16));
+  assert.notEqual(dSig(['경기도 시흥시', '인천 남동구']), dSig(['인천 남동구', '경기도 시흥시']));
+});
+
+test('지역 표: 이름을 여러 가지로 적어도 가운데를 찾는다 (2026-07 행정구역)', () => {
+  const at = (t) => { const p = findPlace(t); return p && `${p.name}|${p.level}`; };
+  assert.equal(at('경기도 시흥시'), '경기도 시흥시|sgg');
+  assert.equal(at('경기 시흥시 정왕동'), '경기도 시흥시 정왕동|dong', '법정동 이름(정왕동) → 행정동들(정왕1~4동·본동) 평균');
+  assert.equal(at('시흥시 배곧동'), '경기도 시흥시 배곧동|dong');
+  assert.equal(at('정왕1동'), '경기도 시흥시 정왕1동|dong', '동 이름만');
+  assert.equal(at('시흥'), '경기도 시흥시|sgg');
+  assert.equal(at('서울특별시 강남구 역삼동'), '서울특별시 강남구 역삼동|dong');
+  assert.equal(at('경기도 시흥시 정왕동 1234-5'), '경기도 시흥시 정왕동|dong', '번지가 붙어도');
+  assert.equal(at('인천광역시 남구 용현동'), '인천광역시 미추홀구 용현동|dong', '옛 구 이름');
+  assert.equal(at('인천광역시 중구 신포동'), '인천광역시 제물포구 신포동|dong', '2026-07 인천 개편');
+  assert.equal(at('경상북도 군위군 군위읍'), '대구광역시 군위군 군위읍|dong', '2023-07 대구 편입');
+  assert.equal(at('광주광역시 북구 운암동'), '전남광주통합특별시 북구 운암동|dong', '2026-07 광주·전남 통합');
+  assert.equal(at('전라북도 전주시 완산구'), '전북특별자치도 전주시 완산구|sgg');
+  assert.equal(at('경기도 수원시 영통동'), '경기도 수원시 영통구 영통동|dong', '구를 빼고 적어도');
+  assert.equal(at('경기도 수원시'), '경기도 수원시|city');
+  assert.equal(at('세종특별자치시 조치원읍'), '세종특별자치시 세종시 조치원읍|dong');
+  assert.equal(at('경기도'), null, '시·도만은 너무 넓다');
+  assert.equal(at('중구'), null, '여러 곳이면 모른다');
+  assert.equal(areaKey('광주광역시 북구'), areaKey('전남광주통합특별시 북구'));
+  assert.equal(areaKey('전라북도 전주시'), areaKey('전북특별자치도 전주시'));
+  assert.ok(sameArea('경기도 안산시', '안산시 단원구') === false && sameArea('경기도 안산시', '경기 안산시 단원구'), '겹치는지');
+  const near = nearbyAreas(findPlace('경기도 시흥시 정왕동'), { skip: ['경기도 시흥시'] });
+  assert.ok(near.length >= 5 && near.every((x, i) => i === 0 || near[i - 1].km <= x.km), '가까운 순');
+  assert.ok(near.some((x) => x.q === '경기도 안산시 단원구') && near.some((x) => x.q === '인천광역시 남동구'));
+  assert.ok(!near.some((x) => x.q.includes('시흥시')), '고른 지역은 빼고');
+});
+
+test('가까운 지역 여러 곳 + 거리 기준: 근처 표시, 거리(중고나라는 동 가운데로 어림), 폰 앱 할 일, 거리 기준만 바꾸기', async () => {
+  const searches = [{ id: 's_aaaa1111', keyword: '테스트 물건', platforms: ['joongna', 'daangn', 'bunjang'], createdAt: 1 }];
+  const init = JSON.stringify({ searches, config: { areas: ['경기도 시흥시', '서울 마포구'], home: '경기도 시흥시 정왕동' } });
+  const extra = [{ m: 'j', id: 104, t: '마포 매물', p: 490000, loc: '서울특별시 마포구 합정동' }, { m: 'j', id: 105, t: '부산 매물', p: 470000 }];
+  const T = Date.now() + 40 * 3600e3;
+  const d = dirs();
+  await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env({ INIT_SEARCHES: init }), fetchImpl: fakeSites({ extra }), now: () => T, log: quiet });
+  const v = openView(d);
+  assert.deepEqual(v.config.areas, ['경기도 시흥시', '서울 마포구']);
+  assert.equal(v.config.area, '경기도 시흥시', '예전 페이지용 area = 첫 지역');
+  assert.equal(v.config.home, '경기도 시흥시 정왕동');
+  assert.deepEqual(v.places.home, { q: '경기도 시흥시 정왕동', name: '경기도 시흥시 정왕동', level: 'dong' });
+  const sug = v.places.near.map((x) => x.q);
+  assert.ok(sug.includes('인천광역시 남동구'), '둘레의 시·군·구를 추천한다');
+  assert.ok(!sug.some((q) => q.includes('시흥시') || q.includes('마포구')), '이미 고른 지역은 빼고');
+  const row = (vv, id) => vv.results.s_aaaa1111.items.find((t) => t[1] === id);
+  const [j101, j104, j105, b201] = ['101', '104', '105', '201'].map((id) => row(v, id));
+  assert.deepEqual([j101[11], j104[11], j105[11]], [1, 1, 0], '두 번째 지역(마포)도 근처');
+  assert.equal(j101[13].ap, 1, '중고나라 거리는 대략(판매 지역 동 가운데)');
+  assert.ok(j101[13].km < 1, `정왕동 → 정왕동 ${j101[13].km}km`);
+  assert.ok(j104[13].km > 20 && j104[13].km < 35, `정왕동 → 합정동 ${j104[13].km}km`);
+  assert.ok(j105[13].km > 250, '부산');
+  assert.equal(b201[11], 1);
+  assert.equal(b201[13].ap, undefined, '번개장터는 거래 좌표로');
+  assert.ok(b201[13].km < 2 && Array.isArray(b201[13].ll));
+  const job = openJob(d);
+  assert.deepEqual(job.cfg.searches[0].regions, [{ q: '경기도 시흥시' }, { q: '서울 마포구' }]);
+  assert.deepEqual(job.cfg.homes, [{ k: '', q: '경기도 시흥시 정왕동' }]);
+  assert.ok(job.cfg.budgetMs > 150000 && job.timeoutMs === job.cfg.budgetMs + 90000, '지역이 여럿이면 시간을 더 준다');
+  // 지역 하나일 때와 조건 지문이 다르다 (폰이 새 지역으로 다시 모으게)
+  const d1 = dirs();
+  await run({ prevDir: d1.prev, outDir: d1.out, workDir: d1.work, env: env({ INIT_SEARCHES: JSON.stringify({ searches, config: { area: '경기도 시흥시' } }) }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  assert.notEqual(openJob(d1).ck.s_aaaa1111, job.ck.s_aaaa1111);
+  assert.equal(openJob(d1).cfg.budgetMs, 150000);
+
+  // 폰 앱이 두 지역에서 모아 올림: 거래 좌표가 없는 근처 매물은 가까운 지역 안에서 동 이름으로 거리를 어림한다
+  const t = sec(T - 20 * 60e3);
+  const dres = {
+    v: 1, job: job.id, ck: job.ck, at: T + 9 * 60e3, startedAt: T + 8 * 60e3, by: 'app', app: '0.4.2', device: 'Test Phone', trigger: 'auto', ok: true,
+    result: {
+      __junggo: 'v1', part: 'd', at: T + 9 * 60e3,
+      results: {
+        s_aaaa1111: {
+          pf: { daangn: { st: 'ok', raw: 2, n: 2, regions: [
+            { id: '1613', name: '시흥시', fullName: '경기도 시흥시', q: '경기도 시흥시', anchors: 4, geo: { names: ['정왕동', '배곧동'], centers: [[37.345, 126.735]] } },
+            { id: '1001', name: '마포구', fullName: '서울 마포구', q: '서울 마포구', anchors: 4, geo: { names: ['합정동'], centers: [[37.55, 126.91]] } },
+          ] } },
+          items: [
+            ['d', 'm1', '테스트 물건 합정', 300000, 's', '합정동', t, t, 0, 0, 0, 1, {}],
+            ['d', 'm2', '테스트 물건 배곧', 310000, 's', '배곧동', t, t, 0, 0, 0, 1, { lat: 37.371, lng: 126.728 }],
+          ],
+        },
+      },
+      homes: { '': { q: '경기도 시흥시 정왕동', lat: 37.35, lng: 126.73 } },
+    },
+  };
+  const r1 = await nextRun(d.out, { at: T + 10 * 60e3, dres, envx: { GITHUB_EVENT_NAME: 'repository_dispatch' } });
+  const m1 = row(r1.v, 'm1');
+  const m2 = row(r1.v, 'm2');
+  assert.equal(r1.v.results.s_aaaa1111.pf.daangn.st, 'ok');
+  assert.deepEqual([m1[11], m2[11]], [1, 1]);
+  assert.equal(m1[13].ap, 1, '거래 좌표가 없으면 동 가운데로 어림');
+  assert.ok(m1[13].km > 20, `정왕동 → 합정동 ${m1[13].km}km`);
+  assert.equal(m2[13].ap, undefined);
+  assert.ok(m2[13].km < 4, `정왕동 → 배곧 ${m2[13].km}km`);
+
+  // 거리 기준만 바꾸면: 당근을 다시 기다리지 않고, 거리는 새 기준에서 다시 잰다
+  const box = readOut(r1.d, 'view.enc');
+  const key = await Box.deriveKey(PW, box.salt, box.iter);
+  const payload = await Box.seal({ v: 1, id: 'p_home01', at: Date.now(), searches: r1.v.searches, config: { ...r1.v.config, home: '서울 마포구 합정동' } }, key, box.salt, Box.LABEL.edit, box.iter);
+  const issues = [{ number: 41, title: '꿀매 레이더: 검색 저장', body: `\`\`\`junggo\n${JSON.stringify(payload)}\n\`\`\``, user: { login: 'me' } }];
+  const r2 = await nextRun(r1.d.out, { at: T + 20 * 60e3, issues });
+  assert.equal(r2.v.results.s_aaaa1111.pf.daangn.st, 'ok', '거리 기준은 당근 조건 지문에 들어가지 않는다');
+  assert.ok(row(r2.v, 'm1')[13].km < 1.5, `합정동 → 합정동 ${row(r2.v, 'm1')[13].km}km`);
+  assert.ok(row(r2.v, 'm2')[13].km > 20);
+  assert.ok(row(r2.v, '101')[13].km > 20, '중고나라도 새 기준(합정동)에서 — 시흥 정왕동 매물은 멀어졌다');
+  assert.equal(r2.v.places.home.name, '서울특별시 마포구 합정동');
+  assert.deepEqual(openJob(r2.d).ck, job.ck);
+});
+
+// 가짜 당근 (폰 앱이 돌리는 당근 부분 수집기를 Node 에서 시험)
+function fakeDaangn(calls) {
+  const tops = [
+    { regionName: '경기도', childrenRegion: [{ regionId: 1613, regionName: '시흥시' }, { regionId: 1500, regionName: '안산시 상록구' }, { regionId: 1501, regionName: '안산시 단원구' }] },
+    { regionName: '인천광역시', childrenRegion: [{ regionId: 2000, regionName: '남동구' }] },
+    { regionName: '전남광주통합특별시', childrenRegion: [{ regionId: 3000, regionName: '북구' }] },
+  ];
+  const dongs = (cid) => Array.from({ length: 6 }, (_, i) => ({ id: cid * 10 + i, name: `동${cid}x${i}`, name2Id: cid }));
+  return async (url) => {
+    const u = new URL(url, 'https://www.daangn.com');
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (u.pathname === '/kr/regions/') return json({ allRegions: tops });
+    if (u.pathname === '/kr/buy-sell/') return new Response('<html></html>', { status: 200 });
+    if (u.pathname === '/kr/search/buy-sell/') {
+      const inn = u.searchParams.get('in') || '';
+      const i = inn.lastIndexOf('-');
+      const id = Number(inn.slice(i + 1));
+      calls.push(inn);
+      const city = id < 10000 ? id : Math.floor(id / 10);
+      return json({
+        buySellArticles: [{ href: `/kr/buy-sell/x-${id}n${calls.length}/`, title: `${u.searchParams.get('q')} ${calls.length}`, price: '10000', status: 'Ongoing', createdAt: new Date().toISOString(), region: { name: inn.slice(0, i) }, content: '' }],
+        searchRegion: { id, name: inn.slice(0, i) }, nearbyRegions: dongs(city), regionCenterCoordinate: { lat: 37.4, lng: 126.8 },
+      });
+    }
+    return new Response('no', { status: 404 });
+  };
+}
+
+test('당근 수집기: 가까운 지역이 여럿이면 지역마다 기준 동네를 줄여 한 검색에 8번 안팎으로 부른다', async () => {
+  const go = async (areas) => {
+    const calls = [];
+    const cfg = { part: 'd', plain: true, maxAgeDays: 30, searches: [{ id: 's1', keyword: '의자', regions: areas.map((q) => ({ q })) }] };
+    const r = await runCollector(cfg, { fetchImpl: fakeDaangn(calls), store: {} });
+    return { calls, pf: r.results.s1.pf.daangn };
+  };
+  const one = await go(['경기도 시흥시']);
+  assert.equal(one.calls.length, 6, '지역 하나: 처음 1번 + 기준 동네 5곳 (예전과 같다)');
+  const two = await go(['경기도 시흥시', '인천광역시 남동구']);
+  assert.equal(two.calls.length, 8, '둘: 1+3씩');
+  assert.deepEqual(two.pf.regions.map((x) => x.name), ['시흥시', '남동구']);
+  const three = await go(['경기도 시흥시', '경기도 안산시', '인천 남동구']);
+  assert.deepEqual(three.pf.regions.map((x) => x.name), ['시흥시', '안산시 상록구', '안산시 단원구', '남동구'], '구가 있는 시는 구마다');
+  assert.equal(three.calls.length, 8, '넷: 1+1씩');
+  const gj = await go(['광주광역시 북구']);
+  assert.equal(gj.pf.st, 'ok');
+  assert.ok(gj.calls[0].endsWith('-3000'), '옛 시·도 이름(광주광역시)도 당근의 새 이름(전남광주통합특별시)에서 찾는다');
 });
