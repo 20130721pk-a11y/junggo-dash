@@ -738,3 +738,69 @@ test('당근 수집기: 가까운 지역이 여럿이면 지역마다 기준 동
   assert.equal(gj.pf.st, 'ok');
   assert.ok(gj.calls[0].endsWith('-3000'), '옛 시·도 이름(광주광역시)도 당근의 새 이름(전남광주통합특별시)에서 찾는다');
 });
+
+// 가짜 사이트: 중고나라·번개장터가 검색어를 글자 단위로 나눠 찾는다 ('쿠단' → '단쿠가', '스쿠브 6단', '바쿠단야끼'…)
+function fuzzySites(log = []) {
+  const now = Date.now();
+  const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const junk = ['초수기신 단쿠가 피규어', '이케아 스쿠브 6단 수납함', '단간론파 모노쿠마 인형', '쿠키런 키링 단품', '하이큐 보쿠토 응원단 인형'];
+  return async (url, init = {}) => {
+    const u = new URL(url);
+    log.push({ host: u.host, path: u.pathname, sort: u.searchParams.get('sort'), cursor: u.searchParams.get('cursor') });
+    if (u.pathname === '/robots.txt') return new Response('', { status: 404 });
+    if (u.host === 'api.github.com') return json([]);
+    if (u.host === 'search-api.joongna.com') {
+      const b = JSON.parse(init.body);
+      const items = b.saleYn === 'SALE_Y' ? [] : [
+        { seq: 1, title: 'rtx2080ti 쿠단 판매합니다', price: 900000, state: 0, sortDate: kst(now - 3600e3), locationNames: ['경기도 시흥시 정왕동'], objectType: 'product' },
+        ...junk.map((t, i) => ({ seq: 10 + i, title: t, price: 10000 + i, state: 0, sortDate: kst(now - (i + 2) * 3600e3), locationNames: [], objectType: 'product' })),
+      ];
+      return json({ meta: { code: 0 }, data: { items, totalSize: items.length } });
+    }
+    if (u.host === 'api.bunjang.co.kr' && u.pathname.startsWith('/api/search/')) {
+      const sort = u.searchParams.get('sort');
+      const c = u.searchParams.get('cursor');
+      const n = c ? Number(c.slice(1)) : 0;
+      const data = [];
+      if (sort === 'latest') {
+        // 최신순: 한 쪽 60건 중 제목에 '쿠단'이 있는 건 첫 쪽의 1건뿐, 쪽은 끝없이 이어진다 (기간 30일에 닿지 않음)
+        for (let i = 0; i < 60; i++) {
+          const k = n * 60 + i;
+          data.push({ type: 'PRODUCT', pid: String(10000 + k), name: k === 5 ? '컬러풀 iGame RTX 3090 쿠단 그래픽카드' : `${junk[k % junk.length]} ${k}`, price: '50000', status: 'SELLING', updatedAt: new Date(now - (k + 1) * 60e3).toISOString(), shop: { uid: 7 } });
+        }
+        return json({ data: { responses: { mainGrid: { searchResponse: { data, nextCursor: `L${n + 1}`, totalCount: 4826 } } } } });
+      }
+      // 정확도순: 3쪽, 쪽마다 제목에 '쿠단'이 있는 매물 2건(그중 하나는 최신순에서 본 것) + 엉뚱한 매물
+      for (let i = 0; i < 60; i++) {
+        const hit = i < 2;
+        const pid = hit ? (i === 0 && n === 0 ? '10005' : String(90000 + n * 10 + i)) : String(80000 + n * 60 + i);
+        data.push({ type: 'PRODUCT', pid, name: hit ? `RTX 2080 Ti 쿠단 10주년 ${pid}` : `${junk[i % junk.length]} s${n}`, price: '800000', status: 'SELLING', updatedAt: new Date(now - (n + 2) * 86400e3).toISOString(), shop: { uid: 8 } });
+      }
+      return json({ data: { responses: { mainGrid: { searchResponse: { data, nextCursor: n < 2 ? `S${n + 1}` : null, totalCount: 4826 } } } } });
+    }
+    if (u.host === 'api.bunjang.co.kr') return json({ data: { product: { geo: { lat: 37.345, lon: 126.735, address: '경기도 시흥시 정왕동' }, geoLabel: '정왕동', condition: 'USED', trade: {}, description: '' } } });
+    return new Response('no route', { status: 599 });
+  };
+}
+
+test('중고나라·번개장터는 제목에 검색어가 있는 매물만 남긴다 (사이트가 검색어를 글자 단위로 나눠 찾아도) + 번개장터는 정확도순으로 더 찾는다', async () => {
+  const init = JSON.stringify({ searches: [{ id: 's_kudan001', keyword: '쿠단', platforms: ['joongna', 'bunjang'], createdAt: 1 }], config: { area: '경기도 시흥시' } });
+  const d = dirs();
+  const log = [];
+  await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env({ INIT_SEARCHES: init }), fetchImpl: fuzzySites(log), log: quiet });
+  const r = openView(d).results.s_kudan001;
+  const titles = r.items.map((t) => t[2]);
+  assert.ok(titles.length > 0 && titles.every((t) => t.includes('쿠단')), `제목에 '쿠단'이 있는 것만: ${titles.join(' / ')}`);
+  assert.equal(r.pf.joongna.n, 1, '중고나라: 6건 중 1건');
+  assert.equal(r.pf.joongna.loose, undefined, '50건이 안 되면 따로 알리지 않는다');
+  assert.deepEqual(r.pf.bunjang.loose, { raw: 905, hit: 6 }, '번개장터: 최신순 900건(제목에 쿠단 1건) + 정확도순에서 더 찾은 5건');
+  assert.equal(r.pf.bunjang.deep, 5, '정확도순 3쪽에서 처음 보는 쿠단 매물 5건을 더 찾았다');
+  assert.equal(r.items.filter((t) => t[0] === 'b').length, 6);
+  const searches = log.filter((x) => x.host === 'api.bunjang.co.kr' && x.path.startsWith('/api/search/'));
+  assert.equal(searches.filter((x) => x.sort === 'latest').length, 15);
+  assert.equal(searches.filter((x) => x.sort === 'score').length, 3);
+  const details = log.filter((x) => x.path.startsWith('/api/pms/'));
+  assert.equal(details.length, 6, '상세 정보는 남긴 매물만 부른다 (엉뚱한 매물에 쓰지 않는다)');
+  // 검색어를 제목에 두지 않고 '제목·내용'으로 둬도 같다 (기본)
+  assert.equal(openView(d).searches[0].match, 'content');
+});

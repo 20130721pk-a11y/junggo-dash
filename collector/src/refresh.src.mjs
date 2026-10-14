@@ -60,7 +60,8 @@ export const CATEGORIES = {
   appliance: { label: '가전', j: 7, b: 610, d: 172 },
   phone: { label: '휴대폰', j: 6, b: 600700, d: 1 },
   tablet: { label: '태블릿', j: 6, b: 600710, d: 1 },
-  pc: { label: '컴퓨터·노트북', j: 8, b: 600100, d: 1 },
+  // 번개장터 600100(PC/노트북)에는 그래픽카드 같은 PC 부품(600200)이 없어 둘을 품는 600(디지털)으로 (2026-10-14 확인: '쿠단' 600100 → 0건, 600 → 그래픽카드 2건)
+  pc: { label: '컴퓨터·PC부품', j: 8, b: 600, d: 1 },
   game: { label: '게임기·게임', j: 12, b: 600600, d: 2 },
   furniture: { label: '가구·인테리어', j: 10, b: 810, d: 8 },
   living: { label: '생활·주방', j: 11, b: 800, d: 7 },
@@ -99,7 +100,7 @@ export function collectKey(s) {
 export const condOf = (s) => ({ exclude: words(s.exclude), include: words(s.include), minPrice: s.minPrice ?? null, maxPrice: s.maxPrice ?? null, status: s.status || 'selling', noBuy: s.noBuy !== false });
 
 // 구매글(삽니다·구합니다…)은 검색마다 따로 끄지 않으면(noBuy: false) 뺀다. 페이지(index.html)의 BUY_WORDS 와 같아야 한다
-export const BUY_WORDS = ['삽니다', '구합니다', '구매합니다', '구해요', '구입합니다', '매입합니다', '고가매입', '삽니당', '구매희망', '구매원합니다'];
+export const BUY_WORDS = ['삽니다', '구합니다', '구매합니다', '구해요', '구입합니다', '매입합니다', '고가매입', '삽니당', '구매희망', '구매원합니다', '구해봅니다', '삼니다'];
 
 // ---- 파일 읽기 ----
 function unwrap(obj) {
@@ -478,8 +479,8 @@ const ALIASES = [
   ['아이폰', 'iphone'], ['아이패드', 'ipad'], ['맥북', 'macbook'], ['아이맥', 'imac'], ['에어팟', 'airpods', 'airpod'],
   ['애플워치', 'applewatch'], ['애플', 'apple'], ['갤럭시', 'galaxy'], ['갤탭', '갤럭시탭', 'galaxytab'], ['버즈', 'buds'],
   ['프로', 'pro'], ['맥스', 'max'], ['플러스', 'plus'], ['미니', 'mini'], ['울트라', 'ultra'], ['에어', 'air'],
-  ['닌텐도', 'nintendo'], ['스위치', 'switch'], ['플레이스테이션', '플스', 'playstation'], ['ps5', '플스5', '플레이스테이션5'],
-  ['ps4', '플스4', '플레이스테이션4'], ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'],
+  ['닌텐도', 'nintendo'], ['스위치', 'switch'], ['플레이스테이션', '플스', 'playstation'], ['ps5', '플스5', '플레이스테이션5', 'playstation5'],
+  ['ps4', '플스4', '플레이스테이션4', 'playstation4'], ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'],
   ['후지필름', '후지', 'fujifilm'], ['라이카', 'leica'], ['로지텍', 'logitech'], ['레노버', 'lenovo'], ['삼성', 'samsung'],
   ['엘지', 'lg'], ['샤오미', 'xiaomi'], ['나이키', 'nike'], ['아디다스', 'adidas'], ['뉴발란스', 'newbalance'],
   ['스타벅스', 'starbucks'], ['레고', 'lego'], ['기가', 'gb'], ['테라', 'tb'], ['디오스', 'dios'],
@@ -491,13 +492,16 @@ for (const g of ALIASES) {
 }
 // 검색어를 쉼표로 나눠 적으면 여러 표기 (수집기의 altsOf 와 같다)
 export const altsOf = (s) => String(s.keyword || '').split(',').map((w) => w.trim()).filter(Boolean).slice(0, 3);
-// 수집 뒤에 빼는 단어·가격·상태를 바꿨을 때를 위해 다시 거른다. 제목·내용 모드의 단어 확인은 수집기가 이미 했다.
+// 수집 뒤에 빼는 단어·가격·상태를 바꿨을 때를 위해 다시 거른다.
+// 검색어: '제목에 모두'는 모든 마켓의 제목으로, '제목·내용'은 중고나라·번개장터만 제목으로 본다(내용을 받아 오지 못하는 두 사이트는
+// 검색어를 글자 단위로 나눠 찾아 엉뚱한 매물이 섞여 온다 — 수집기 collect.js 의 makeFilter 와 같다). 당근의 제목·내용 확인은 수집기가 이미 했다.
 // sold: 판매완료 매물(최근 90일, 상태는 보지 않음)
 export function makeFilter(s, { now = Date.now(), maxAgeDays = 30, sold = false } = {}) {
   const days = sold ? 90 : Number.isFinite(s.maxAgeDays) ? s.maxAgeDays : maxAgeDays;
   const oldest = days > 0 ? Math.floor(now / 1000) - days * 86400 : 0;
   const kws = [];
-  if (matchMode(s) === 'title') {
+  const mode = matchMode(s);
+  if (mode === 'title' || mode === 'content') {
     for (const kw of altsOf(s)) {
       const groups = [];
       for (const word of kw.split(/\s+/)) {
@@ -523,7 +527,7 @@ export function makeFilter(s, { now = Date.now(), maxAgeDays = 30, sold = false 
     if (min != null && (t[3] == null || t[3] < min)) return false;
     if (max != null && (t[3] == null || t[3] > max)) return false;
     const title = norm(t[2]);
-    if (kws.length && !kws.some((groups) => groups.every((alts) => alts.some((a) => title.includes(a))))) return false;
+    if (kws.length && (mode === 'title' || t[0] !== 'd') && !kws.some((groups) => groups.every((alts) => alts.some((a) => title.includes(a))))) return false;
     if (ex.some((w) => title.includes(w))) return false;
     if (inc.length && !inc.some((w) => title.includes(w))) return false;
     return true;

@@ -96,8 +96,8 @@ async function junggoCollect(cfg) {
     ['아이폰', 'iphone'], ['아이패드', 'ipad'], ['맥북', 'macbook'], ['아이맥', 'imac'], ['에어팟', 'airpods', 'airpod'],
     ['애플워치', 'applewatch'], ['애플', 'apple'], ['갤럭시', 'galaxy'], ['갤탭', '갤럭시탭', 'galaxytab'], ['버즈', 'buds'],
     ['프로', 'pro'], ['맥스', 'max'], ['플러스', 'plus'], ['미니', 'mini'], ['울트라', 'ultra'], ['에어', 'air'],
-    ['닌텐도', 'nintendo'], ['스위치', 'switch'], ['플레이스테이션', '플스', 'playstation'], ['ps5', '플스5', '플레이스테이션5'],
-    ['ps4', '플스4', '플레이스테이션4'], ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'],
+    ['닌텐도', 'nintendo'], ['스위치', 'switch'], ['플레이스테이션', '플스', 'playstation'], ['ps5', '플스5', '플레이스테이션5', 'playstation5'],
+    ['ps4', '플스4', '플레이스테이션4', 'playstation4'], ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'],
     ['후지필름', '후지', 'fujifilm'], ['라이카', 'leica'], ['로지텍', 'logitech'], ['레노버', 'lenovo'], ['삼성', 'samsung'],
     ['엘지', 'lg'], ['샤오미', 'xiaomi'], ['나이키', 'nike'], ['아디다스', 'adidas'], ['뉴발란스', 'newbalance'],
     ['스타벅스', 'starbucks'], ['레고', 'lego'], ['기가', 'gb'], ['테라', 'tb'], ['디오스', 'dios'],
@@ -119,13 +119,18 @@ async function junggoCollect(cfg) {
     return out;
   }
   // 검색어 확인 방식: title = 제목에 모두 / content = 제목+내용 / none = 확인 안 함
-  // content 에서 내용을 직접 보는 건 검색 결과에 설명을 주는 당근뿐이다. 중고나라·번개장터는 사이트 검색 결과를
-  // 그대로 쓴다 (2026-10-10 확인: 중고나라 검색은 제목 낱말 위주, 번개장터는 제목에 없는 매물도 일부 섞여 온다).
+  // 내용(설명)까지 보는 건 검색 결과에 설명을 주는 당근뿐이고, 중고나라·번개장터는 두 방식 모두 제목으로 확인한다.
+  // 두 사이트 검색은 낱말을 글자 단위로 나눠 찾아서 사이트 결과를 그대로 쓰면 엉뚱한 매물이 쏟아진다
+  // (2026-10-14 '쿠단': 중고나라 49건 중 '단쿠가'·'스쿠브 6단' 등을 빼면 3건, 번개장터 4,826건 중 첫 40건에 2건).
+  const groupsOfS = (s) => altsOf(s).map(groupsOf).filter((g) => g.length);
+  const hasAll = (hay, kws) => kws.some((groups) => groups.every((alts) => alts.some((a) => hay.includes(a))));
+  // 제목에 검색어(표기 하나라도, 낱말마다 같은 말 포함)가 다 들어 있는지
+  const titleHit = (s) => { const kws = groupsOfS(s); return (title) => !kws.length || hasAll(norm(title), kws); };
   function makeFilter(s, platform, sold) {
     const mode = s.match || (s.strict === false ? 'none' : 'title');
-    const check = mode === 'title' || (mode === 'content' && platform === 'daangn');
+    const withText = mode === 'content' && platform === 'daangn';
     // 검색어 표기마다 낱말 묶음. 표기 하나라도 다 맞으면 통과
-    const kws = check ? altsOf(s).map(groupsOf).filter((g) => g.length) : [];
+    const kws = mode === 'title' || mode === 'content' ? groupsOfS(s) : [];
     const ex = (s.exclude || []).map(norm).filter(Boolean);
     const allow = sold || s.status === 'all' ? null : s.status === 'reserved' ? ['s', 'r'] : ['s'];
     const min = has(s.minPrice) ? Number(s.minPrice) : null;
@@ -136,10 +141,7 @@ async function junggoCollect(cfg) {
       if (min != null && (it[3] == null || it[3] < min)) return false;
       if (max != null && (it[3] == null || it[3] > max)) return false;
       const t = norm(it[2]);
-      if (kws.length) {
-        const hay = mode === 'content' && extra ? t + norm(extra) : t;
-        if (!kws.some((groups) => groups.every((alts) => alts.some((a) => hay.includes(a))))) return false;
-      }
+      if (kws.length && !hasAll(withText && extra ? t + norm(extra) : t, kws)) return false;
       if (ex.some((w) => t.includes(w))) return false;
       return true;
     };
@@ -158,6 +160,7 @@ async function junggoCollect(cfg) {
     }
     if (outs[0].regions) r.regions = outs[0].regions;
     if (outs.some((o) => o.sold)) r.sold = dedupe(outs.flatMap((o) => o.sold || []));
+    if (outs.some((o) => o.deep)) r.deep = outs.reduce((a, o) => a + (o.deep || 0), 0);
     return r;
   };
   const cut = (s, n) => {
@@ -175,43 +178,80 @@ async function junggoCollect(cfg) {
   }
 
   // ---- 번개장터 ----
+  // sort: latest = 최신순(끌올 포함), score = 정확도순
+  async function bunjangPage(s, sort, cursor) {
+    const p = new URLSearchParams({ policyKey: 'pw.product.keyword', q: s.keyword, sort });
+    if (has(s.minPrice)) p.set('minPrice', String(s.minPrice));
+    if (has(s.maxPrice)) p.set('maxPrice', String(s.maxPrice));
+    if (s.status === 'reserved') p.set('status', 'RESERVED');
+    else if (s.status === 'all') p.set('status', 'RESERVED,SOLD_OUT');
+    if (s.excludeProShop) p.set('shopType', 'NORMAL');
+    // 카테고리 번호는 도우미가 정해서 보낸다 (번개장터 categoryId, 2026-10-10 확인: 610 가전제품 등)
+    if (s.cat && s.cat.b) p.set('categoryId', String(s.cat.b));
+    if (cursor) p.set('cursor', cursor);
+    const j = await getJSON('https://api.bunjang.co.kr/api/search/v8/web/search?' + p, { credentials: 'omit' });
+    const sr = j && j.data && j.data.responses && j.data.responses.mainGrid && j.data.responses.mainGrid.searchResponse;
+    if (!sr || !Array.isArray(sr.data)) throw new Error(j && j.reason ? '검색 오류: ' + cut(j.reason, 60) : '응답 형식이 바뀌어 읽지 못했어요');
+    return sr;
+  }
+  const isProduct = (r) => !!r && r.type === 'PRODUCT' && r.pid != null;
+  function bunjangItem(r) {
+    const st = { SELLING: 's', RESERVED: 'r', SOLD_OUT: 'x' }[r.status] || 'o';
+    // 13번째 칸: 덧붙임 정보. f = O 공식셀러, K 번개케어 / s = 판매자 번호
+    const x = {};
+    const f = (r.shop && r.shop.isOfficialSeller ? 'O' : '') + (r.care ? 'K' : '');
+    if (f) x.f = f;
+    if (r.shop && r.shop.uid != null) x.s = String(r.shop.uid);
+    // 검색 결과에는 지역이 없다 → 상세 정보로 나중에 채운다(bunjangDetails). 그 전엔 가까움을 모름(null)
+    return ['b', String(r.pid), cut(r.name, 90), num(r.price), st, '', sec(iso(r.updatedAt)), 0, num(r.favoriteCount) || 0, num(r.buntalkCount) || 0, r.ad ? 1 : 0, null, x];
+  }
   // 최신순(끌올 포함)으로 60건씩 넘기다가, 기간(기본 30일)을 넘거나 시간이 모자라면 멈춘다
   async function bunjang(s) {
     const items = [];
     const partial = [];
     let total = null;
     let cursor = null;
-    for (let page = 0; page < (cfg.bPages || 15); page++) {
+    const hit = titleHit(s);
+    const pages = cfg.bPages || 15;
+    let seen = 0;
+    let hits = 0;
+    let capped = false;
+    for (let page = 0; page < pages; page++) {
       if (page && late()) { partial.push(LATE_MSG); break; }
-      const p = new URLSearchParams({ policyKey: 'pw.product.keyword', q: s.keyword, sort: 'latest' });
-      if (has(s.minPrice)) p.set('minPrice', String(s.minPrice));
-      if (has(s.maxPrice)) p.set('maxPrice', String(s.maxPrice));
-      if (s.status === 'reserved') p.set('status', 'RESERVED');
-      else if (s.status === 'all') p.set('status', 'RESERVED,SOLD_OUT');
-      if (s.excludeProShop) p.set('shopType', 'NORMAL');
-      // 카테고리 번호는 도우미가 정해서 보낸다 (번개장터 categoryId, 2026-10-10 확인: 610 가전제품 등)
-      if (s.cat && s.cat.b) p.set('categoryId', String(s.cat.b));
-      if (cursor) p.set('cursor', cursor);
-      const j = await getJSON('https://api.bunjang.co.kr/api/search/v8/web/search?' + p, { credentials: 'omit' });
-      const sr = j && j.data && j.data.responses && j.data.responses.mainGrid && j.data.responses.mainGrid.searchResponse;
-      if (!sr || !Array.isArray(sr.data)) throw new Error(j && j.reason ? '검색 오류: ' + cut(j.reason, 60) : '응답 형식이 바뀌어 읽지 못했어요');
+      const sr = await bunjangPage(s, 'latest', cursor);
       if (total == null && Number.isFinite(sr.totalCount)) total = sr.totalCount;
       for (const r of sr.data) {
-        if (!r || r.type !== 'PRODUCT' || r.pid == null) continue;
-        const st = { SELLING: 's', RESERVED: 'r', SOLD_OUT: 'x' }[r.status] || 'o';
-        // 13번째 칸: 덧붙임 정보. f = O 공식셀러, K 번개케어 / s = 판매자 번호
-        const x = {};
-        const f = (r.shop && r.shop.isOfficialSeller ? 'O' : '') + (r.care ? 'K' : '');
-        if (f) x.f = f;
-        if (r.shop && r.shop.uid != null) x.s = String(r.shop.uid);
-        // 검색 결과에는 지역이 없다 → 상세 정보로 나중에 채운다(bunjangDetails). 그 전엔 가까움을 모름(null)
-        items.push(['b', String(r.pid), cut(r.name, 90), num(r.price), st, '', sec(iso(r.updatedAt)), 0, num(r.favoriteCount) || 0, num(r.buntalkCount) || 0, r.ad ? 1 : 0, null, x]);
+        if (!isProduct(r)) continue;
+        items.push(bunjangItem(r));
+        seen++;
+        if (hit(r.name)) hits++;
       }
       cursor = sr.nextCursor;
-      const last = sr.data.filter((r) => r && r.type === 'PRODUCT').pop();
+      const last = sr.data.filter(isProduct).pop();
       if (!cursor || !sr.data.length || (last && tooOld(sec(iso(last.updatedAt)), s))) break;
+      if (page === pages - 1) capped = true;
     }
-    return { items: dedupe(items), total, partial };
+    // 번개장터는 검색어를 글자 단위로 나눠 찾아서 짧은 검색어('쿠단')는 최신순 쪽이 엉뚱한 매물로 차고, 정한 쪽 수로는 기간(30일)의
+    // 앞부분만 본다(2026-10-14 '쿠단': 60건이 3시간치). 그래서 제목에 검색어가 있는 매물이 10%도 안 되면 정확도순으로 몇 쪽 더 넘겨
+    // 제목에 검색어가 있는 매물만 더한다 (정확도순은 시각 순서가 아니라 기간은 나중에 거른다)
+    let deep = 0;
+    if (capped && seen && hits / seen < 0.1) {
+      const have = new Set(items.map((it) => it[1]));
+      let c = null;
+      for (let page = 0; page < (cfg.bDeepPages || 8) && !late(); page++) {
+        let sr;
+        try { sr = await bunjangPage(s, 'score', c); } catch { break; }
+        for (const r of sr.data) {
+          if (!isProduct(r) || have.has(String(r.pid)) || !hit(r.name)) continue;
+          have.add(String(r.pid));
+          items.push(bunjangItem(r));
+          deep++;
+        }
+        c = sr.nextCursor;
+        if (!c || !sr.data.length) break;
+      }
+    }
+    return { items: dedupe(items), total, partial, deep };
   }
 
   // 번개장터 상세 정보(동네·좌표·직거래·상품 상태·설명)는 매물마다 따로 불러야 해서, 처음 보는 매물만 불러
@@ -574,6 +614,13 @@ async function junggoCollect(cfg) {
           const keep = makeFilter(s, name);
           const kept = r.items.filter((it) => keep(it, r.texts ? r.texts.get(it[0] + it[1]) : ''));
           const info = { st: 'ok', raw: r.items.length, n: kept.length };
+          // 사이트가 검색어를 글자 단위로 나눠 찾아 엉뚱한 매물이 대부분이었으면 알린다 (사이트가 준 건수, 그중 제목에 검색어가 있는 건수)
+          if (name !== 'daangn' && r.items.length >= 50 && (s.match || 'title') !== 'none') {
+            const hit = titleHit(s);
+            const h = r.items.filter((it) => hit(it[2])).length;
+            if (h < r.items.length * 0.2) info.loose = { raw: r.items.length, hit: h };
+          }
+          if (r.deep) info.deep = r.deep;
           if (r.total != null) info.total = r.total;
           if (r.regions) info.regions = r.regions;
           if (r.partial && r.partial.length) info.partial = r.partial;
