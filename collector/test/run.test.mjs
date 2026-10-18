@@ -547,14 +547,14 @@ test('당근을 기다리는 까닭을 새 검색/조건 바뀜으로 나눠 알
   assert.equal(r5.v.results.s_ffff6666.items.filter((t) => t[0] === 'd').length, 1);
 });
 
-test('정각 실행도 45분 안에 모은 중고나라·번개장터는 다시 모으지 않는다 (17분·47분 두 번 걸어 둠)', async () => {
+test('정각 실행도 45분 안에 모은 중고나라·번개장터는 다시 모으지 않는다 (페이지 요청·폰 알림으로 방금 모았을 때)', async () => {
   const T = Date.now() + 30 * 3600e3;
   const d0 = dirs();
   await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
   const log1 = [];
   const r1 = await nextRun(d0.out, { at: T + 30 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' }, log: log1 });
   assert.equal(r1.st.reusedJb, true, '30분 전에 모았으면 이번 정각 실행은 건너뛴다');
-  assert.equal(r1.status.jbAt, T, 'status.json 의 jbAt 은 실제로 모은 시각 그대로 (다음 수집 시계가 이걸 본다)');
+  assert.equal(r1.status.jbAt, T, 'status.json 의 jbAt 은 실제로 모은 시각 그대로');
   assert.ok(!log1.some((x) => x.host === 'search-api.joongna.com' || x.host === 'api.bunjang.co.kr'));
   assert.equal(r1.v.results.s_aaaa1111.pf.joongna.st, 'ok', '지난 매물을 그대로 보여준다');
   assert.ok(r1.v.results.s_aaaa1111.items.some((t) => t[0] === 'j'));
@@ -1023,4 +1023,16 @@ test('W0 물러나기: 403·429 를 받으면 그 마켓은 이번 실행에서 
   assert.equal(r4.status.markets.joongna, 'rest');
   assert.equal(r4.status.markets.bunjang, 'ok');
   assert.match(r4.v.results.s_aaaa1111.pf.joongna.error, /^중고나라가 잠시 막았어요/);
+});
+
+test('W0 워크플로: 다음 수집 시계(timer.yml)가 없고, 정각 실행은 한 시간 한 번(17분)만', () => {
+  const wf = path.join(here, '..', '..', '.github', 'workflows');
+  assert.ok(!fs.existsSync(path.join(wf, 'timer.yml')), 'timer.yml 이 없다');
+  // 주석(# ...)은 빼고 본다
+  const y = fs.readFileSync(path.join(wf, 'collect.yml'), 'utf8').split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  const crons = [...y.matchAll(/^\s*-\s*cron:\s*'([^']+)'/gm)].map((m) => m[1]);
+  assert.deepEqual(crons, ['17 * * * *']);
+  assert.ok(!/timer\.yml|gh workflow run/.test(y), '시계를 다시 맞추는 단계가 없다');
+  assert.ok(!/actions:\s*write/.test(y), '워크플로를 부를 권한도 뺐다');
+  assert.ok(!/sleep\s/.test(y), '기다리는 단계가 없다');
 });

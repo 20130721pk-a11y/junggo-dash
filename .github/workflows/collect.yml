@@ -1,15 +1,14 @@
 name: 매물 모으기
 
-# 한 시간마다 + 페이지에서 보낸 요청 이슈 + 손으로 실행
+# 한 시간에 한 번 정각 실행(매시 17분) + 페이지에서 보낸 요청 이슈 + 손으로 실행
 # + 수집기 코드를 main 에 올렸을 때 (바로 새 코드로 한 번)
 # + 폰 앱(꿀매 레이더)이 당근을 daangn 가지에 올리고 알렸을 때 (repository_dispatch: daangn → 바로 합친다)
-# '한 시간마다'는 시계(timer.yml)가 맡는다: 실행이 끝날 때마다 '중고나라·번개장터를 모은 지 한 시간 뒤'로 시계를 다시 맞춘다.
-# GitHub 의 정각 실행(schedule)은 바쁘면 늦거나 아예 빠진다(2026-10-13: 06시~16시에 한 번만 돎) → 시계가 끊겼을 때 다시 잇는 예비로만 둔다.
+# 예전의 '다음 수집 시계'(timer.yml — 실행이 끝날 때마다 한 시간을 기다리는 실행을 하나 띄워 두던 것)는 없앴다
+# (PRD 0.7 W0·LG-4: Actions 를 상시 대기에 쓰지 않는다). GitHub 의 정각 실행은 바쁘면 늦거나 빠질 수 있다 — 그만큼은 감수한다.
 # 45분 안에 모은 중고나라·번개장터는 정각 실행·폰 앱 알림 때 다시 모으지 않는다(run.mjs JB_REUSE_MS).
 on:
   schedule:
     - cron: '17 * * * *'
-    - cron: '47 * * * *'
   workflow_dispatch:
   issues:
     types: [opened]
@@ -27,7 +26,6 @@ concurrency:
 permissions:
   contents: write
   issues: write
-  actions: write   # 다음 수집 시계(timer.yml) 맞추기
 
 jobs:
   collect:
@@ -75,20 +73,3 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node collector/close.mjs work/close.json
 
-      # 앞 단계가 실패해도 시계는 맞춘다 (시계가 끊기지 않게)
-      - name: 다음 수집 시계 맞추기
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          due=$(node -e '
-            let s = {};
-            try { s = JSON.parse(require("fs").readFileSync("out/status.json", "utf8")); } catch {}
-            const now = Date.now();
-            // 중고나라·번개장터를 모은 지 한 시간 뒤. 모은 시각을 모르면(비밀번호 문제 등) 한 시간 뒤, 너무 가까우면 15분 뒤
-            let due = s.jbAt ? s.jbAt + 3600e3 : now + 3600e3;
-            if (due < now + 15 * 60e3) due = now + 15 * 60e3;
-            console.log(Math.round(due / 1000));
-          ')
-          echo "다음 수집: $(TZ=Asia/Seoul date -d "@$due" '+%m/%d %H:%M') (한국 시각)"
-          gh workflow run timer.yml -R "$GITHUB_REPOSITORY" --ref main -f due="$due"

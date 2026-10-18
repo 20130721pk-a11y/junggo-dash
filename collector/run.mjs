@@ -27,7 +27,7 @@ export const ALL_MARKETS = ['joongna', 'daangn', 'bunjang'];
 const NAME = { joongna: '중고나라', daangn: '당근', bunjang: '번개장터' };
 // 폰 앱이 당근에서 부르는 경로 (앱이 robots.txt 의 일반(*) 규칙으로 하나씩 본다)
 export const D_PATHS = ['/kr/search/buy-sell/', '/kr/buy-sell/', '/kr/regions/', '/kr/api/v1/regions/keyword'];
-// 당근만 합치러 돈 실행(폰 앱의 알림)과 정각 실행(매시 17분·47분 — GitHub 가 정각 실행을 자주 빠뜨려 두 번 걸어 둔다)에서는
+// 당근만 합치러 돈 실행(폰 앱의 알림)과 정각 실행(매시 17분)에서는
 // 중고나라·번개장터를 이만큼 안에 모았으면 다시 모으지 않는다 → 실제로 모으는 건 한 시간에 한 번쯤
 const JB_REUSE_MS = 45 * 60 * 1000;
 const REUSE_EVENTS = ['repository_dispatch', 'schedule'];
@@ -661,7 +661,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
       calls: { ...counter.calls },
       // 사이트가 막아(403·429) 쉬는 마켓과 다시 할 시각 (없으면 빈 칸)
       rest: Object.fromEntries(Object.entries(state.rest).map(([m, r]) => [m, r.until])),
-      // 중고나라·번개장터를 마지막으로 모은 시각 — 워크플로가 이 시각 한 시간 뒤로 다음 수집 시계(timer.yml)를 맞춘다
+      // 중고나라·번개장터를 마지막으로 모은 시각 (예전에는 워크플로가 이 시각으로 다음 수집 시계를 맞췄다 — W0 에서 시계를 없앴다)
       jbAt: state.jbAt || 0,
       // 당근 요약 (건수만 — 비밀번호 없이도 당근이 붙었는지 볼 수 있게): 당근을 켠 검색 수, 그중 매물을 보여주는 수·기다리는 수·오류 수, 당근 매물 수,
       // 이번에 새로 받은 폰 결과를 합쳤으면 upload = { 폰이 모은 검색 수, 합친 수, 조건이 바뀌어 안 합친 수 }
