@@ -90,6 +90,8 @@ await page.waitForSelector('#view:not([hidden])', { timeout: 15000 });
 const rows = await page.$$eval('#list > li.item', (l) => l.length);
 check(rows > 10, `목록이 보인다 (${rows}줄)`);
 check((await page.textContent('#vKeyword')).trim() === '플스5', '첫 검색 열림');
+// W0: 웹 맨 위 안내 (PRD 0.7 3-5 ④, 문구 그대로)
+check(await page.isVisible('#judgeNote') && (await page.textContent('#judgeNote')).trim() === '시세·최저가는 앱 판정 전 값이에요', "맨 위 안내 '시세·최저가는 앱 판정 전 값이에요'");
 check(await page.isVisible('#refreshBtn'), '지금 모으기 단추');
 check((await page.getAttribute('#refreshBtn', 'href')).startsWith('https://github.com/20130721pk-a11y/junggo-dash/issues/new?'), '지금 모으기 → GitHub 이슈');
 check(/마지막 수집/.test(await page.textContent('#refreshStatus')), '마지막 수집 표시');
@@ -294,6 +296,7 @@ await page.click('#savedList li:nth-child(1) .saved-item');
 await page.waitForTimeout(300);
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow <= 0, `휴대폰에서 가로로 넘치지 않음 (${overflow})`);
+check(await page.isVisible('#judgeNote'), '휴대폰에서도 맨 위 안내가 보임');
 await page.screenshot({ path: `${OUT}/5-mobile.png` });
 
 // 설정 → 앱 연결 코드 (비밀번호 대신 폰 앱에 넣는 잠금 열쇠)

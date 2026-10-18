@@ -478,6 +478,9 @@ fieldset.field > .help { width: 100%; margin-top: 0; }
 .lock input[type="password"] { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 8px; background: var(--surface); font-size: 16px; }
 .lock .btn { height: 42px; }
 .lock-note { margin: 14px 0 0; color: var(--muted); font-size: 12.5px; }
+/* 웹 수집기는 앱 판정(같은 물건 판별·⚠ 확인 필요·꿀매 등급)을 거치지 않는다 — PRD 0.7 W0(T-37). 색은 중립(꿀골드·민트·빨강을 쓰지 않음) */
+.judge-note { margin: 0; padding: 7px 24px; border-bottom: 1px solid var(--hair); background: var(--surface-2); color: var(--ink-2); font-size: 13px; text-align: center; }
+@media (max-width: 900px) { .judge-note { padding: 7px 16px; } }
 .sendbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 24px; border-bottom: 1px solid var(--tag-edge); background: var(--new-wash); color: var(--ink); font-size: 13.5px; }
 .sendbar b { font-weight: 600; }
 .sendbar .grow { flex: 1 1 320px; min-width: 0; }
@@ -501,6 +504,7 @@ a.btn { text-decoration: none; }
     <a class="btn btn-ink" id="refreshBtn" href="#" target="_blank" rel="noopener" title="GitHub에 '지금 모으기' 요청을 보내요(토큰이 없으면 GitHub 화면에서 초록색 Create 또는 Submit new issue 를 눌러요). 1~3분 뒤 새로 모여요" hidden>지금 모으기</a>
   </div>
 </header>
+<p class="judge-note" id="judgeNote" role="note">시세·최저가는 앱 판정 전 값이에요</p>
 <div class="sendbar" id="sendBar" role="region" aria-label="GitHub에 보내지 않은 변경" hidden>
   <span class="grow" id="sendText"></span>
   <a class="btn btn-ink btn-small" id="sendLink" href="#" target="_blank" rel="noopener">GitHub에 보내기</a>
@@ -1261,7 +1265,7 @@ a.btn { text-decoration: none; }
     const btn = $('refreshBtn');
     el.classList.remove('is-error');
     el.replaceChildren();
-    el.title = `GitHub가 ${AUTO_TEXT}(마지막으로 모은 지 한 시간 뒤) 중고나라·번개장터를, 폰의 꿀매 레이더 앱이 ${AUTO_TEXT} 당근을 모아요(검색을 고치면 앱이 15분 안에 다시 모아요). 늦어질 때가 있어요.`;
+    el.title = `GitHub가 ${AUTO_TEXT}(매시 17분쯤 — GitHub가 늦추거나 건너뛸 때가 있어요) 중고나라·번개장터를, 폰의 꿀매 레이더 앱이 ${AUTO_TEXT} 당근을 모아요(검색을 고치면 앱이 15분 안에 다시 모아요). 늦어질 때가 있어요.`;
     btn.href = REFRESH_URL;
     btn.hidden = !state.ready || !!state.pending;
     const st = state.status;
