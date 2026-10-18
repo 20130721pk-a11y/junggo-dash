@@ -21,6 +21,12 @@ async function junggoCollect(cfg) {
   // 판매완료 매물은 최근 90일 것만 (팔린 가격 참고용)
   const SOLD_OLDEST = oldestOf(90);
   const LATE_MSG = '시간이 모자라 일부만 모았어요';
+  // 같은 마켓의 다음 쪽을 부르기 전에 쉰다 (요청 예절, 기본 0.7초 — PRD 0.7 F12·LG-5). cfg.pageGapMs 로 바꿀 수 있다
+  // (함수 안에서 값을 읽어야 당근 압축본(collect.d.min.js)에서 통째로 빠져 폰 앱의 할 일이 바뀌지 않는다)
+  const pause = () => {
+    const ms = Number.isFinite(cfg.pageGapMs) ? Math.max(0, cfg.pageGapMs) : 700;
+    return ms ? new Promise((res) => setTimeout(res, ms)) : null;
+  };
   // 검색어를 쉼표로 나눠 적으면 여러 표기로 각각 찾아 합친다 (3개까지)
   const altsOf = (s) => String(s.keyword || '').split(',').map((w) => w.trim()).filter(Boolean).slice(0, 3);
   // 지역 이름 맞춰 보기: 띄어쓰기와 첫 낱말의 시·도 꼬리(특별시·광역시·특별자치시·특별자치도·도)를 빼고, 시·도 줄임말·옛 이름을 하나로 맞춰 비교한다
@@ -218,6 +224,7 @@ async function junggoCollect(cfg) {
     let capped = false;
     for (let page = 0; page < pages; page++) {
       if (page && late()) { partial.push(LATE_MSG); break; }
+      if (page) await pause();
       const sr = await bunjangPage(s, 'latest', cursor);
       if (total == null && Number.isFinite(sr.totalCount)) total = sr.totalCount;
       for (const r of sr.data) {
@@ -239,6 +246,7 @@ async function junggoCollect(cfg) {
       const have = new Set(items.map((it) => it[1]));
       let c = null;
       for (let page = 0; page < (cfg.bDeepPages || 8) && !late(); page++) {
+        await pause();
         let sr;
         try { sr = await bunjangPage(s, 'score', c); } catch { break; }
         for (const r of sr.data) {
@@ -256,6 +264,7 @@ async function junggoCollect(cfg) {
 
   // 번개장터 상세 정보(동네·좌표·직거래·상품 상태·설명)는 매물마다 따로 불러야 해서, 처음 보는 매물만 불러
   // 이 사이트(web.joongna.com) localStorage 에 모아 둔다 (2026-10-10 확인: products-detail v3, 40건 0.8초)
+  // cfg.bdMax 가 0 이면 상세를 부르지도, 모아 둔 것을 읽지도 않는다 (GitHub 수집기는 0 — PRD 0.7 W0·LG-3: 판매자 좌표·주소·설명을 서버에 쌓지 않는다)
   const BD_KEY = 'junggo.bd';
   async function bunjangDetails(byId) {
     let cache = {};
@@ -267,7 +276,7 @@ async function junggoCollect(cfg) {
     for (const { items } of byId) for (const it of items) if (it[0] === 'b' && !seen.has(it[1])) { seen.add(it[1]); if (!cache[it[1]]) want.push(it[1]); }
     let i = 0;
     let got = 0;
-    const max = cfg.bdMax || 300;
+    const max = Number.isFinite(cfg.bdMax) ? cfg.bdMax : 300;
     async function one() {
       while (i < want.length && i < max && !late()) {
         const pid = want[i++];
@@ -349,6 +358,7 @@ async function junggoCollect(cfg) {
     let total = null;
     for (let page = 0; page < (cfg.jPages || 8); page++) {
       if (page && late()) { partial.push(LATE_MSG); break; }
+      if (page) await pause();
       const d = await joongnaPage(s, page, s.status === 'selling' ? 'SALE_N' : 'SALE_Y');
       if (total == null && Number.isFinite(d.totalSize)) total = d.totalSize;
       for (const r of d.items) if (r && r.seq != null && (!r.objectType || r.objectType === 'product')) items.push(joongnaItem(r, home));
@@ -361,6 +371,7 @@ async function junggoCollect(cfg) {
     if (cfg.sold !== false && s.status !== 'all') {
       for (let page = 0; page < (cfg.soldPages || 5); page++) {
         if (late()) break;
+        await pause();
         let d;
         try { d = await joongnaPage(s, page, 'SALE_Y'); } catch { break; }
         for (const r of d.items) if (r && r.seq != null && r.state === 3 && (!r.objectType || r.objectType === 'product')) sold.push(joongnaItem(r, home));
@@ -648,7 +659,7 @@ async function junggoCollect(cfg) {
   const extra = {};
   const homesP = IS_D && Array.isArray(cfg.homes) && cfg.homes.length ? homePoints(cfg.homes).catch(() => null) : null;
   await Promise.all([worker(), worker(), worker()]);
-  if (!IS_D) {
+  if (!IS_D && cfg.bdMax !== 0) {
     // 번개장터 매물의 동네·좌표·직거래·상품 상태를 채운다 (남은 시간 안에서)
     const byId = list.filter((s) => results[s.id]).map((s) => ({ s, items: results[s.id].items }));
     try { extra.bd = await bunjangDetails(byId); } catch (e) { extra.bd = { error: cut(e && e.message ? e.message : String(e), 80) }; }
