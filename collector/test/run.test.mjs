@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { run as runReal, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS, BD_MAX, PAGE_GAP_MS, scrubBunjangDetails, robotsVerdict } from '../run.mjs';
+import { run as runReal, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS, BD_MAX, PAGE_GAP_MS, scrubBunjangDetails, robotsVerdict, REST_MS } from '../run.mjs';
 import { keyring, open, seal, LABEL, ITER } from '../seal.mjs';
 import { collectKey } from '../refresh.mjs';
 import { findPlace, nearbyAreas, areaKey, sameArea } from '../places.mjs';
@@ -923,4 +923,104 @@ test('W0 robots.txt: 404·410 만 없음(허용), 403·401·429·5xx·연결 실
     assert.equal(r.v.results.s_aaaa1111.pf.bunjang.st, 'ok');
     prev = r.d.out;
   }
+});
+
+// 번개장터 검색이 pages 쪽까지 이어지는 가짜 사이트 (나머지는 fakeSites 그대로)
+function pagedBunjang(pages, log = [], opts = {}) {
+  const base = fakeSites({ log, ...opts });
+  return async (url, init = {}) => {
+    const u = new URL(url);
+    if (u.host === 'api.bunjang.co.kr' && u.pathname.startsWith('/api/search/') && !opts.block) {
+      log.push({ host: u.host, path: u.pathname, page: true, at: Date.now() });
+      const q = u.searchParams.get('q');
+      const n = Number(u.searchParams.get('cursor') || 0);
+      const data = Array.from({ length: 60 }, (_, i) => ({ type: 'PRODUCT', pid: String(10000 + n * 60 + i), name: `${q} ${n}-${i}`, price: '500000', status: 'SELLING', updatedAt: new Date(REAL0 - (n * 60 + i) * 60e3).toISOString(), shop: { uid: 1 } }));
+      return new Response(JSON.stringify({ data: { responses: { mainGrid: { searchResponse: { data, nextCursor: n + 1 < pages ? String(n + 1) : null, totalCount: pages * 60 } } } } }), { status: 200 });
+    }
+    return base(url, init);
+  };
+}
+
+test('W0 쪽 사이 쉬기: 같은 마켓의 다음 쪽을 부르기 전에 쉰다 (기본 0.7초, 번개장터 8쪽이면 7번 이상)', async () => {
+  assert.equal(PAGE_GAP_MS, 700, 'PRD 초안 값 0.7초');
+  const init = JSON.stringify({ searches: [{ id: 's_gap00001', keyword: '쉬기 시험', platforms: ['bunjang'], createdAt: 1 }], config: { area: '경기도 시흥시' } });
+  const gap = 60;
+  const d = dirs();
+  const log = [];
+  await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, env: env({ INIT_SEARCHES: init }), fetchImpl: pagedBunjang(8, log), log: quiet, pageGapMs: gap });
+  const at = log.filter((x) => x.page).map((x) => x.at);
+  assert.equal(at.length, 8, '번개장터 8쪽');
+  assert.ok(at[7] - at[0] >= 7 * gap - 5, `8쪽에 ${at[7] - at[0]}ms (7 × ${gap}ms 이상)`);
+  for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= gap - 5, `${i}→${i + 1}쪽 사이 ${at[i] - at[i - 1]}ms`);
+  // 기본값(0.7초)으로 돌리면 실제로 0.7초 쉰다 (2쪽만)
+  const d2 = dirs();
+  const log2 = [];
+  await runReal({ prevDir: d2.prev, outDir: d2.out, workDir: d2.work, env: env({ INIT_SEARCHES: init }), fetchImpl: pagedBunjang(2, log2), log: quiet });
+  const at2 = log2.filter((x) => x.page).map((x) => x.at);
+  assert.equal(at2.length, 2);
+  assert.ok(at2[1] - at2[0] >= 690, `기본 쉬기 ${at2[1] - at2[0]}ms`);
+});
+
+test('W0 물러나기: 403·429 를 받으면 그 마켓은 이번 실행에서 더 부르지 않고 3시간 쉰다', async () => {
+  assert.equal(REST_MS, 3 * 3600e3, 'PRD 초안 값 3시간');
+  const T = Date.now() + 80 * 3600e3;
+  const d0 = dirs();
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  for (const code of [429, 403]) {
+    const t0 = T + (code === 429 ? 1 : 10) * 3600e3;
+    // 1) 번개장터가 막는다: 검색 2개 중 처음 한 번만 실제로 부르고 그 뒤는 보내지 않는다
+    const log1 = [];
+    const r1 = await nextRun(d0.out, { at: t0, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' }, log: log1, sites: { block: { 'api.bunjang.co.kr': code } } });
+    const sent = log1.filter((x) => x.host === 'api.bunjang.co.kr' && x.path !== '/robots.txt');
+    // 검색은 3개씩 동시에 돌아서, 막히기 전에 함께 나간 요청(여기서는 검색 2개 → 2번)까지만 간다
+    assert.ok(sent.length <= 2, `HTTP ${code}: 막힌 뒤로는 번개장터에 보내지 않는다 (${sent.length}번 보냄)`);
+    assert.equal(r1.status.calls.bunjang, sent.length);
+    assert.equal(r1.status.markets.bunjang, 'rest');
+    assert.equal(r1.status.markets.joongna, 'ok', '중고나라는 그대로');
+    assert.deepEqual(Object.keys(r1.status.rest), ['bunjang']);
+    assert.equal(r1.status.rest.bunjang, t0 + REST_MS);
+    const pf1 = r1.v.results.s_aaaa1111.pf.bunjang;
+    assert.equal(pf1.st, 'error');
+    assert.match(pf1.error, /^번개장터가 잠시 막았어요 — \d\d:\d\d에 다시 해요$/);
+    assert.ok(r1.v.results.s_aaaa1111.items.some((t) => t[0] === 'b'), '지난 번개장터 매물을 이어 보여준다');
+    assert.equal(r1.v.results.s_bbbb2222.pf.bunjang.error, pf1.error, '두 번째 검색도 같은 안내');
+    // 2) 3시간 안: 사이트가 이제 열려 있어도 번개장터는 robots.txt 도 부르지 않는다
+    const log2 = [];
+    const r2 = await nextRun(r1.d.out, { at: t0 + REST_MS - 60e3, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' }, log: log2 });
+    assert.ok(!log2.some((x) => x.host === 'api.bunjang.co.kr'), '쉬는 동안 번개장터 호출 0');
+    assert.equal(r2.status.markets.bunjang, 'rest');
+    assert.equal(r2.v.results.s_aaaa1111.pf.bunjang.skip, 1);
+    assert.equal(r2.v.results.s_aaaa1111.pf.bunjang.error, pf1.error);
+    assert.ok(log2.some((x) => x.host === 'search-api.joongna.com'), '중고나라는 모은다');
+    // 3) 3시간이 지나면 다시 부른다
+    const log3 = [];
+    const r3 = await nextRun(r2.d.out, { at: t0 + REST_MS + 60e3, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' }, log: log3 });
+    assert.ok(log3.some((x) => x.host === 'api.bunjang.co.kr' && x.path.startsWith('/api/search/')));
+    assert.equal(r3.status.markets.bunjang, 'ok');
+    assert.deepEqual(r3.status.rest, {});
+    assert.equal(r3.v.results.s_aaaa1111.pf.bunjang.st, 'ok');
+  }
+  // 한 검색 안에서도: 2쪽에서 막히면 3쪽부터는 부르지 않는다
+  const init = JSON.stringify({ searches: [{ id: 's_rest0001', keyword: '쉬기 시험', platforms: ['bunjang'], createdAt: 1 }], config: { area: '경기도 시흥시' } });
+  const paged = pagedBunjang(8);
+  const logP = [];
+  const blockPage2 = async (url, init2) => {
+    const u = new URL(url);
+    if (u.host === 'api.bunjang.co.kr' && u.pathname.startsWith('/api/search/')) {
+      logP.push(u.searchParams.get('cursor') || '0');
+      if (u.searchParams.get('cursor') === '1') return new Response('', { status: 429 });
+    }
+    return paged(url, init2);
+  };
+  const dp = dirs();
+  const rp = await run({ prevDir: dp.prev, outDir: dp.out, workDir: dp.work, env: env({ INIT_SEARCHES: init }), fetchImpl: blockPage2, now: () => T, log: quiet });
+  assert.deepEqual(logP, ['0', '1'], '1·2쪽만 부르고 멈춘다');
+  assert.equal(rp.markets.bunjang, 'rest');
+  // 중고나라가 막아도 같다 (판매완료 쪽까지 포함해 막힌 뒤로 0번)
+  const log4 = [];
+  const r4 = await nextRun(d0.out, { at: T + 20 * 3600e3, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' }, log: log4, sites: { block: { 'search-api.joongna.com': 429 } } });
+  assert.equal(log4.filter((x) => x.host === 'search-api.joongna.com' && x.path !== '/robots.txt').length, 1);
+  assert.equal(r4.status.markets.joongna, 'rest');
+  assert.equal(r4.status.markets.bunjang, 'ok');
+  assert.match(r4.v.results.s_aaaa1111.pf.joongna.error, /^중고나라가 잠시 막았어요/);
 });

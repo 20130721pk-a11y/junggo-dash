@@ -208,20 +208,31 @@ async function marketAllowed(fetchImpl, market) {
   return { ok: true };
 }
 
-// 마켓마다 부른 수를 센다 (status.json·로그에 건수만 — 주소·검색어는 남기지 않는다)
+// 사이트가 403·429 로 막으면 그 마켓을 이만큼 쉰다 (PRD 0.7 F12·LG-5, 초안 값)
+export const REST_MS = 3 * 3600 * 1000;
+const hhmm = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(11, 16); // 한국 시각
+export const restWhy = (market, until) => `${NAME[market]}가 잠시 막았어요 — ${hhmm(until)}에 다시 해요`;
+
+// 마켓 요청 문지기: 마켓마다 부른 수를 세고(status.json·로그에 건수만 — 주소·검색어는 남기지 않는다),
+// 검색·상세 요청에 403·429 가 오면 그 마켓은 이번 실행에서 더 부르지 않는다(사이트에 보내지 않고 429 로 바로 돌려준다).
 const HOST_MARKET = { 'search-api.joongna.com': 'joongna', 'api.bunjang.co.kr': 'bunjang' };
-export function countingFetch(baseFetch) {
+export function marketGate(baseFetch) {
   const calls = { robots: 0, joongna: 0, bunjang: 0, bunjangDetail: 0 };
-  const fetch = (url, init) => {
+  // 막힌 마켓 → 처음 받은 상태 번호
+  const hit = {};
+  const fetch = async (url, init) => {
     let u = null;
     try { u = new URL(String(url)); } catch { /* 이상한 주소는 세지 않는다 */ }
     const m = u && HOST_MARKET[u.host];
-    if (u && u.pathname === '/robots.txt') calls.robots++;
-    else if (m === 'bunjang' && u.pathname.startsWith('/api/pms/')) calls.bunjangDetail++;
+    if (u && u.pathname === '/robots.txt') { calls.robots++; return baseFetch(url, init); }
+    if (m && hit[m]) return new Response('', { status: 429 });
+    if (m === 'bunjang' && u.pathname.startsWith('/api/pms/')) calls.bunjangDetail++;
     else if (m) calls[m]++;
-    return baseFetch(url, init);
+    const res = await baseFetch(url, init);
+    if (m && (res.status === 403 || res.status === 429) && !hit[m]) hit[m] = res.status;
+    return res;
   };
-  return { fetch, calls };
+  return { fetch, calls, hit };
 }
 
 // 예전에 모아 둔 번개장터 상세 값을 지운다: 상세 캐시(state.ls), 저장된 매물 줄의 동네·가까움·설명 앞부분·위치·거리·상세 표시(N 새상품 I 직거래 F 무료배송).
@@ -446,15 +457,23 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const reuseJb = jbWanted && REUSE_EVENTS.includes(env.GITHUB_EVENT_NAME) && !requests.length && jbSame
     && state.jbAt && startedAt - state.jbAt < JB_REUSE_MS;
   const ua = `junggo-dash/1.0 (+https://github.com/${env.GITHUB_REPOSITORY || 'junggo-dash'}; personal use, hourly)`;
-  const counter = countingFetch(marketFetch(fetchImpl, ua));
+  const counter = marketGate(marketFetch(fetchImpl, ua));
   const mfetch = counter.fetch;
   const allowed = {};
   const skipped = {};
   let jobs = [];
+  // 쉬는 마켓 {마켓: {until, status}} — 지난 시각은 지운다
+  if (!state.rest || typeof state.rest !== 'object') state.rest = {};
+  for (const [m, r] of Object.entries(state.rest)) if (!MARKETS.includes(m) || !r || !(r.until > startedAt)) delete state.rest[m];
   if (reuseJb) {
     carry.jb = {};
   } else {
-    for (const m of MARKETS) if (eff.some((s) => s.platforms.includes(m))) allowed[m] = await marketAllowed(mfetch, m);
+    for (const m of MARKETS) {
+      if (!eff.some((s) => s.platforms.includes(m))) continue;
+      const r = state.rest[m];
+      // 쉬는 동안은 robots.txt 도 부르지 않는다
+      allowed[m] = r ? { ok: false, kind: 'rest', why: restWhy(m, r.until) } : await marketAllowed(mfetch, m);
+    }
     for (const s of eff) {
       for (const m of s.platforms) if (allowed[m] && !allowed[m].ok) (skipped[s.id] = skipped[s.id] || {})[m] = allowed[m].why;
     }
@@ -468,6 +487,16 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
       partAt.jb = startedAt;
     } catch (e) {
       partErr.jb = `모으는 중 오류가 났어요: ${String((e && e.message) || e).slice(0, 80)}`;
+    }
+    // 이번에 403·429 를 받은 마켓은 REST_MS 동안 쉰다. 그 때문에 못 모은 검색은 쉬는 안내로 (지난 매물은 이어 보여준다)
+    for (const m of MARKETS) {
+      if (!counter.hit[m]) continue;
+      state.rest[m] = { until: startedAt + REST_MS, status: counter.hit[m] };
+      const why = restWhy(m, state.rest[m].until);
+      for (const r of Object.values((collected.jb && collected.jb.results) || {})) {
+        const info = r && r.pf && r.pf[m];
+        if (info && info.st === 'error') info.error = why;
+      }
     }
   }
 
@@ -599,7 +628,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     if (!(m in allowed)) continue;
     const bad = !allowed[m].ok || Object.values(state.docs).some((x) => x && x.pf && x.pf[m] && x.pf[m].st === 'error');
     // blocked = robots.txt 가 막음, unchecked = robots.txt 를 확인하지 못해 건너뜀, rest = 사이트가 막아(403·429) 쉬는 중
-    markets[m] = !allowed[m].ok ? ({ unchecked: 'unchecked', rest: 'rest' }[allowed[m].kind] || 'blocked') : bad ? 'error' : 'ok';
+    markets[m] = !allowed[m].ok ? ({ unchecked: 'unchecked', rest: 'rest' }[allowed[m].kind] || 'blocked') : counter.hit[m] ? 'rest' : bad ? 'error' : 'ok';
   }
   const dStatus = !dWanted ? 'none' : !area ? 'noarea' : !d.at ? 'wait' : !d.ok ? 'error' : startedAt - d.at > D_STALE_MS ? 'stale' : 'ok';
   if (dWanted) markets.daangn = dStatus;
@@ -630,6 +659,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
       ok: !failedAll, message: requestError ? `${message ? `${message} · ` : ''}요청 이슈를 읽지 못했어요` : message, searches: ids.length, items, fresh: freshN, markets, requests: requests.length, bootstrapped, reusedJb: !!reuseJb, daangnAt: d.at || 0,
       // 이번 실행에서 사이트를 부른 수 (건수만): robots.txt, 중고나라 검색, 번개장터 검색, 번개장터 상세(W0 부터 0이어야 한다)
       calls: { ...counter.calls },
+      // 사이트가 막아(403·429) 쉬는 마켓과 다시 할 시각 (없으면 빈 칸)
+      rest: Object.fromEntries(Object.entries(state.rest).map(([m, r]) => [m, r.until])),
       // 중고나라·번개장터를 마지막으로 모은 시각 — 워크플로가 이 시각 한 시간 뒤로 다음 수집 시계(timer.yml)를 맞춘다
       jbAt: state.jbAt || 0,
       // 당근 요약 (건수만 — 비밀번호 없이도 당근이 붙었는지 볼 수 있게): 당근을 켠 검색 수, 그중 매물을 보여주는 수·기다리는 수·오류 수, 당근 매물 수,
