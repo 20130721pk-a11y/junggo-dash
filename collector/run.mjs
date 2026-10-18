@@ -38,13 +38,14 @@ export const D_NOTE = {
   new: '폰 앱이 아직 이 검색으로 당근을 모으지 않았어요. 앱이 다음에 모으면 보여요.',
   changed: '검색 조건이나 가까운 지역이 바뀌었어요. 폰 앱이 새 조건으로 다시 모으면 보여요.',
 };
-// 수집기가 부르는 주소 (robots.txt 로 허용 여부를 먼저 본다). 번개장터 상세(products-detail)는 W0 부터 부르지 않는다
+// 수집기가 부르는 주소 (robots.txt 로 허용 여부를 먼저 본다)
 const ENDPOINTS = {
   joongna: [{ origin: 'https://search-api.joongna.com', path: '/v3/search/all' }],
-  bunjang: [{ origin: 'https://api.bunjang.co.kr', path: '/api/search/v8/web/search' }],
+  bunjang: [{ origin: 'https://api.bunjang.co.kr', path: '/api/search/v8/web/search' }, { origin: 'https://api.bunjang.co.kr', path: '/api/pms/v3/products-detail/' }],
 };
-// 번개장터 상세(판매자 좌표·주소·설명)는 GitHub 서버에서 모으지 않는다 (PRD 0.7 W0·LG-3, 법·리스크 R1)
-export const BD_MAX = 0;
+// 번개장터 상세: 한 실행에서 새로 부르는 건수 한도. 남기는 건 동네 이름뿐이다(좌표·주소·설명은 받자마자 버린다 — collect.js bunjangDetails).
+// 대표 결정 2026-10-18: PRD 0.7 W0 의 '상세 끄기' 대신 '동네 이름만 남기기'(웹에서 내 주변 매물 보기). 0 으로 두면 상세를 끈다
+export const BD_MAX = 300;
 // 같은 마켓의 다음 쪽을 부르기 전에 쉬는 시간 (PRD 0.7 F12·LG-5, 초안 값)
 export const PAGE_GAP_MS = 700;
 // 수집기가 상세 정보를 모아 두던 곳 (state.ls 안, collect.js 의 BD_KEY)
@@ -235,24 +236,41 @@ export function marketGate(baseFetch) {
   return { fetch, calls, hit };
 }
 
-// 예전에 모아 둔 번개장터 상세 값을 지운다: 상세 캐시(state.ls), 저장된 매물 줄의 동네·가까움·설명 앞부분·위치·거리·상세 표시(N 새상품 I 직거래 F 무료배송).
-// 상세를 끈 뒤 새로 모은 번개장터 매물과 같은 꼴이 된다. 몇 줄을 고쳤는지 돌려준다
+// 예전에 모아 둔 번개장터 상세 값 가운데 동네 이름 말고는 지운다 (W0, 대표 결정 2026-10-18):
+//  - 상세 캐시(state.ls 'junggo.bd'): [초, 위도, 경도, 동네, 주소, 상태, 직거래, 무료배송, 설명] → [초, 동네]. 형식이 이상한 것은 통째로 지운다
+//  - 저장된 번개장터 매물 줄: 설명 앞부분(sn), 거래 좌표로 잰 위치·거리(어림 표시 ap 가 없는 ll·km), 상세 표시(N 새상품 I 직거래 F 무료배송).
+//    동네 이름(5번째 칸)·가까움(12번째 칸)·동 가운데로 어림한 위치(ap 가 있는 ll)는 둔다
+// 이미 깨끗하면 아무것도 바꾸지 않는다. 고친 줄 수(캐시 줄 포함)를 돌려준다
 export function scrubBunjangDetails(state) {
   let rows = 0;
-  if (state.ls && Object.prototype.hasOwnProperty.call(state.ls, BD_KEY)) delete state.ls[BD_KEY];
+  if (state.ls && Object.prototype.hasOwnProperty.call(state.ls, BD_KEY)) {
+    let cache = null;
+    try { cache = JSON.parse(state.ls[BD_KEY]); } catch { cache = null; }
+    if (!cache || typeof cache !== 'object' || Array.isArray(cache)) { delete state.ls[BD_KEY]; rows++; }
+    else {
+      let changed = false;
+      for (const [k, v] of Object.entries(cache)) {
+        if (!Array.isArray(v) || !Number.isFinite(v[0])) { delete cache[k]; changed = true; rows++; }
+        else if (v.length !== 2 || typeof v[1] !== 'string') {
+          cache[k] = [v[0], String((v.length > 2 ? v[3] : v[1]) || '').slice(0, 30)];
+          changed = true;
+          rows++;
+        }
+      }
+      if (changed) state.ls[BD_KEY] = JSON.stringify(cache);
+    }
+  }
   for (const doc of Object.values(state.docs || {})) {
     if (!doc || !Array.isArray(doc.items)) continue;
     for (const row of doc.items) {
       if (!Array.isArray(row) || row[0] !== 'b') continue;
-      let changed = false;
-      if (row[5]) { row[5] = ''; changed = true; }
-      if (row[11] != null) { row[11] = null; changed = true; }
       const e = row[13];
-      if (e && typeof e === 'object' && !Array.isArray(e)) {
-        for (const k of ['sn', 'll', 'ap', 'km']) if (k in e) { delete e[k]; changed = true; }
-        if (typeof e.f === 'string' && /[NIF]/.test(e.f)) { e.f = e.f.replace(/[NIF]/g, ''); if (!e.f) delete e.f; changed = true; }
-        if (!Object.keys(e).length) row.length = 13;
-      }
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      let changed = false;
+      if ('sn' in e) { delete e.sn; changed = true; }
+      if (!e.ap && ('ll' in e || 'km' in e)) { delete e.ll; delete e.km; changed = true; }
+      if (typeof e.f === 'string' && /[NIF]/.test(e.f)) { e.f = e.f.replace(/[NIF]/g, ''); if (!e.f) delete e.f; changed = true; }
+      if (!Object.keys(e).length) row.length = 13;
       if (changed) rows++;
     }
   }
@@ -378,8 +396,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   }
   for (const k of ['searches', 'docs', 'ledgers', 'ls']) if (!state[k] || typeof state[k] !== 'object') state[k] = {};
   state.config = cleanConfig(state.config);
-  // 번개장터 상세를 끈 뒤(W0): 예전에 모아 둔 상세 값은 이번 저장에서 빠진다 (이어 보여주는 지난 매물 포함)
-  if (BD_MAX === 0) scrubBunjangDetails(state);
+  // W0: 예전에 모아 둔 번개장터 상세 값(좌표·주소·설명 등)은 이번 저장에서 빠진다 (이어 보여주는 지난 매물 포함, 동네 이름만 남김)
+  scrubBunjangDetails(state);
   const key = keyFor(state.salt, ITER);
   const viewKey = shareFor(state.salt, ITER);
 
@@ -565,6 +583,22 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   }
   // 좌표가 없는 새 매물의 대략 위치 (거리 '≈'): 중고나라·번개장터는 판매 지역 이름의 동 가운데(여럿이면 거리 기준에서 가장 가까운 곳),
   // 당근은 가까운 동네(근처)인데 거래 좌표가 없으면 가까운 지역들 안에서 그 동 이름으로 찾는다
+  // 동네 이름 → 가까운 지역 안의 같은 이름 동 (없으면 null)
+  const dongNear = (label) => {
+    for (const a of areas) { const p = findPlace(`${a} ${label}`); if (p && p.level === 'dong') return p; }
+    return null;
+  };
+  // 번개장터 가까움: 동네 이름이 가까운 지역 안의 동이거나, 지역까지 적힌 이름이 가까운 지역 안이면 1 (이름을 모르면 null 그대로)
+  if (areas.length && collected.jb && collected.jb.results) {
+    for (const r of Object.values(collected.jb.results)) {
+      for (const t of (r && r.items) || []) {
+        const x = t && t[0] === 'b' ? t[12] : null;
+        const label = x && Array.isArray(x.ar) ? String(x.ar[0] || '') : '';
+        if (!label) continue;
+        t[11] = t[11] === 1 || dongNear(label) || areas.some((a) => areaKey(label).includes(areaKey(a))) ? 1 : 0;
+      }
+    }
+  }
   const locate = (t, x) => {
     let best = null;
     let bestKm = Infinity;
@@ -573,7 +607,9 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
       const k = home ? kmBetween([p.lat, p.lng], [home.lat, home.lng]) : 0;
       if (!best || k < bestKm) { best = p; bestKm = k; }
     };
-    if (Array.isArray(x.ar)) for (const n of x.ar.slice(0, 3)) consider(findPlace(n));
+    // 번개장터는 상세의 동네 이름(동 이름만일 때가 많다): 가까운 지역 안의 동을 먼저, 없으면 전국에서 하나뿐인 이름일 때만
+    if (t[0] === 'b' && Array.isArray(x.ar)) for (const n of x.ar.slice(0, 1)) { consider(dongNear(n)); if (!best) consider(findPlace(n)); }
+    else if (Array.isArray(x.ar)) for (const n of x.ar.slice(0, 3)) consider(findPlace(n));
     else if (t[0] === 'd' && t[11] === 1 && t[5]) for (const a of areas) { const p = findPlace(`${a} ${t[5]}`); if (p && p.level === 'dong') consider(p); }
     return best ? [best.lat, best.lng] : null;
   };

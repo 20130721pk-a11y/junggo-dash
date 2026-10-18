@@ -262,56 +262,63 @@ async function junggoCollect(cfg) {
     return { items: dedupe(items), total, partial, deep };
   }
 
-  // 번개장터 상세 정보(동네·좌표·직거래·상품 상태·설명)는 매물마다 따로 불러야 해서, 처음 보는 매물만 불러
-  // 이 사이트(web.joongna.com) localStorage 에 모아 둔다 (2026-10-10 확인: products-detail v3, 40건 0.8초)
-  // cfg.bdMax 가 0 이면 상세를 부르지도, 모아 둔 것을 읽지도 않는다 (GitHub 수집기는 0 — PRD 0.7 W0·LG-3: 판매자 좌표·주소·설명을 서버에 쌓지 않는다)
+  // 번개장터 매물의 동네 이름(상세 정보의 geoLabel)은 매물마다 상세를 따로 불러야 해서, 이름을 모르는 매물만 불러
+  // 이 사이트(web.joongna.com) localStorage 에 모아 둔다 (2026-10-10 확인: products-detail v3).
+  // 남기는 건 동네 이름 글자뿐이다 — 거래 좌표·주소·설명·상품 상태 같은 나머지는 받자마자 버린다
+  // (대표 결정 2026-10-18: 웹 '내 주변 매물'용으로 동네 이름만. 거리는 도우미가 동 가운데로 어림한다).
+  // 제목 거르기를 통과한 매물만, 두 갈래로 나눠 한 건마다 쉬며(pause) 부르고, 사이트가 막으면(403·429) 바로 멈춘다.
+  // cfg.bdMax 가 0 이면 상세를 부르지도, 모아 둔 것을 읽지도 않는다
   const BD_KEY = 'junggo.bd';
+  // 모아 둔 줄 → 동네 이름 ([저장 초, 동네]. 예전 줄 [초, 위도, 경도, 동네, …] 도 읽는다)
+  const bdLabel = (v) => (Array.isArray(v) ? String((v.length > 2 ? v[3] : v[1]) || '') : '');
   async function bunjangDetails(byId) {
     let cache = {};
     try { cache = JSON.parse(localStorage.getItem(BD_KEY) || '{}') || {}; } catch { cache = {}; }
     const nowSec = Math.floor(Date.now() / 1000);
-    for (const [k, v] of Object.entries(cache)) if (!Array.isArray(v) || nowSec - v[0] > 45 * 86400) delete cache[k];
+    for (const [k, v] of Object.entries(cache)) {
+      if (!Array.isArray(v) || nowSec - v[0] > 45 * 86400) delete cache[k];
+      else if (v.length > 2) cache[k] = [v[0], bdLabel(v)];
+    }
     const want = [];
     const seen = new Set();
     for (const { items } of byId) for (const it of items) if (it[0] === 'b' && !seen.has(it[1])) { seen.add(it[1]); if (!cache[it[1]]) want.push(it[1]); }
     let i = 0;
     let got = 0;
+    let stop = false;
     const max = Number.isFinite(cfg.bdMax) ? cfg.bdMax : 300;
     async function one() {
-      while (i < want.length && i < max && !late()) {
+      let first = true;
+      while (i < want.length && i < max && !late() && !stop) {
+        if (!first) await pause();
+        first = false;
+        // 쉬는 동안 다른 갈래가 남은 것을 가져갔을 수 있다
+        if (stop || late() || i >= want.length || i >= max) break;
         const pid = want[i++];
         try {
           const j = await getJSON(`https://api.bunjang.co.kr/api/pms/v3/products-detail/${pid}?viewerUid=-1`, { credentials: 'omit' });
           const p = j && j.data && (j.data.product || j.data);
           if (!p) continue;
-          const g = p.geo || {};
-          const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null);
-          const tr = p.trade || {};
-          // [저장 초, 위도, 경도, 동네, 주소, 상품 상태, 직거래 1/0, 무료배송 1/0, 설명 앞부분]
-          cache[pid] = [nowSec, r3(g.lat), r3(g.lon), cut(p.geoLabel || '', 20), cut(g.address || '', 40), String(p.condition || ''),
-            tr.inPerson === true ? 1 : tr.inPerson === false ? 0 : null, tr.freeShipping ? 1 : 0, cut(String(p.description || '').replace(/\s+/g, ' '), 60)];
+          // [저장 초, 동네 이름] — 이름 말고는 남기지 않는다
+          cache[pid] = [nowSec, cut(String(p.geoLabel || '').replace(/\s+/g, ' '), 30)];
           got++;
-        } catch {
-          // 한 건 실패는 건너뛴다 (다음 새로고침에 다시)
+        } catch (e) {
+          // 사이트가 막으면 이번엔 더 부르지 않는다. 그 밖의 한 건 실패는 건너뛴다 (다음 새로고침에 다시)
+          if (/HTTP (403|429)/.test(String(e && e.message))) stop = true;
         }
       }
     }
-    await Promise.all([one(), one(), one(), one(), one(), one()]);
+    await Promise.all([one(), one()]);
     try { localStorage.setItem(BD_KEY, JSON.stringify(cache)); } catch { /* 저장 공간이 모자라면 이번만 쓴다 */ }
     for (const { s, items } of byId) {
       const homes = homesOf(s);
       for (const it of items) {
-        const d = it[0] === 'b' && cache[it[1]];
-        if (!d) continue;
+        const label = it[0] === 'b' ? bdLabel(cache[it[1]]) : '';
+        if (!label) continue;
         const x = it[12] || (it[12] = {});
-        if (d[3]) it[5] = cut(d[3], 12);
-        if (homes.length && d[4]) it[11] = inHomes(homes, d[4]) ? 1 : 0;
-        if (d[1] != null && d[2] != null) { x.lat = d[1]; x.lng = d[2]; }
-        // 좌표 없이 주소만 있으면 도우미가 동 가운데로 거리를 어림한다
-        else if (d[4]) x.ar = [d[4]];
-        const f = (x.f || '') + (d[5] === 'NEW' ? 'N' : '') + (d[6] === 1 ? 'I' : '') + (d[7] === 1 ? 'F' : '');
-        if (f) x.f = f;
-        if (d[8]) x.sn = d[8];
+        it[5] = cut(label.split(' ').pop(), 12);
+        // 판매 지역 이름 → 도우미가 가까운 지역 안의 동 가운데로 거리를 어림한다(중고나라와 같게). 동 이름만이면 가까움은 도우미가 정한다
+        x.ar = [label];
+        if (homes.length && inHomes(homes, label)) it[11] = 1;
       }
     }
     return { asked: want.length, got, left: Math.max(0, want.length - got) };
