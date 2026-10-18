@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { run as runReal, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS, BD_MAX, PAGE_GAP_MS, scrubBunjangDetails } from '../run.mjs';
+import { run as runReal, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS, BD_MAX, PAGE_GAP_MS, scrubBunjangDetails, robotsVerdict } from '../run.mjs';
 import { keyring, open, seal, LABEL, ITER } from '../seal.mjs';
 import { collectKey } from '../refresh.mjs';
 import { findPlace, nearbyAreas, areaKey, sameArea } from '../places.mjs';
@@ -22,12 +22,18 @@ const REAL0 = Date.now();
 const kst = (ms) => { const d = new Date(ms + 9 * 3600e3); const p = (n) => String(n).padStart(2, '0'); return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`; };
 
 // 가짜 사이트: extra 에 매물을 더 넣으면 다음 실행에서 새 매물이 된다
-function fakeSites({ extra = [], robotsBunjang = 404, issues = [], log = [] } = {}) {
+//   robots = { 호스트: 상태 번호 | 'throw' } — robots.txt 응답을 바꾼다 / block = { 호스트: 403|429 } — 그 호스트의 검색 요청을 막는다
+function fakeSites({ extra = [], robotsBunjang = 404, issues = [], log = [], robots = {}, block = {} } = {}) {
   return async (url, init = {}) => {
     const u = new URL(url);
     const headers = new Headers(init.headers || {});
-    log.push({ host: u.host, path: u.pathname, ua: headers.get('user-agent'), auth: headers.get('authorization') });
+    log.push({ host: u.host, path: u.pathname, ua: headers.get('user-agent'), auth: headers.get('authorization'), at: Date.now() });
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
+    if (u.pathname === '/robots.txt' && robots[u.host] != null) {
+      if (robots[u.host] === 'throw') throw new TypeError('fetch failed');
+      return new Response('', { status: robots[u.host] });
+    }
+    if (u.pathname !== '/robots.txt' && block[u.host]) return new Response('blocked', { status: block[u.host] });
     if (u.pathname === '/robots.txt') {
       if (u.host === 'api.bunjang.co.kr' && robotsBunjang === 'deny') return new Response('User-agent: *\nDisallow: /api/\n', { status: 200 });
       return new Response('not found', { status: 404 });
@@ -877,4 +883,44 @@ test('W0 도우미: scrubBunjangDetails 는 번개장터 줄만 고친다', () =
   assert.equal(st.docs['x~b'].items[1].length, 13, '덧붙임 칸이 비면 뺀다');
   assert.deepEqual(st.docs['x~j'].items[0][13], { ll: [1, 2], ap: 1, km: 3 }, '중고나라 줄(판매 지역 이름으로 어림한 위치)은 그대로');
   assert.equal(scrubBunjangDetails(st), 0, '두 번째에는 고칠 것이 없다');
+});
+
+test('W0 robots.txt: 404·410 만 없음(허용), 403·401·429·5xx·연결 실패는 확인 못 함 → 그 마켓을 이번엔 부르지 않는다', async () => {
+  assert.equal(robotsVerdict(404, '', '/x'), 'allow');
+  assert.equal(robotsVerdict(410, '', '/x'), 'allow');
+  assert.equal(robotsVerdict(200, 'User-agent: *\nDisallow: /x', '/x'), 'deny');
+  assert.equal(robotsVerdict(200, 'User-agent: *\nDisallow: /y', '/x'), 'allow');
+  for (const st of [0, 301, 400, 401, 403, 429, 500, 503]) assert.equal(robotsVerdict(st, '', '/x'), 'unknown', `HTTP ${st}`);
+  const T = Date.now() + 60 * 3600e3;
+  const d0 = dirs();
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  let at = T;
+  let prev = d0.out;
+  for (const [code, label] of [[403, 'HTTP 403'], [401, 'HTTP 401'], [429, 'HTTP 429'], [500, 'HTTP 500'], ['throw', '연결 실패']]) {
+    at += 3600e3;
+    const log = [];
+    const r = await nextRun(prev, { at, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' }, log, sites: { robots: { 'api.bunjang.co.kr': code } } });
+    assert.ok(!log.some((x) => x.host === 'api.bunjang.co.kr' && x.path !== '/robots.txt'), `${label}: 번개장터 검색을 부르지 않는다`);
+    assert.ok(log.some((x) => x.host === 'search-api.joongna.com' && x.path !== '/robots.txt'), `${label}: 중고나라는 그대로 모은다`);
+    assert.equal(r.status.markets.bunjang, 'unchecked', `${label}: status.json 에 '확인 못 함'`);
+    assert.equal(r.status.markets.joongna, 'ok');
+    assert.equal(r.status.calls.bunjang, 0);
+    const pf = r.v.results.s_aaaa1111.pf.bunjang;
+    assert.equal(pf.st, 'error');
+    assert.equal(pf.skip, 1, '일부러 건너뛴 것 (오류 수에 넣지 않는다)');
+    assert.match(pf.error, /robots\.txt를 확인하지 못해 이번엔 건너뛰었어요/);
+    assert.ok(pf.error.includes(label), `${label} 이 안내에 있다`);
+    assert.ok(r.v.results.s_aaaa1111.items.some((t) => t[0] === 'b'), '지난 번개장터 매물은 이어 보여준다');
+    prev = r.d.out;
+  }
+  // 다음 실행에 다시 본다 (확인 못 한 결과는 기억하지 않는다) → 404 면 다시 부른다
+  for (const code of [404, 410]) {
+    at += 3600e3;
+    const log = [];
+    const r = await nextRun(prev, { at, envx: { GITHUB_EVENT_NAME: 'workflow_dispatch' }, log, sites: { robots: { 'api.bunjang.co.kr': code } } });
+    assert.ok(log.some((x) => x.host === 'api.bunjang.co.kr' && x.path.startsWith('/api/search/')), `HTTP ${code}: 번개장터를 부른다`);
+    assert.equal(r.status.markets.bunjang, 'ok');
+    assert.equal(r.v.results.s_aaaa1111.pf.bunjang.st, 'ok');
+    prev = r.d.out;
+  }
 });

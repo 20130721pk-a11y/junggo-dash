@@ -180,6 +180,13 @@ export function robotsAllows(txt, p) {
   }
   return best ? best.allow : true;
 }
+// robots.txt 응답 읽기 (PRD 0.7 F11·LG-2): 2xx = 읽고 따른다 / 404·410 = 없음(허용) /
+// 그 밖(401·403·429·5xx·연결 실패 등) = '확인 못 함' → 이번 실행에서는 그 마켓을 부르지 않고 다음 실행에 다시 본다(기억하지 않는다)
+export function robotsVerdict(status, text, p) {
+  if (status >= 200 && status < 300) return robotsAllows(text, p) ? 'allow' : 'deny';
+  if (status === 404 || status === 410) return 'allow';
+  return 'unknown';
+}
 async function marketAllowed(fetchImpl, market) {
   const seen = new Map();
   for (const { origin, path: p } of ENDPOINTS[market]) {
@@ -187,15 +194,16 @@ async function marketAllowed(fetchImpl, market) {
       let r = null;
       try {
         const res = await fetchImpl(`${origin}/robots.txt`, { signal: AbortSignal.timeout(10000) });
-        r = { status: res.status, text: res.status === 200 ? await res.text() : '' };
+        r = { status: res.status, text: res.status >= 200 && res.status < 300 ? await res.text() : '' };
       } catch {
         r = { status: 0, text: '' };
       }
       seen.set(origin, r);
     }
     const r = seen.get(origin);
-    if (r.status === 0 || r.status >= 500) return { ok: false, why: `${NAME[market]}에 연결하지 못했어요` };
-    if (r.status === 200 && !robotsAllows(r.text, p)) return { ok: false, why: `${NAME[market]}가 자동 수집을 막아 두어(robots.txt) 모으지 않았어요` };
+    const v = robotsVerdict(r.status, r.text, p);
+    if (v === 'unknown') return { ok: false, kind: 'unchecked', why: `${NAME[market]}의 robots.txt를 확인하지 못해 이번엔 건너뛰었어요 (${r.status ? `HTTP ${r.status}` : '연결 실패'}). 다음 수집 때 다시 봐요` };
+    if (v === 'deny') return { ok: false, kind: 'robots', why: `${NAME[market]}가 자동 수집을 막아 두어(robots.txt) 모으지 않았어요` };
   }
   return { ok: true };
 }
@@ -590,7 +598,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   for (const m of MARKETS) {
     if (!(m in allowed)) continue;
     const bad = !allowed[m].ok || Object.values(state.docs).some((x) => x && x.pf && x.pf[m] && x.pf[m].st === 'error');
-    markets[m] = !allowed[m].ok ? 'blocked' : bad ? 'error' : 'ok';
+    // blocked = robots.txt 가 막음, unchecked = robots.txt 를 확인하지 못해 건너뜀, rest = 사이트가 막아(403·429) 쉬는 중
+    markets[m] = !allowed[m].ok ? ({ unchecked: 'unchecked', rest: 'rest' }[allowed[m].kind] || 'blocked') : bad ? 'error' : 'ok';
   }
   const dStatus = !dWanted ? 'none' : !area ? 'noarea' : !d.at ? 'wait' : !d.ok ? 'error' : startedAt - d.at > D_STALE_MS ? 'stale' : 'ok';
   if (dWanted) markets.daangn = dStatus;
