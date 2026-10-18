@@ -38,11 +38,17 @@ export const D_NOTE = {
   new: '폰 앱이 아직 이 검색으로 당근을 모으지 않았어요. 앱이 다음에 모으면 보여요.',
   changed: '검색 조건이나 가까운 지역이 바뀌었어요. 폰 앱이 새 조건으로 다시 모으면 보여요.',
 };
-// 수집기가 부르는 주소 (robots.txt 로 허용 여부를 먼저 본다)
+// 수집기가 부르는 주소 (robots.txt 로 허용 여부를 먼저 본다). 번개장터 상세(products-detail)는 W0 부터 부르지 않는다
 const ENDPOINTS = {
   joongna: [{ origin: 'https://search-api.joongna.com', path: '/v3/search/all' }],
-  bunjang: [{ origin: 'https://api.bunjang.co.kr', path: '/api/search/v8/web/search' }, { origin: 'https://api.bunjang.co.kr', path: '/api/pms/v3/products-detail/' }],
+  bunjang: [{ origin: 'https://api.bunjang.co.kr', path: '/api/search/v8/web/search' }],
 };
+// 번개장터 상세(판매자 좌표·주소·설명)는 GitHub 서버에서 모으지 않는다 (PRD 0.7 W0·LG-3, 법·리스크 R1)
+export const BD_MAX = 0;
+// 같은 마켓의 다음 쪽을 부르기 전에 쉬는 시간 (PRD 0.7 F12·LG-5, 초안 값)
+export const PAGE_GAP_MS = 700;
+// 수집기가 상세 정보를 모아 두던 곳 (state.ls 안, collect.js 의 BD_KEY)
+const BD_KEY = 'junggo.bd';
 export const TITLE_PREFIX = '꿀매 레이더';
 const MAX_SEARCHES = 50;
 const KEEP_APPLIED = 50;
@@ -194,6 +200,46 @@ async function marketAllowed(fetchImpl, market) {
   return { ok: true };
 }
 
+// 마켓마다 부른 수를 센다 (status.json·로그에 건수만 — 주소·검색어는 남기지 않는다)
+const HOST_MARKET = { 'search-api.joongna.com': 'joongna', 'api.bunjang.co.kr': 'bunjang' };
+export function countingFetch(baseFetch) {
+  const calls = { robots: 0, joongna: 0, bunjang: 0, bunjangDetail: 0 };
+  const fetch = (url, init) => {
+    let u = null;
+    try { u = new URL(String(url)); } catch { /* 이상한 주소는 세지 않는다 */ }
+    const m = u && HOST_MARKET[u.host];
+    if (u && u.pathname === '/robots.txt') calls.robots++;
+    else if (m === 'bunjang' && u.pathname.startsWith('/api/pms/')) calls.bunjangDetail++;
+    else if (m) calls[m]++;
+    return baseFetch(url, init);
+  };
+  return { fetch, calls };
+}
+
+// 예전에 모아 둔 번개장터 상세 값을 지운다: 상세 캐시(state.ls), 저장된 매물 줄의 동네·가까움·설명 앞부분·위치·거리·상세 표시(N 새상품 I 직거래 F 무료배송).
+// 상세를 끈 뒤 새로 모은 번개장터 매물과 같은 꼴이 된다. 몇 줄을 고쳤는지 돌려준다
+export function scrubBunjangDetails(state) {
+  let rows = 0;
+  if (state.ls && Object.prototype.hasOwnProperty.call(state.ls, BD_KEY)) delete state.ls[BD_KEY];
+  for (const doc of Object.values(state.docs || {})) {
+    if (!doc || !Array.isArray(doc.items)) continue;
+    for (const row of doc.items) {
+      if (!Array.isArray(row) || row[0] !== 'b') continue;
+      let changed = false;
+      if (row[5]) { row[5] = ''; changed = true; }
+      if (row[11] != null) { row[11] = null; changed = true; }
+      const e = row[13];
+      if (e && typeof e === 'object' && !Array.isArray(e)) {
+        for (const k of ['sn', 'll', 'ap', 'km']) if (k in e) { delete e[k]; changed = true; }
+        if (typeof e.f === 'string' && /[NIF]/.test(e.f)) { e.f = e.f.replace(/[NIF]/g, ''); if (!e.f) delete e.f; changed = true; }
+        if (!Object.keys(e).length) row.length = 13;
+      }
+      if (changed) rows++;
+    }
+  }
+  return rows;
+}
+
 // 브라우저용 수집기(collect.js)를 Node 에서 그대로 돌린다: fetch·localStorage 만 바꿔 끼운다
 function storageShim(store) {
   return {
@@ -264,7 +310,7 @@ const wrap = (obj) => Object.fromEntries(Object.entries(obj || {}).map(([k, data
 const readJson = (f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
 const writeJson = (f, v) => fs.writeFileSync(f, JSON.stringify(v));
 
-export async function run({ prevDir, outDir, workDir, dresDir = '', env = process.env, fetchImpl = globalThis.fetch, now = Date.now, log = console.log }) {
+export async function run({ prevDir, outDir, workDir, dresDir = '', env = process.env, fetchImpl = globalThis.fetch, now = Date.now, log = console.log, pageGapMs = PAGE_GAP_MS }) {
   for (const d of [outDir, workDir]) fs.mkdirSync(d, { recursive: true });
   const startedAt = now();
   const prevState = readJson(path.join(prevDir, 'state.enc'));
@@ -276,7 +322,9 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     writeJson(path.join(workDir, 'close.json'), requests);
     const dn = status.daangn;
     const dLog = dn ? ` · 당근 ${dn.shown}/${dn.searches}개 검색 ${dn.items}건${dn.waiting ? ` (폰 기다림 ${dn.waiting})` : ''}${dn.upload ? ` · 폰 결과 합침 ${dn.upload.merged}/${dn.upload.searches}` : ''}` : '';
-    log(`[꿀매 레이더] ${status.ok ? '완료' : '실패'} · ${status.message || ''} · 검색 ${status.searches ?? '-'}개 · 매물 ${status.items ?? '-'}건 · 새 매물 ${status.fresh ?? '-'}건${dLog} · ${((now() - startedAt) / 1000).toFixed(1)}초`);
+    const c = status.calls;
+    const cLog = c ? ` · 부른 수 robots ${c.robots} · 중고나라 ${c.joongna} · 번개장터 ${c.bunjang} · 번개장터 상세 ${c.bunjangDetail}` : '';
+    log(`[꿀매 레이더] ${status.ok ? '완료' : '실패'} · ${status.message || ''} · 검색 ${status.searches ?? '-'}개 · 매물 ${status.items ?? '-'}건 · 새 매물 ${status.fresh ?? '-'}건${dLog}${cLog} · ${((now() - startedAt) / 1000).toFixed(1)}초`);
     return status;
   };
   // 지난 데이터를 그대로 둘 때 (비밀번호 문제 등)
@@ -311,6 +359,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   }
   for (const k of ['searches', 'docs', 'ledgers', 'ls']) if (!state[k] || typeof state[k] !== 'object') state[k] = {};
   state.config = cleanConfig(state.config);
+  // 번개장터 상세를 끈 뒤(W0): 예전에 모아 둔 상세 값은 이번 저장에서 빠진다 (이어 보여주는 지난 매물 포함)
+  if (BD_MAX === 0) scrubBunjangDetails(state);
   const key = keyFor(state.salt, ITER);
   const viewKey = shareFor(state.salt, ITER);
 
@@ -388,7 +438,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   const reuseJb = jbWanted && REUSE_EVENTS.includes(env.GITHUB_EVENT_NAME) && !requests.length && jbSame
     && state.jbAt && startedAt - state.jbAt < JB_REUSE_MS;
   const ua = `junggo-dash/1.0 (+https://github.com/${env.GITHUB_REPOSITORY || 'junggo-dash'}; personal use, hourly)`;
-  const mfetch = marketFetch(fetchImpl, ua);
+  const counter = countingFetch(marketFetch(fetchImpl, ua));
+  const mfetch = counter.fetch;
   const allowed = {};
   const skipped = {};
   let jobs = [];
@@ -402,7 +453,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
     jobs = eff.map((s) => ({ ...s, platforms: s.platforms.filter((m) => allowed[m] && allowed[m].ok) })).filter((s) => s.platforms.length);
   }
   if (jobs.length) {
-    const cfg = { part: 'jb', maxAgeDays: state.config.maxAgeDays, plain: true, budgetMs: 6 * 60 * 1000, searches: jobs.map((s) => slim(s, 'jb', {})) };
+    const cfg = { part: 'jb', maxAgeDays: state.config.maxAgeDays, plain: true, budgetMs: 6 * 60 * 1000, bdMax: BD_MAX, pageGapMs, searches: jobs.map((s) => slim(s, 'jb', {})) };
     try {
       collected.jb = await runCollector(cfg, { fetchImpl: mfetch, store: state.ls });
       state.jbAt = startedAt;
@@ -549,7 +600,7 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   if (!ids.length) message = '저장한 검색이 없어요';
   const refresh = {
     status: failedAll ? 'failed' : 'done', by: 'github', startedAt, finishedAt: now(), message, summary: built.summary,
-    jbAt: state.jbAt || 0, reusedJb: !!reuseJb,
+    jbAt: state.jbAt || 0, reusedJb: !!reuseJb, calls: { ...counter.calls },
     ...(dWanted ? { daangn: { st: dStatus, at: d.at || 0, device: d.device || '', app: d.app || '', by: d.by || '', error: d.ok === false ? d.error || '' : '', note: dNote } } : {}),
     ...(collected.jb && collected.jb.bd ? { bd: collected.jb.bd } : {}),
     ...(requestError ? { requestError } : {}),
@@ -568,6 +619,8 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
   return finish(
     {
       ok: !failedAll, message: requestError ? `${message ? `${message} · ` : ''}요청 이슈를 읽지 못했어요` : message, searches: ids.length, items, fresh: freshN, markets, requests: requests.length, bootstrapped, reusedJb: !!reuseJb, daangnAt: d.at || 0,
+      // 이번 실행에서 사이트를 부른 수 (건수만): robots.txt, 중고나라 검색, 번개장터 검색, 번개장터 상세(W0 부터 0이어야 한다)
+      calls: { ...counter.calls },
       // 중고나라·번개장터를 마지막으로 모은 시각 — 워크플로가 이 시각 한 시간 뒤로 다음 수집 시계(timer.yml)를 맞춘다
       jbAt: state.jbAt || 0,
       // 당근 요약 (건수만 — 비밀번호 없이도 당근이 붙었는지 볼 수 있게): 당근을 켠 검색 수, 그중 매물을 보여주는 수·기다리는 수·오류 수, 당근 매물 수,

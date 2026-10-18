@@ -6,14 +6,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { run, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS } from '../run.mjs';
-import { keyring, open, seal, LABEL } from '../seal.mjs';
+import { run as runReal, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS, BD_MAX, PAGE_GAP_MS, scrubBunjangDetails } from '../run.mjs';
+import { keyring, open, seal, LABEL, ITER } from '../seal.mjs';
 import { collectKey } from '../refresh.mjs';
 import { findPlace, nearbyAreas, areaKey, sameArea } from '../places.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 new Function('self', fs.readFileSync(path.join(here, '..', '..', 'box.js'), 'utf8'))(globalThis);
 const Box = globalThis.JunggoBox;
+// 시험에서는 쪽 사이 쉬기(0.7초)를 끈다. 쉬기를 보는 시험만 따로 값을 준다
+const run = (o) => runReal({ pageGapMs: 0, ...o });
 
 const PW = 'test-password-123';
 const REAL0 = Date.now();
@@ -112,7 +114,15 @@ test('첫 실행: 처음 검색 목록으로 모으고 잠가 둔다 (당근은 
   const near = r.items.find((t) => t[0] === 'j' && t[1] === '101');
   assert.equal(near[11], 1, '시흥시 매물은 가까움');
   const bj = r.items.find((t) => t[0] === 'b');
-  assert.ok(bj[13] && bj[13].f.includes('K') && bj[13].f.includes('N'), '번개케어·새상품 표시');
+  assert.ok(bj[13] && bj[13].f === 'K', '번개케어 표시 (새상품 N 은 상세에서 오던 것이라 이제 없다)');
+  assert.equal(bj[5], '', '번개장터 동네(상세 geoLabel)를 모으지 않는다');
+  assert.equal(bj[11], null, '번개장터 가까움(상세 주소)을 모르니 null');
+  assert.ok(!('ll' in bj[13]) && !('sn' in bj[13]) && !('km' in bj[13]), '번개장터 좌표·설명·거리 없음');
+  assert.ok(!log.some((x) => x.path.startsWith('/api/pms/')), 'GitHub 에서는 번개장터 상세를 부르지 않는다 (W0)');
+  assert.equal(status.calls.bunjangDetail, 0, 'status.json: 번개장터 상세 0번');
+  assert.equal(status.calls.bunjang, 2, 'status.json: 번개장터 검색 2번 (검색 2개 × 1쪽)');
+  assert.equal(status.calls.joongna, 2, 'status.json: 중고나라 판매중 1쪽 + 판매완료 1쪽');
+  assert.equal(status.calls.robots, 2, 'status.json: robots.txt 2곳');
   assert.equal(r.sold.length, 1, '판매완료(중고나라)');
   assert.equal(v.results.s_bbbb2222.items.length, 1, '두 번째 검색은 번개장터만 (60만원 이하)');
   assert.ok(log.filter((x) => x.host !== 'api.github.com').every((x) => x.ua && x.ua.startsWith('junggo-dash/')), '사이트에는 우리 이름을 밝힌다');
@@ -462,11 +472,11 @@ function dresAll(job, { at, trigger = 'auto', ids = Object.keys(job.ck) } = {}) 
   return { v: 1, job: job.id, ck: job.ck, at, startedAt: at - 60e3, by: 'app', app: '0.2.3', device: 'Test Phone', trigger, ok: true, result };
 }
 // 지난 실행 결과(prevOut)를 이어받는 다음 실행
-async function nextRun(prevOut, { at, dres, envx = {}, issues = [], log = [] } = {}) {
+async function nextRun(prevOut, { at, dres, envx = {}, issues = [], log = [], sites = {}, pageGapMs } = {}) {
   const d = dirs();
   fs.cpSync(prevOut, d.prev, { recursive: true });
   if (dres) { d.prevOut = prevOut; writeDres(d, dres); }
-  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: dres ? d.dres : '', env: env(envx), fetchImpl: fakeSites({ issues, log }), now: () => at, log: quiet });
+  const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: dres ? d.dres : '', env: env(envx), fetchImpl: fakeSites({ issues, log, ...sites }), now: () => at, log: quiet, ...(pageGapMs != null ? { pageGapMs } : {}) });
   return { d, st, status: readOut(d, 'status.json'), v: openView(d) };
 }
 // 페이지처럼 검색 목록을 바꿔 보내는 요청 이슈
@@ -633,9 +643,9 @@ test('가까운 지역 여러 곳 + 거리 기준: 근처 표시, 거리(중고�
   assert.ok(j101[13].km < 1, `정왕동 → 정왕동 ${j101[13].km}km`);
   assert.ok(j104[13].km > 20 && j104[13].km < 35, `정왕동 → 합정동 ${j104[13].km}km`);
   assert.ok(j105[13].km > 250, '부산');
-  assert.equal(b201[11], 1);
-  assert.equal(b201[13].ap, undefined, '번개장터는 거래 좌표로');
-  assert.ok(b201[13].km < 2 && Array.isArray(b201[13].ll));
+  // 번개장터 상세(거래 좌표·주소)를 W0 부터 모으지 않는다 → 가까움·거리를 모른다
+  assert.equal(b201[11], null, '번개장터 가까움은 모름');
+  assert.ok(!b201[13] || (b201[13].km == null && b201[13].ll == null), '번개장터 거리·좌표 없음');
   const job = openJob(d);
   assert.deepEqual(job.cfg.searches[0].regions, [{ q: '경기도 시흥시' }, { q: '서울 마포구' }]);
   assert.deepEqual(job.cfg.homes, [{ k: '', q: '경기도 시흥시 정왕동' }]);
@@ -800,7 +810,71 @@ test('중고나라·번개장터는 제목에 검색어가 있는 매물만 남�
   assert.equal(searches.filter((x) => x.sort === 'latest').length, 15);
   assert.equal(searches.filter((x) => x.sort === 'score').length, 3);
   const details = log.filter((x) => x.path.startsWith('/api/pms/'));
-  assert.equal(details.length, 6, '상세 정보는 남긴 매물만 부른다 (엉뚱한 매물에 쓰지 않는다)');
+  assert.equal(details.length, 0, '번개장터 상세는 부르지 않는다 (W0)');
   // 검색어를 제목에 두지 않고 '제목·내용'으로 둬도 같다 (기본)
   assert.equal(openView(d).searches[0].match, 'content');
+});
+
+// ---------- W0 (PRD 0.7 3-5): 웹 서버 수집 줄이기 ----------
+const openState = (out) => open(readOut({ out }, 'state.enc'), keyring(PW), LABEL.state);
+// 안쪽 기록(state.enc)을 고쳐 다시 잠근다 (예전 수집기가 쌓아 둔 값을 흉내 낼 때)
+function rewriteState(out, change) {
+  const st = openState(out);
+  change(st);
+  fs.writeFileSync(path.join(out, 'state.enc'), JSON.stringify(seal(st, keyring(PW)(st.salt, ITER), st.salt, LABEL.state)));
+}
+
+test('W0 번개장터 상세: 예전에 모아 둔 상세 캐시와 매물 줄의 동네·좌표·설명·거리가 다음 저장에서 빠진다', async () => {
+  assert.equal(BD_MAX, 0, 'GitHub 수집기는 번개장터 상세를 부르지 않는다');
+  const T = Date.now() + 50 * 3600e3;
+  const d0 = dirs();
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  // 예전 수집기(상세를 부르던 때)가 남긴 것처럼 만든다
+  rewriteState(d0.out, (st) => {
+    st.ls['junggo.bd'] = JSON.stringify({ 201: [1, 37.345, 126.735, '정왕동', '경기도 시흥시 정왕동', 'NEW', 1, 0, '상태 좋아요'] });
+    for (const doc of Object.values(st.docs)) {
+      for (const row of doc.items || []) {
+        if (row[0] !== 'b') continue;
+        row[5] = '정왕동';
+        row[11] = 1;
+        row[13] = { ...(row[13] || {}), f: 'KNI', sn: '상태 좋아요', ll: [37.345, 126.735], km: 0.4 };
+      }
+    }
+  });
+  const hasDetail = (rows) => rows.some((t) => t[0] === 'b' && (t[5] || t[11] != null || (t[13] && ('sn' in t[13] || 'll' in t[13] || 'km' in t[13] || /[NIF]/.test(t[13].f || '')))));
+  assert.ok(hasDetail(Object.values(openState(d0.out).docs).flatMap((x) => x.items || [])), '흉내 낸 상세 값이 들어 있다');
+  // 1) 다시 모으지 않고 지난 매물을 이어 보여주는 실행(45분 안의 정각 실행)에서도 빠진다
+  const r1 = await nextRun(d0.out, { at: T + 20 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' } });
+  assert.equal(r1.st.reusedJb, true);
+  const s1 = openState(r1.d.out);
+  assert.equal(s1.ls['junggo.bd'], undefined, '상세 캐시를 지운다');
+  assert.ok(!hasDetail(Object.values(s1.docs).flatMap((x) => x.items || [])), 'state.enc 의 번개장터 줄에 상세 값이 없다');
+  const b1 = r1.v.results.s_aaaa1111.items.find((t) => t[0] === 'b');
+  assert.ok(b1, '번개장터 매물은 그대로 보인다');
+  assert.ok(!hasDetail(Object.values(r1.v.results).flatMap((x) => x.items)), 'view.enc(페이지가 여는 것)에도 없다');
+  assert.equal(b1[13] && b1[13].f, 'K', '검색 결과에서 오는 표시(K 번개케어)는 남는다');
+  assert.equal(r1.status.calls.bunjangDetail, 0);
+  // 2) 새로 모으는 실행에서도 상세를 부르지 않는다
+  const log2 = [];
+  const r2 = await nextRun(r1.d.out, { at: T + 70 * 60e3, envx: { GITHUB_EVENT_NAME: 'schedule' }, log: log2 });
+  assert.equal(r2.st.reusedJb, false);
+  assert.ok(!log2.some((x) => x.path.startsWith('/api/pms/')));
+  assert.deepEqual(r2.status.calls, { robots: 2, joongna: 2, bunjang: 2, bunjangDetail: 0 }, '중고나라(검색 1개: 판매중·판매완료 1쪽씩) 2, 번개장터(검색 2개 × 1쪽) 2, 상세 0');
+  assert.ok(!hasDetail(Object.values(r2.v.results).flatMap((x) => x.items)));
+});
+
+test('W0 도우미: scrubBunjangDetails 는 번개장터 줄만 고친다', () => {
+  const st = {
+    ls: { 'junggo.bd': '{}', 'junggo.homes': '{}' },
+    docs: {
+      'x~b': { items: [['b', '1', '제목', 1000, 's', '정왕동', 1, 0, 0, 0, 0, 1, 0, { f: 'OKN', sn: '설명', ll: [1, 2], ap: 1, km: 3, s: 'ab' }], ['b', '2', '제목', 1000, 's', '', 1, 0, 0, 0, 0, null, 0, { sn: 'x' }]] },
+      'x~j': { items: [['j', '9', '제목', 1000, 's', '정왕동', 1, 0, 0, 0, 0, 1, 0, { ll: [1, 2], ap: 1, km: 3 }]] },
+    },
+  };
+  assert.equal(scrubBunjangDetails(st), 2);
+  assert.deepEqual(st.ls, { 'junggo.homes': '{}' });
+  assert.deepEqual(st.docs['x~b'].items[0], ['b', '1', '제목', 1000, 's', '', 1, 0, 0, 0, 0, null, 0, { f: 'OK', s: 'ab' }]);
+  assert.equal(st.docs['x~b'].items[1].length, 13, '덧붙임 칸이 비면 뺀다');
+  assert.deepEqual(st.docs['x~j'].items[0][13], { ll: [1, 2], ap: 1, km: 3 }, '중고나라 줄(판매 지역 이름으로 어림한 위치)은 그대로');
+  assert.equal(scrubBunjangDetails(st), 0, '두 번째에는 고칠 것이 없다');
 });
