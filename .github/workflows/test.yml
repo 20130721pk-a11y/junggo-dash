@@ -3,7 +3,7 @@ name: 시험
 on:
   push:
     branches: [ main ]
-    paths: [ 'collector/**', 'box.js', '.github/workflows/test.yml' ]
+    paths: [ 'collector/**', 'box.js', 'radar-view.js', 'index.html', 'test/**', '.github/workflows/test.yml' ]
   pull_request:
 
 permissions:
@@ -19,3 +19,4 @@ jobs:
         with:
           node-version: '22'
       - run: node --test collector/test/*.test.mjs
+      - run: node --test test/*.test.mjs

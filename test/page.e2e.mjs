@@ -46,9 +46,9 @@ function fake(issues = []) {
   };
 }
 
-// 사이트 폴더: index.html, box.js, testdata/
+// 사이트 폴더: index.html(= 예전 보기 old.html), box.js, testdata/
 const site = fs.mkdtempSync(path.join(os.tmpdir(), 'jd-site-'));
-fs.copyFileSync(`${REPO}/index.html`, `${site}/index.html`);
+fs.copyFileSync(`${REPO}/old.html`, `${site}/index.html`);
 fs.copyFileSync(`${REPO}/box.js`, `${site}/box.js`);
 const data = `${site}/testdata`;
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'jd-work-'));
