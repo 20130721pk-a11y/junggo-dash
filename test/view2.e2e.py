@@ -194,11 +194,15 @@ with sync_playwright() as p:
     page.wait_for_timeout(50)
     shot(page, '03b-product-variant')
     check(page.locator('.rows .row').count() == 6 and 'SUPER 매물 6건' in page.inner_text('.list-sum') and page.locator('button.vchip[aria-pressed="true"]').count() == 1, "변형 'SUPER' 6건")
+    hb = page.inner_text('.grid2 .box >> nth=0')
+    check(page.inner_text('.hero .price') == '1,210,000원' and '확인 필요 매물 2건은' in hb and '▼ 3만' not in hb, "SUPER 칩 → 지금 최저가 = SUPER 믿을 만한 첫째 121만 · ⚠ 2건 (앱 결과 화면과 같게)")
     page.click('button.mkt[data-mk="j"]')
     check(page.locator('.rows .row').count() == 3, 'SUPER + 중고나라 끔 3건')
+    check(page.inner_text('.hero .price') == '1,260,000원' and '확인 필요 매물 1건은' in page.inner_text('.grid2 .box >> nth=0'), 'SUPER + 중고나라 끔 → 지금 최저가 126만 · ⚠ 1건')
     page.click('button.mkt[data-mk="j"]')
     page.click('button.vchip[data-variant="SUPER"]')
     check(page.locator('.rows .row').count() == 13 and page.locator('button.vchip[aria-pressed="true"]').count() == 0, '같은 칩 다시 누르면 풀림')
+    check(page.inner_text('.hero .price') == '980,000원' and '▼ 3만' in page.inner_text('.grid2 .box >> nth=0'), '칩을 풀면 묶음 지금 최저가 그대로(▼ 3만)')
     page.click('button.vchip[data-variant="기본"]')
     check(page.locator('.rows .row').count() == 7, "변형 '기본' 7건")
 
@@ -224,6 +228,7 @@ with sync_playwright() as p:
     page.click('button.mkt[data-mk="j"]')
     page.click('button.mkt[data-mk="d"]')
     check(page.locator('.rows .row').count() == 2 and page.locator('a.row[href*="products/1999"]').count() == 1, '번개장터만: 같은 글의 번개장터 매물이 줄로')
+    check(page.inner_text('.hero .price') == '780,000원' and '번개장터' in page.inner_text('.hero .meta'), '번개장터만 → 지금 최저가도 번개장터 매물')
     page.click('button.mkt[data-mk="j"]')
     page.click('button.mkt[data-mk="d"]')
 

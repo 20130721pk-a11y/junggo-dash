@@ -171,11 +171,25 @@ test('앱 = 웹: 앱 결과 화면 칩 결과(Pipeline.chipRows)와 같은 줄·
     const f = RV.filterListings(ls, o);
     const label = `마켓 ${c.mk || '전체'} · 변형 ${c.variant || '전부'} · 지역 ${c.area}${c.withUnknown ? '' : '(모름 숨김)'}`;
     assert.deepEqual(f.rows.map((l) => l.key), c.keys, label);
+    // 칩으로 좁힌 지금 최저가·⚠ n·칸 위 한 줄 = 앱 CardCore.screenHero
+    const h = RV.screenHero(f.heroRows, { name: app.product.name, chip: c.variant || '', base: app.product.baseVariant, market: c.mk });
+    assert.equal(h.hero ? h.hero.key : null, c.heroKey, label + ' 지금 최저가');
+    assert.equal(h.doubtful, c.doubtful, label + ' ⚠ n');
+    assert.equal(h.line, c.line, label + ' 칸 위 한 줄');
     // 그 마켓 단추 숫자 = 앱에서 그 마켓 칩을 눌렀을 때 줄 수
     if (c.mk) assert.equal(RV.filterListings(ls, { ...o, mk: undefined }).counts[c.mk], c.keys.length, label + ' 단추 숫자');
     n++;
   }
   assert.equal(n, 48);
+  // 세 가지 줄이 모두 견줘졌는지(자료가 바뀌어 줄이 사라지면 알게)
+  const lines = app.cases.map((c) => c.line || '');
+  assert.ok(lines.some((t) => t.startsWith('⚠ 더 싸 보이는')));
+  assert.ok(lines.some((t) => t.startsWith('믿을 만한 매물이 아직 없어요 · ⚠ 확인 필요')));
+  assert.ok(lines.some((t) => t.startsWith('당근에는 기본 ')));
+  // 칩 없음 = 묶음 lowKey·caution(홈 카드와 같음)
+  const h0 = RV.screenHero(RV.filterListings(ls, {}).heroRows, { name: app.product.name, base: app.product.baseVariant });
+  assert.equal(h0.hero.key, app.product.lowKey);
+  assert.equal(h0.doubtful, app.product.caution);
 });
 
 test('같은 글 묶음: 거른 뒤 다시 묶기·옛 묶음(dupRows 없음)·변형 이름 없는 매물', () => {
@@ -213,6 +227,15 @@ test('변형 칩: 시험 묶음 4080 = SUPER · 기본, 고르면 그 변형만'
   assert.equal(sup.rows.length, 6);
   assert.ok(sup.rows.every((l) => l.variant === 'SUPER'));
   assert.equal(RV.filterListings(p.listings, { variant: '기본' }).rows.length, 7);
+  // 칩으로 좁힌 지금 최저가: SUPER 의 믿을 만한 첫째, 그보다 싼 ⚠ 2건
+  const h = RV.screenHero(sup.heroRows, { name: p.name, chip: 'SUPER', base: p.baseVariant });
+  assert.equal(h.hero.price, 1210000);
+  assert.equal(h.doubtful, 2);
+  assert.equal(h.line, "⚠ 더 싸 보이는 확인 필요 매물 2건은 '지금 최저가'에서 뺐어요(아래 목록에 있어요)");
+  // '결과 안에서 찾기'는 지금 최저가를 바꾸지 않아요(앱에 없는 찾기)
+  assert.equal(RV.screenHero(RV.filterListings(p.listings, { variant: 'SUPER', q: 'rog' }).heroRows, { name: p.name, chip: 'SUPER', base: p.baseVariant }).hero.price, 1210000);
+  // 칩 없음 = 묶음 lowKey
+  assert.equal(RV.screenHero(RV.filterListings(p.listings, {}).heroRows, { name: p.name, base: p.baseVariant }).hero.key, p.lowKey);
   assert.deepEqual(RV.variantChips(sample().products[3].listings), [], '변형이 하나(XT)면 칩 없음');
 });
 

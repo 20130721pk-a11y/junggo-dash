@@ -628,21 +628,34 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
     }).join('');
 
     const label = late() ? '그때 최저가' : '지금 최저가';
-    const low = (p.state === 'ok' || p.state === 'unknown') ? findL(p, p.lowKey) : null;
+    const f = visibleRows(p);
+    // 칩(마켓·변형·지역)을 고르면 앱 결과 화면처럼 지금 최저가·⚠ n·칸 위 한 줄을 보이는 것 기준으로(RV.screenHero — 앱 판정 그대로 고르기만)
+    const mkOn = ['j', 'd', 'b'].filter((m) => S.mk[m] !== false);
+    const chipped = mkOn.length < 3 || !!f.variant || f.area !== 'all';
+    const picked = chipped && p.state !== 'rebase' && p.state !== 'pending'
+      ? RV.screenHero(f.heroRows, { name: p.name, chip: f.variant, base: p.baseVariant, market: mkOn.length === 1 ? mkOn[0] : '' })
+      : null;
+    const low = picked ? picked.hero : (p.state === 'ok' || p.state === 'unknown') ? findL(p, p.lowKey) : null;
+    const isLowKey = !!low && low.key === p.lowKey;
+    const cautionLine = picked ? picked.line : p.cautionPage;
+    const cautionKey = picked ? picked.cautionKey : p.cautionKey;
     let hero = '';
     if (low) {
-      const target = RV.arr(p.facts).find((f) => f && f.icon === 'target');
+      const target = isLowKey ? RV.arr(p.facts).find((x) => x && x.icon === 'target') : null;
       hero = `<div class="box"><p class="box-label">${label}</p>
         <div class="hero">${thumb(low, 'lg')}<div style="min-width:0">
           <p class="ltitle">${esc(low.title)}</p>
-          <div class="price-row" style="margin-top:6px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
+          <div class="price-row" style="margin-top:6px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
           <p class="meta" style="margin:4px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · 올린 때 ${esc(ago(low.updated, t))} · 처음 본 때 ${esc(ago(low.firstSeen, t))}</p>
           ${low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
           ${target ? `<p class="note">${ico('target')}${esc(target.t)}</p>` : ''}
         </div></div>
-        ${p.cautionPage ? `<button class="note link" style="margin-top:12px" data-jump="${esc(p.id)}" data-key="${esc(p.cautionKey || '')}">${esc(p.cautionPage)}</button>` : ''}
+        ${cautionLine ? `<button class="note link" style="margin-top:12px" data-jump="${esc(p.id)}" data-key="${esc(cautionKey || '')}">${esc(cautionLine)}</button>` : ''}
         <div class="hero-bottom"><span class="meta">${day() ? '<span class="sold-maybe">하루가 넘었어요 — 팔렸을 수 있어요</span>' : '원 매물에서 사요 — 거래는 마켓 앱에서'}</span>
         <a class="btn" ${ext(low)}>원 매물 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a></div></div>`;
+    } else if (picked) {
+      // 칩 안에 믿을 만한 매물이 없음 — 앱 결과 화면 줄 그대로(회색 = 확인 필요)
+      hero = `<div class="box"><p class="box-label">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</div>`;
     } else if (p.state === 'allCaution') {
       hero = `<div class="box"><p class="box-label">${label}</p><p class="note" style="font-size:.9375rem">${esc(p.statePage)}</p></div>`;
     } else if (p.state === 'rebase') {
@@ -675,7 +688,6 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
     const ledger = RV.arr(p.ledger).length ? `<div class="ledger">${p.ledger.map((x) => `<p class="note">${esc(x)}</p>`).join('')}</div>` : '';
 
     const all = listOf(p);
-    const f = visibleRows(p);
     const vchips = RV.variantChips(all);
     const vTool = vchips.length ? `<span class="vchips" role="group" aria-label="변형">${vchips.map((v) => `<button class="vchip" data-variant="${esc(v)}" aria-pressed="${v === f.variant}">${esc(v)}</button>`).join('')}</span>` : '';
     const areaOn = b.base && f.area !== 'all';

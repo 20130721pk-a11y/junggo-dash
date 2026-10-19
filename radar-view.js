@@ -187,6 +187,8 @@
     const counts = { j: 0, d: 0, b: 0 };
     for (const m of Object.keys(counts)) counts[m] = regroup(all, (l) => l.m === m && others(l, withUnknown)).length;
     const rows = regroup(all, (l) => mk[l.m] !== false && others(l, withUnknown));
+    // 지금 최저가를 고를 줄(싼 순): 앱 결과 화면처럼 칩(마켓·변형·지역)으로만 좁혀요 — '결과 안에서 찾기'는 웹에만 있는 찾기라 빼요
+    const heroRows = q ? regroup(all, (l) => mk[l.m] !== false && (!variant || variantOf(l) === variant) && placeOk(l, withUnknown)) : rows.slice();
     let unknown = 0, hiddenUnknown = 0;
     if (area !== 'all') {
       unknown = (withUnknown ? rows : regroup(all, (l) => mk[l.m] !== false && others(l, true))).filter((l) => isUnknown(l.place)).length;
@@ -199,7 +201,36 @@
     if (o.sort === 'seen') rows.sort((a, b) => (b.firstSeen || 0) - (a.firstSeen || 0) || tie(a, b));
     else if (o.sort === 'near') rows.sort((a, b) => kmOf(a) - kmOf(b) || price(a) - price(b) || tie(a, b));
     else rows.sort((a, b) => price(a) - price(b) || tie(a, b));
-    return { rows, counts, unknown, hiddenUnknown, area, withUnknown, variant };
+    return { rows, counts, unknown, hiddenUnknown, area, withUnknown, variant, heroRows };
+  }
+
+  /* ---------- 칩으로 좁힌 지금 최저가 (앱 CardCore.screenHero 와 같은 규칙) ---------- */
+  // 판정은 하지 않아요: 매물마다 앱이 낸 grade.k(⚠ 여부)와 묶음 baseVariant(기준 변형)로 고르기만.
+  // rows = filterListings 의 heroRows(싼 순). o = { name: 물건 이름, chip: 변형 칩, base: 묶음 baseVariant, market: 한 마켓만 켰을 때 그 코드 }.
+  // 돌려주는 것: { hero, doubtful, line, cautionKey } — line 은 결과 화면 칸 위 한 줄 글(없으면 null), cautionKey = 첫 ⚠(기준 변형 안).
+  function screenHero(rows, o) {
+    o = o || {};
+    const all = arr(rows).filter(Boolean);
+    const split = o.base !== undefined ? !!str(o.base) : all.some((l) => str(l.variant));
+    const want = split ? (str(o.chip) || str(o.base) || BASE_VARIANT) : '';
+    const isBase = (l) => !want || variantOf(l) === want;
+    const kind = (l) => (l.grade && typeof l.grade === 'object' ? l.grade.k : null);
+    const priced = (l) => Number(l.price) > 0;
+    const inBase = all.filter(isBase);
+    const hero = inBase.find((l) => priced(l) && kind(l) !== 'caution') || null;
+    const before = hero ? inBase.slice(0, inBase.indexOf(hero)) : inBase;
+    const cautions = before.filter((l) => kind(l) === 'caution');
+    const doubtful = cautions.length;
+    const other = hero ? null : all.find((l) => !isBase(l) && priced(l) && kind(l) != null && kind(l) !== 'caution') || null;
+    const noBase = !hero && split ? other : null;
+    let line = null;
+    if (noBase) {
+      const who = want === BASE_VARIANT ? `${BASE_VARIANT} ${str(o.name)}` : `${str(o.name)} ${want}`;
+      const where = MARKET[o.market] ? `${MARKET[o.market]}에는 ` : '';
+      line = [`${where}${who} 믿을 만한 매물이 아직 없어요`, doubtful > 0 ? `⚠ ${doubtful}건` : '', `${variantOf(noBase)} 최저 ${man(noBase.price)}`].filter(Boolean).join(' · ');
+    } else if (!hero && doubtful > 0) line = `믿을 만한 매물이 아직 없어요 · ⚠ 확인 필요 ${doubtful}건(아래 목록에 있어요)`;
+    else if (doubtful > 0) line = `⚠ 더 싸 보이는 확인 필요 매물 ${doubtful}건은 '지금 최저가'에서 뺐어요(아래 목록에 있어요)`;
+    return { hero, doubtful, line, cautionKey: cautions.length ? cautions[0].key : null };
   }
   const kmOf = (l) => (l.place && !isUnknown(l.place) && Number.isFinite(l.place.km) ? l.place.km : Infinity);
 
@@ -296,6 +327,6 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, variantChips, filterListings, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, variantChips, filterListings, screenHero, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -67,7 +67,7 @@ const spark = [112, 111, null, 109, 108, 108, 106, 104, 103, 99, 95, 97, 99, 101
 
 const products = [
   {
-    id: 's_4080', name: 'RTX 4080', state: 'ok', pct: 15, honey: 2, caution: 2, focus: true, checkedAt: at(3 * M), count: l4080.length,
+    id: 's_4080', baseVariant: '기본', name: 'RTX 4080', state: 'ok', pct: 15, honey: 2, caution: 2, focus: true, checkedAt: at(3 * M), count: l4080.length,
     lowKey: l4080[2].key, change: { dir: 'down', text: '▼ 3만' },
     facts: [{ t: '시세 120만 · 판매완료 기준 18건' }, { t: '9일 만에 최저' }, { t: '목표가 이하', icon: 'target' }],
     cautionCard: '⚠ 더 싸 보이는 확인 필요 매물 2건(79만~)은 최저가에서 뺐어요',
@@ -82,13 +82,13 @@ const products = [
     listings: l4080,
   },
   {
-    id: 's_5080', name: 'RTX 5080', state: 'allCaution', pct: 15, honey: 0, caution: 3, checkedAt: at(3 * M), count: l5080.length,
+    id: 's_5080', baseVariant: '기본', name: 'RTX 5080', state: 'allCaution', pct: 15, honey: 0, caution: 3, checkedAt: at(3 * M), count: l5080.length,
     stateCard: '믿을 만한 매물이 아직 없어요 · ⚠ 3건', statePage: '믿을 만한 매물이 아직 없어요 · ⚠ 확인 필요 3건(아래 목록에 있어요)',
     cut: { single: ['시세 165만 · 판매완료 기준 14건', '꿀매 기준 -15% → 140만 2천 원 이하'] },
     conds: ['그래픽카드', '30일', '빼기: 본체 · 노트북 · 완본체'], listings: l5080,
   },
   {
-    id: 's_ps5', name: '플레이스테이션 5', state: 'rebase', pct: 15, honey: 0, caution: 0, checkedAt: at(1 * M), count: lps5.length,
+    id: 's_ps5', baseVariant: '기본', name: '플레이스테이션 5', state: 'rebase', pct: 15, honey: 0, caution: 0, checkedAt: at(1 * M), count: lps5.length,
     stateCard: '새 조건으로 시세를 다시 내는 중 — 끝나면 지금 최저가·꿀매 판정을 다시 보여 드려요',
     statePage: '새 조건으로 시세를 다시 내는 중 — 끝나면 지금 최저가·꿀매 판정을 다시 보여 드려요',
     cut: { rebase: '새 조건으로 시세를 다시 내는 중' },
@@ -96,7 +96,7 @@ const products = [
     listings: lps5,
   },
   {
-    id: 's_9070', name: 'RX 9070 XT', state: 'unknown', pct: 15, honey: 0, caution: 0, checkedAt: at(3 * M), count: l9070.length,
+    id: 's_9070', baseVariant: 'XT', name: 'RX 9070 XT', state: 'unknown', pct: 15, honey: 0, caution: 0, checkedAt: at(3 * M), count: l9070.length,
     lowKey: l9070[0].key, facts: [{ t: '시세를 낼 매물이 아직 적어요' }],
     marketLows: { j: 780000, d: 820000, b: 850000 },
     cut: { single: ['시세를 낼 매물이 아직 적어요'] }, conds: ['그래픽카드', '30일'], listings: l9070,

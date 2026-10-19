@@ -684,6 +684,7 @@
  "products": [
   {
    "id": "s_4080",
+   "baseVariant": "기본",
    "name": "RTX 4080",
    "state": "ok",
    "pct": 15,
@@ -1172,6 +1173,7 @@
   },
   {
    "id": "s_5080",
+   "baseVariant": "기본",
    "name": "RTX 5080",
    "state": "allCaution",
    "pct": 15,
@@ -1284,6 +1286,7 @@
   },
   {
    "id": "s_ps5",
+   "baseVariant": "기본",
    "name": "플레이스테이션 5",
    "state": "rebase",
    "pct": 15,
@@ -1382,6 +1385,7 @@
   },
   {
    "id": "s_9070",
+   "baseVariant": "XT",
    "name": "RX 9070 XT",
    "state": "unknown",
    "pct": 15,
