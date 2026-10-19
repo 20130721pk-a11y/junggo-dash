@@ -36,7 +36,7 @@ const l4080 = [
   L('j', 'RTX 4080 SUPER 게이밍 OC 16G 풀박스', 1210000, g('good', -13, '시세 140만(판매완료) 대비 -13%'), P('상동', 12, true, false), { seen: 3 * D, up: 26 * H, star: true, news: '2번 내림', variant: 'SUPER' }),
   L('b', '갤럭시 RTX 4080 SUPER EX 게이머 화이트', 1260000, g('good', -10, '시세 140만(판매완료) 대비 -10%'), UNK, { seen: 2 * D, up: 2 * D, variant: 'SUPER' }),
   L('j', '4080 슈퍼 프로아트 OC 화이트 박스 있음', 1290000, g('good', -7, '시세 140만(판매완료) 대비 -7%'), P('대야동', 5.6, true, false), { seen: 4 * D, up: 26 * H, dups: 2, variant: 'SUPER' }),
-  L('j', 'RTX 4080 수냉 커스텀 PC에서 분리했어요', 1350000, g('normal', 12, '시세 120만(판매완료) 대비 +12%'), P('시흥시', null, true, false, 'sigungu'), { seen: 5 * D, up: 5 * D }),
+  L('j', 'RTX 4080 수냉 커스텀 PC에서 분리했어요', 1350000, g('normal', 12, '시세 120만(판매완료) 대비 +12%'), P('시흥시', null, false, false, 'sgg'), { seen: 5 * D, up: 5 * D }),
   L('b', 'RTX 4080 SUPER ROG STRIX 화이트 미개봉', 1580000, g('normal', 12, '시세 140만(판매완료) 대비 +12%'), UNK, { seen: 6 * D, up: 2 * D, variant: 'SUPER', unopened: true }),
   L('d', 'ROG 스트릭스 4080 OC 화이트 에디션', 1690000, g('normal', 40, '시세 120만(판매완료) 대비 +40%'), P('월곶동', 1.9, false, true), { seen: 7 * D, up: 4 * D }),
 ];

@@ -1105,8 +1105,8 @@
       "name": "시흥시",
       "near": false,
       "km": null,
-      "rough": true,
-      "level": "sigungu",
+      "rough": false,
+      "level": "sgg",
       "unknown": false
      }
     },

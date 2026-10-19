@@ -81,7 +81,14 @@ test('시각은 한국 시각으로', () => {
 test('지역 글: ≈ 어림·당근 거리·시·군·구·지역 모름 (W2-16)', () => {
   assert.equal(RV.placeText({ name: '정왕동', km: 2.3, rough: true, level: 'dong', unknown: false }), '정왕동 · ≈2.3km');
   assert.equal(RV.placeText({ name: '배곧동', km: 1.2, rough: false, level: 'dong', unknown: false }), '배곧동 · 1.2km');
-  assert.equal(RV.placeText({ name: '시흥시', km: null, rough: true, level: 'sigungu', unknown: false }), '≈ 시흥시 쯤');
+  assert.equal(RV.placeText({ name: '시흥시', km: null, rough: true, level: 'sigungu', unknown: false }), '시흥시 쯤');
+  assert.equal(RV.placeText({ name: '정왕동', sgg: '시흥시', km: null, level: 'sgg', unknown: false }), '정왕동 · 시흥시 쯤');
+  // 앱이 만든 글이 있으면 그대로
+  assert.equal(RV.placeText({ name: '정왕동', km: 2.3, rough: true, text: '정왕동 · ≈2.3km' }), '정왕동 · ≈2.3km');
+  assert.equal(RV.placeText({ unknown: true, text: '지역 모름' }), '지역 모름');
+  // 칸이 빠진 옛 꼴: 가까운지도 거리도 모르고 이름도 없으면 지역 모름
+  assert.equal(RV.placeText({ near: null, km: null }), '지역 모름');
+  assert.equal(RV.isUnknown({ name: '정왕동', near: false, km: null }), false);
   assert.equal(RV.placeText({ name: '정왕동', km: null, rough: false, level: 'dong', unknown: false }), '정왕동');
   assert.equal(RV.placeText({ name: null, km: null, unknown: true }), '지역 모름');
   assert.equal(RV.placeText({ name: '정왕동', unknown: true }), '지역 모름');
@@ -126,6 +133,9 @@ test('지역 거르기: 5km·가까운 동네만·함께 보기 (J5·W2-17)', ()
   // 3km 안
   const in3 = RV.filterListings(p.listings, { area: '3', withUnknown: false });
   assert.deepEqual(in3.rows.map((l) => l.place.km), [2.3, 1.2, 0.8, 1.9]);
+  // 거리를 모르는 매물: 가까운 동네 이름이면 km 거르기에도 들어가요(앱 Nearby.passes)
+  const nearNoKm = [{ m: 'd', title: 'x', price: 1, place: { name: '정왕동', near: true, km: null, unknown: false } }, { m: 'd', title: 'y', price: 2, place: { name: '먼동', near: false, km: null, unknown: false } }];
+  assert.deepEqual(RV.filterListings(nearNoKm, { area: '5' }).rows.map((l) => l.title), ['x']);
   // 모르는 거르기 값은 전체
   assert.equal(RV.filterListings(p.listings, { area: '7' }).rows.length, 13);
 });

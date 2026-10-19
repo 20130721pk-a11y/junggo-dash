@@ -95,13 +95,20 @@
 
   /* ---------- 지역 (앱이 낸 값 그대로, Geo.label 과 같은 글) ---------- */
   const kmLabel = (km) => (km < 10 ? (Math.round(km * 10) / 10).toFixed(1) + 'km' : Math.round(km) + 'km');
-  const isUnknown = (p) => !p || p.unknown === true || (!str(p.name) && p.km == null);
+  // 지역 모름 = 앱이 unknown 이라고 준 것, 칸이 없으면 '가까운지도 거리도 모름'(앱 Nearby.Loc.unknown 과 같은 뜻)
+  const isUnknown = (p) => !p || p.unknown === true || (p.unknown !== false && p.near == null && !Number.isFinite(p.km) && !str(p.name));
+  const SGG = ['sigungu', 'sgg', 'city'];
+  // 앱이 만든 지역 글(text)이 있으면 그대로(W2-16). 없을 때만 앱 Nearby.placeText 와 같은 규칙으로 맞춰요
   function placeText(p) {
+    if (p && str(p.text)) return str(p.text);
     if (isUnknown(p)) return '지역 모름';
     const name = str(p.name);
-    if (p.level === 'sigungu') return `≈ ${name} 쯤`;
+    if (SGG.includes(p.level) && !Number.isFinite(p.km)) {
+      const sg = str(p.sgg) || name;
+      return name && sg !== name ? `${name} · ${sg} 쯤` : `${sg} 쯤`;
+    }
     if (Number.isFinite(p.km)) return `${name ? name + ' · ' : ''}${p.rough ? '≈' : ''}${kmLabel(p.km)}`;
-    return name;
+    return name || '지역 모름';
   }
 
   /* ---------- 등급 배지 (앱 GradeBadge 와 같은 글, 🍯 대신 선 아이콘) ---------- */
@@ -140,7 +147,8 @@
           return withUnknown;
         }
         if (area === 'near') return l.place.near === true;
-        return Number.isFinite(l.place.km) && l.place.km <= lim;
+        // 거리를 알면 거리로, 모르면 가까운 동네 이름이면 넣어요(앱 Nearby.passes 와 같게)
+        return Number.isFinite(l.place.km) ? l.place.km <= lim : l.place.near === true;
       });
     }
     const idx = new Map(all.map((l, i) => [l, i]));
