@@ -754,6 +754,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
           <p class="ink2">처음 한 번만: 데이터 저장소와 <b>웹 읽기 토큰</b>(그 저장소만 · Contents 읽기만)을 넣어 주세요. 토큰은 이 기기에 비밀번호로 잠가 둬요.</p>
           <label class="field" for="lkRepo">데이터 저장소(주인/이름)</label><input id="lkRepo" type="text" autocomplete="off" spellcheck="false" value="${esc(S.repo || DEFAULT_REPO)}">
           <label class="field" for="lkTok">웹 읽기 토큰</label><input id="lkTok" type="password" autocomplete="off" placeholder="github_pat_…">
+          ${hasKey() ? '<p class="ink2" id="keyHint">이 브라우저에 예전 보기 열쇠가 기억돼 있어요 — 비밀번호 칸은 비워 두고 토큰만 넣어도 돼요.</p>' : ''}
         </div>` : '';
       return `<form class="center" id="lockForm" aria-labelledby="lk"><h1 id="lk">${ico('lock')} 잠긴 레이더예요</h1>
         <p>앱이 판정한 결과가 이 비밀번호로 잠겨 있어요. 비밀번호는 이 기기 밖으로 나가지 않아요.</p>
@@ -820,6 +821,13 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
     render();
   }
   async function openBox(box, key) { return BOX.open(box, key, RV.LABEL); }
+  // 이 브라우저에 기억된 열쇠(예전 보기와 같은 꼴 jd.key)
+  function hasKey() { const k = lsGet(K_KEY); return !!(k && typeof k.raw === 'string' && k.salt); }
+  async function keptKey(salt) {
+    const k = lsGet(K_KEY);
+    if (!k || k.salt !== salt || typeof k.raw !== 'string') return null;
+    try { return await BOX.importKey(k.raw); } catch { return null; }
+  }
   async function remember(box, key, on) {
     if (on) lsSet(K_KEY, { salt: box.salt, raw: await BOX.exportKey(key) });
     else lsDel(K_KEY);
@@ -872,7 +880,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
     const tokIn = $('#lkTok') ? $('#lkTok').value.trim() : '';
     const repoIn = $('#lkRepo') ? $('#lkRepo').value.trim() : '';
     const fail = (msg) => { S.busy = false; S.lockErr = msg; setPhase('lock'); };
-    if (!pw) return fail('비밀번호를 적어 주세요.');
+    if (!pw && !hasKey()) return fail('비밀번호를 적어 주세요.');
     if (S.needToken && !tokIn) return fail('웹 읽기 토큰을 넣어 주세요.');
     if (S.needToken && !RV.REPO_RE.test(repoIn)) return fail("데이터 저장소는 '주인/이름' 꼴로 적어 주세요.");
     S.busy = true; S.lockErr = ''; render();
@@ -891,8 +899,12 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
       const rt = lsGet(K_TOK);
       if (S.needToken) { S.token = tokIn; S.repo = repoIn; }
       else if (!S.token && rt && rt.box) {
-        key = await BOX.deriveKey(pw, rt.salt, rt.iter);
-        try { const o = await BOX.open(rt.box, key, RV.TOKEN_LABEL); S.token = RV.str(o && o.t); S.repo = rt.repo || DEFAULT_REPO; } catch { return fail('비밀번호가 맞지 않아요'); }
+        key = pw ? await BOX.deriveKey(pw, rt.salt, rt.iter) : await keptKey(rt.salt);
+        let o = null;
+        if (key) { try { o = await BOX.open(rt.box, key, RV.TOKEN_LABEL); } catch { o = null; } }
+        if (!o && pw) { const kk = await keptKey(rt.salt); if (kk) { try { o = await BOX.open(rt.box, kk, RV.TOKEN_LABEL); key = kk; } catch { o = null; } } }
+        if (!o) return fail(pw ? '비밀번호가 맞지 않아요' : '비밀번호를 적어 주세요.');
+        S.token = RV.str(o && o.t); S.repo = rt.repo || DEFAULT_REPO;
       } else if (!S.token) { S.needToken = true; return fail('웹 읽기 토큰을 넣어 주세요.'); }
       const res = await RV.fetchRadar({ repo: S.repo, token: S.token });
       if (!res.ok) {
@@ -903,9 +915,14 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
         return fail(res.why === 'rate' ? 'GitHub 요청 한도에 걸렸어요 — 몇 분 뒤 다시 해 주세요.' : '데이터를 받지 못했어요 — 인터넷 연결을 확인해 주세요.');
       }
       const box = res.box;
-      if (!key || (rt && rt.salt !== box.salt) || S.needToken) key = await BOX.deriveKey(pw, box.salt, box.iter);
-      let v;
-      try { v = await openBox(box, key); } catch { return fail('비밀번호가 맞지 않아요'); }
+      if (!key || (rt && rt.salt !== box.salt) || S.needToken) key = pw ? await BOX.deriveKey(pw, box.salt, box.iter) : await keptKey(box.salt);
+      let v = null;
+      if (key) { try { v = await openBox(box, key); } catch { v = null; } }
+      if (!v) {
+        const kk = await keptKey(box.salt);
+        if (kk && kk !== key) { try { v = await openBox(box, kk); key = kk; } catch { v = null; } }
+      }
+      if (!v) return fail(pw ? '비밀번호가 맞지 않아요' : '이 브라우저에 기억된 열쇠로는 열리지 않아요 — 비밀번호를 적어 주세요.');
       S.key = key; S.salt = box.salt; S.lastCt = box.ct; S.box = box; S.needToken = false;
       await saveToken(box, key);
       await remember(box, key, keep);
