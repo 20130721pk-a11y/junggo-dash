@@ -491,6 +491,17 @@ async function nextRun(prevOut, { at, dres, envx = {}, issues = [], log = [], si
   const st = await run({ prevDir: d.prev, outDir: d.out, workDir: d.work, dresDir: dres ? d.dres : '', env: env(envx), fetchImpl: fakeSites({ issues, log, ...sites }), now: () => at, log: quiet, ...(pageGapMs != null ? { pageGapMs } : {}) });
   return { d, st, status: readOut(d, 'status.json'), v: openView(d) };
 }
+test('폰 당근 결과에 dBlock(403·429)이 있으면 status.json 에 상태 번호만 남긴다', async () => {
+  const T = Date.now() + 30 * 3600e3;
+  const d0 = dirs();
+  await run({ prevDir: d0.prev, outDir: d0.out, workDir: d0.work, env: env({ INIT_SEARCHES: INIT }), fetchImpl: fakeSites(), now: () => T, log: quiet });
+  const job0 = openJob(d0);
+  const dres = dresAll(job0, { at: T + 8 * 60e3 });
+  dres.result.dBlock = { status: 429, at: T + 7 * 60e3, text: '당근이 요청을 막았어요 (HTTP 429)' };
+  const r = await nextRun(d0.out, { at: T + 10 * 60e3, dres, envx: { GITHUB_EVENT_NAME: 'repository_dispatch' } });
+  assert.equal(r.status.daangn.upload.blocked, 429);
+  assert.ok(!JSON.stringify(r.status).includes('테스트'), 'status.json 에는 검색어가 없다');
+});
 // 페이지처럼 검색 목록을 바꿔 보내는 요청 이슈
 async function editIssue(prevOut, change, number = 31) {
   const box = readOut({ out: prevOut }, 'view.enc');
@@ -745,7 +756,7 @@ function fakeDaangn(calls) {
 test('당근 수집기: 가까운 지역이 여럿이면 지역마다 기준 동네를 줄여 한 검색에 8번 안팎으로 부른다', async () => {
   const go = async (areas) => {
     const calls = [];
-    const cfg = { part: 'd', plain: true, maxAgeDays: 30, searches: [{ id: 's1', keyword: '의자', regions: areas.map((q) => ({ q })) }] };
+    const cfg = { part: 'd', plain: true, maxAgeDays: 30, pageGapMs: 0, searches: [{ id: 's1', keyword: '의자', regions: areas.map((q) => ({ q })) }] };
     const r = await runCollector(cfg, { fetchImpl: fakeDaangn(calls), store: {} });
     return { calls, pf: r.results.s1.pf.daangn };
   };
@@ -760,6 +771,66 @@ test('당근 수집기: 가까운 지역이 여럿이면 지역마다 기준 동
   const gj = await go(['광주광역시 북구']);
   assert.equal(gj.pf.st, 'ok');
   assert.ok(gj.calls[0].endsWith('-3000'), '옛 시·도 이름(광주광역시)도 당근의 새 이름(전남광주통합특별시)에서 찾는다');
+});
+
+// 당근 요청 줄(0.7.1 대표 승인 10/19): 하나씩 차례로 + 새 요청 사이 쉬기, 동시 개수는 cfg.dConc(기본 2), 403·429 면 멈추고 dBlock
+function timedDaangn(log, { blockAt = 0, status = 403, delay = 30 } = {}) {
+  const inner = fakeDaangn([]);
+  let live = 0;
+  return async (url, init) => {
+    const u = new URL(url, 'https://www.daangn.com');
+    const n = log.length + 1;
+    log.push({ t: Date.now(), path: u.pathname, in: u.searchParams.get('in') || '' });
+    live++;
+    log.maxLive = Math.max(log.maxLive || 0, live);
+    try {
+      await new Promise((r) => setTimeout(r, delay));
+      if (blockAt && n >= blockAt) return new Response('no', { status });
+      return await inner(url, init);
+    } finally {
+      live--;
+    }
+  };
+}
+const dSearches = (k) => Array.from({ length: k }, (_, i) => ({ id: `s${i + 1}`, keyword: `의자${i}`, regions: [{ q: '경기도 시흥시' }] }));
+
+test('당근 수집기: 모든 당근 요청을 통틀어 동시에 2개까지, 새 요청 사이 쉬기(0.7초 기본), 기준 동네는 하나씩', async () => {
+  const log = [];
+  const r = await runCollector({ part: 'd', plain: true, maxAgeDays: 30, pageGapMs: 60, searches: dSearches(3) }, { fetchImpl: timedDaangn(log), store: {} });
+  assert.equal(log.length, 1 + 3 * 6, '시·군·구 목록 1번 + 검색마다 처음 1번 + 기준 동네 5곳');
+  assert.ok(log.maxLive <= 2, `동시에 ${log.maxLive}개`);
+  const ts = log.map((x) => x.t).sort((a, b) => a - b);
+  for (let i = 1; i < ts.length; i++) assert.ok(ts[i] - ts[i - 1] >= 55, `요청 사이 ${ts[i] - ts[i - 1]}ms`);
+  assert.equal(r.dBlock, undefined);
+  for (const id of ['s1', 's2', 's3']) assert.equal(r.results[id].pf.daangn.st, 'ok');
+  // 앱이 job 설정으로 1개를 주면 1개씩
+  const log1 = [];
+  await runCollector({ part: 'd', plain: true, maxAgeDays: 30, pageGapMs: 0, dConc: 1, searches: dSearches(2) }, { fetchImpl: timedDaangn(log1), store: {} });
+  assert.equal(log1.maxLive, 1);
+  // 이상한 값은 1~3 안으로
+  const log9 = [];
+  await runCollector({ part: 'd', plain: true, maxAgeDays: 30, pageGapMs: 0, dConc: 9, searches: dSearches(3) }, { fetchImpl: timedDaangn(log9), store: {} });
+  assert.ok(log9.maxLive <= 3);
+  // 기본 쉬기 0.7초
+  const logD = [];
+  await runCollector({ part: 'd', plain: true, maxAgeDays: 30, searches: [{ id: 's1', keyword: '의자', regions: [{ id: '1613', name: '시흥시', anchors: ['동a-16130'] }] }] }, { fetchImpl: timedDaangn(logD, { delay: 0 }), store: {} });
+  assert.equal(logD.length, 2);
+  assert.ok(logD[1].t - logD[0].t >= 690, `기본 쉬기 ${logD[1].t - logD[0].t}ms`);
+});
+
+test('당근 수집기: 403·429 를 받으면 그 실행에서 당근을 더 부르지 않고 결과에 dBlock 을 남긴다', async () => {
+  for (const status of [403, 429]) {
+    const log = [];
+    const r = await runCollector({ part: 'd', plain: true, maxAgeDays: 30, pageGapMs: 0, searches: dSearches(3) }, { fetchImpl: timedDaangn(log, { blockAt: 4, status }), store: {} });
+    assert.equal(r.dBlock.status, status);
+    assert.ok(Number.isFinite(r.dBlock.at));
+    assert.equal(r.dBlock.text, `당근이 요청을 막았어요 (HTTP ${status})`);
+    // 막힌 요청이 끝나기 전에 이미 출발한 것(동시 2개)까지만 — 그 뒤로는 0
+    assert.ok(log.length <= 5, `막힌 뒤에도 ${log.length}번`);
+    const errs = Object.values(r.results).map((x) => x.pf.daangn);
+    assert.ok(errs.some((x) => x.st === 'error' && /막/.test(x.error)), JSON.stringify(errs));
+    assert.deepEqual(Object.keys(r.dBlock).sort(), ['at', 'status', 'text'], 'dBlock 에는 시각·상태만(검색어 없음)');
+  }
 });
 
 // 가짜 사이트: 중고나라·번개장터가 검색어를 글자 단위로 나눠 찾는다 ('쿠단' → '단쿠가', '스쿠브 6단', '바쿠단야끼'…)

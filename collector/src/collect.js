@@ -391,11 +391,46 @@ async function junggoCollect(cfg) {
 
   // ---- 당근 ----
   // 시·군·구 이름(예: 시흥시, 경기도 시흥시, 성남시 분당구)이면 그 지역 전체, 아니면 동 이름으로 찾는다.
+  // 당근 요청 줄 (0.7.1, 약관·리스크 DA-4 · 대표 승인 10/19): 모든 당근 요청(지역 찾기 포함)을 통틀어
+  //   동시에 cfg.dConc 개(앱이 job 설정으로 줌, 기본 2, 1~3)까지, 새 요청을 시작하는 사이는 cfg.pageGapMs(기본 0.7초) 이상.
+  //   한꺼번에 많이 보내면 당근이 결과를 비워서 준다(2026-10-10 확인).
+  //   403·429 를 받으면 이 실행에서 당근을 더 부르지 않고 결과에 dBlock 을 남긴다 → 앱이 앱 수집과 함께 3시간 쉰다.
+  //   (cfg 는 함수 안에서 읽어야 중고나라·번개장터 압축본(collect.jb.min.js)에서 통째로 빠진다)
+  let dFree = null;
+  let dNext = 0;
+  let dHalt = null;
+  const dQueue = [];
+  const D_HALT = '당근이 요청을 막아 이번에는 당근을 더 부르지 않았어요';
+  async function dLimit(fn) {
+    if (dFree === null) dFree = Math.min(3, Math.max(1, Math.floor(Number(cfg.dConc)) || 2));
+    if (dFree <= 0) await new Promise((res) => dQueue.push(res));
+    dFree--;
+    try {
+      if (dHalt) throw new Error(D_HALT);
+      const gap = Number.isFinite(cfg.pageGapMs) ? Math.max(0, cfg.pageGapMs) : 700;
+      const wait = dNext - Date.now();
+      dNext = Math.max(Date.now(), dNext) + gap;
+      if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+      if (dHalt) throw new Error(D_HALT);
+      try {
+        return await fn();
+      } catch (e) {
+        const m = /HTTP (403|429)\)/.exec((e && e.message) || '');
+        if (m && !dHalt) dHalt = { status: Number(m[1]), at: Date.now() };
+        throw e;
+      }
+    } finally {
+      dFree++;
+      const nextUp = dQueue.shift();
+      if (nextUp) nextUp();
+    }
+  }
+  const dJSON = (url) => dLimit(() => getJSON(url, { credentials: 'include' }));
   let cityListP = null;
   async function loadCities() {
     const list = [];
     try {
-      const j = await getJSON('/kr/regions/?_data=routes/kr.regions._index', { credentials: 'include' });
+      const j = await dJSON('/kr/regions/?_data=routes/kr.regions._index');
       for (const a of (j && j.allRegions) || []) {
         for (const b of a.childrenRegion || []) {
           if (b && b.regionId != null && b.regionName) list.push({ id: String(b.regionId), name: String(b.regionName), top: String(a.regionName || '') });
@@ -440,7 +475,7 @@ async function junggoCollect(cfg) {
     if (city) return city;
     const words = String(q || '').trim().split(/\s+/).filter(Boolean);
     if (!words.length) return null;
-    const j = await getJSON('/kr/api/v1/regions/keyword?' + new URLSearchParams({ keyword: words[words.length - 1] }), { credentials: 'include' });
+    const j = await dJSON('/kr/api/v1/regions/keyword?' + new URLSearchParams({ keyword: words[words.length - 1] }));
     const list = (j && Array.isArray(j.locations) ? j.locations : []).map((l) => ({
       id: String(l.id), name: String(l.name), fullName: [l.name1, l.name2, l.name3 || l.name].filter(Boolean).join(' '),
     }));
@@ -452,20 +487,6 @@ async function junggoCollect(cfg) {
     return getJSON('/kr/search/buy-sell/?' + q, { credentials: 'include' });
   }
   let warmP = null;
-  // 당근 요청은 한꺼번에 많이 보내면 당근이 결과를 비워서 준다(2026-10-10 확인) → 모든 검색을 통틀어 3개씩만 동시에
-  let dFree = 3;
-  const dQueue = [];
-  async function dLimit(fn) {
-    if (dFree <= 0) await new Promise((res) => dQueue.push(res));
-    dFree--;
-    try {
-      return await fn();
-    } finally {
-      dFree++;
-      const nextUp = dQueue.shift();
-      if (nextUp) nextUp();
-    }
-  }
   let dBlocked = false;
   async function daangnQuery(region, s) {
     const p = new URLSearchParams();
@@ -478,7 +499,7 @@ async function junggoCollect(cfg) {
     if (!d || !Array.isArray(d.buySellArticles)) throw new Error('응답 형식이 바뀌어 읽지 못했어요');
     if (d.buySellArticles.length === 0) {
       // 쿠키가 없으면 0건이 온다 → 목록 페이지를 한 번 열고 다시 (여러 검색이 동시에 와도 한 번만 연다)
-      if (!warmP) warmP = getText('/kr/buy-sell/', { credentials: 'include' }).catch(() => '');
+      if (!warmP) warmP = dLimit(() => getText('/kr/buy-sell/', { credentials: 'include' })).catch(() => '');
       await warmP;
       d = await dLimit(() => daangnLoad(p));
       if (!d || !Array.isArray(d.buySellArticles)) throw new Error('응답 형식이 바뀌어 읽지 못했어요');
@@ -530,22 +551,22 @@ async function junggoCollect(cfg) {
           }
         }
         const pages = [first];
-        const more = await Promise.all(anchors.map(async (a) => {
-          if (dBlocked || late() || !first.buySellArticles.length) return null;
+        // 기준 동네는 하나씩 차례로(0.7.1 — 예전엔 한꺼번에). 요청 사이 쉬기는 dLimit 이 맞춘다
+        for (const a of anchors) {
+          if (dBlocked || dHalt || late() || !first.buySellArticles.length) break;
           try {
             const i = a.lastIndexOf('-');
             const d = await daangnQuery({ name: a.slice(0, i), id: a.slice(i + 1) }, s);
             // 처음엔 나오던 검색이 빈 결과로 오거나 기준 동네를 무시하면 당근이 잠시 막은 것 → 이번엔 더 부르지 않는다
             const got = d.searchRegion && String(d.searchRegion.id);
-            if (!d.buySellArticles.length || (got && got !== a.slice(i + 1))) { dBlocked = true; return null; }
-            return d;
+            if (!d.buySellArticles.length || (got && got !== a.slice(i + 1))) { dBlocked = true; break; }
+            pages.push(d);
           } catch {
-            return null;
+            if (dHalt) break;
           }
-        }));
-        for (const d of more) if (d) pages.push(d);
+        }
         if (first.buySellArticles.length && pages.length < anchors.length + 1) {
-          problems.push(`${region ? region.name : '기본 동네'}: ${dBlocked ? '당근이 잠시 요청을 막아' : '시간이 모자라'} 기준 동네 ${anchors.length + 1}곳 중 ${pages.length}곳으로만 찾았어요`);
+          problems.push(`${region ? region.name : '기본 동네'}: ${dBlocked || dHalt ? '당근이 잠시 요청을 막아' : '시간이 모자라'} 기준 동네 ${anchors.length + 1}곳 중 ${pages.length}곳으로만 찾았어요`);
         }
         // 각 기준 동네(검색 결과의 searchRegion)도 가까운 동네이고, 그 중심 좌표로 거리를 잰다
         const centers = [];
@@ -672,6 +693,8 @@ async function junggoCollect(cfg) {
     try { extra.bd = await bunjangDetails(byId); } catch (e) { extra.bd = { error: cut(e && e.message ? e.message : String(e), 80) }; }
   }
   if (homesP) { const hs = await homesP; if (hs) extra.homes = hs; }
+  // 당근이 403·429 로 막았으면 남긴다 (앱이 이걸 보고 앱 수집과 함께 3시간 쉰다)
+  if (IS_D && dHalt) extra.dBlock = { status: dHalt.status, at: dHalt.at, text: `당근이 요청을 막았어요 (HTTP ${dHalt.status})` };
   const out = JSON.stringify({ __junggo: 'v1', part: cfg.part, at: Date.now(), ms: Date.now() - T0, results, ...extra });
   // 결과가 수백 KB 라 gzip+base64 로 줄여 돌려준다 (Claude 가 읽는 양이 줄어 새로고침이 빨라진다)
   try {

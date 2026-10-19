@@ -550,6 +550,9 @@ export async function run({ prevDir, outDir, workDir, dresDir = '', env = proces
         else if (dCk[sid]) dChanged.add(sid);
       }
       dUp = { searches: Object.keys(fresh.result.results).length, merged: Object.keys(results).length, changed: dChanged.size };
+      // 0.7.1: 폰에서 당근이 403·429 로 막았으면(수집기 dBlock) 상태·시각만 남긴다 — 앱이 앱 수집과 함께 3시간 쉰다
+      const b = fresh.result.dBlock;
+      if (b && (b.status === 403 || b.status === 429)) { d.blocked = { status: b.status, at: Math.min(Number(b.at) || raw, startedAt) }; dUp.blocked = b.status; }
       collected.d = { ...fresh.result, results };
       partAt.d = d.at;
       const h = fresh.result.homes && fresh.result.homes[''];
