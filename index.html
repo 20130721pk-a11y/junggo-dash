@@ -213,6 +213,10 @@ a { color: var(--brand-bright); }
 .mkt[aria-pressed="false"] .mk { background: transparent !important; box-shadow: inset 0 0 0 1.5px currentColor; }
 .mkt[aria-pressed="false"] .mk-j { color: var(--mk-j); } .mkt[aria-pressed="false"] .mk-d { color: var(--mk-d); } .mkt[aria-pressed="false"] .mk-b { color: var(--mk-b); }
 .mkt b { font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 변형 칩 — 앱 ChoiceChip(Common.kt:231): 고르지 않음 Surface2·Ink2, 고름 Brand·흰 글 */
+.vchips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.vchip { height: 32px; padding: 0 13px; border: 0; border-radius: var(--r-pill); background: var(--surface2); color: var(--ink2); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.vchip[aria-pressed="true"] { background: var(--brand); color: #fff; }
 .sel { display: inline-flex; align-items: center; gap: 8px; color: var(--ink2); font-size: .8125rem; }
 .sel select, .find { height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--bg); color: var(--ink); }
 .find { width: 180px; }
@@ -427,6 +431,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
     bundle: null, box: null, key: null, salt: '', token: '', repo: '', lastCt: '', pulledAt: 0, level: '',
     needToken: false, lockErr: '', busy: false,
     tab: 'home', pid: '', mk: { j: true, d: true, b: true }, area: 'all', withUnknown: true, sort: 'low', q: '',
+    variant: '', vpid: '', // 변형 칩(앱 결과 화면과 같은 거르기) — 물건마다 따로라 다른 물건으로 가면 풀어요
   };
 
   // ---------- 작은 도우미 ----------
@@ -595,9 +600,13 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
   }
   const AREA_LABEL = { all: '전체', near: '가까운 동네만', 3: '3km 안', 5: '5km 안', 10: '10km 안', 20: '20km 안' };
   const SORT_LABEL = { low: '싼 순', seen: '처음 본 순', near: '가까운 순' };
+  function variantFor(p) {
+    if (S.vpid !== p.id) { S.vpid = p.id; S.variant = ''; }
+    return S.variant;
+  }
   function visibleRows(p) {
     const b = B();
-    return RV.filterListings(listOf(p), { mk: S.mk, area: b.base ? S.area : 'all', withUnknown: S.withUnknown, q: S.q, sort: S.sort });
+    return RV.filterListings(listOf(p), { mk: S.mk, area: b.base ? S.area : 'all', withUnknown: S.withUnknown, q: S.q, sort: S.sort, variant: variantFor(p) });
   }
   function renderProduct() {
     const p = prod(S.pid) || prods()[0];
@@ -667,6 +676,8 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
 
     const all = listOf(p);
     const f = visibleRows(p);
+    const vchips = RV.variantChips(all);
+    const vTool = vchips.length ? `<span class="vchips" role="group" aria-label="변형">${vchips.map((v) => `<button class="vchip" data-variant="${esc(v)}" aria-pressed="${v === f.variant}">${esc(v)}</button>`).join('')}</span>` : '';
     const areaOn = b.base && f.area !== 'all';
     const areaTool = b.base
       ? `<label class="sel">지역 <select id="fArea">${['all', 'near', '3', '5', '10', '20'].map((a) => `<option value="${a}"${S.area === a ? ' selected' : ''}>${AREA_LABEL[a]}</option>`).join('')}</select></label>
@@ -674,7 +685,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
       : '<span class="no-base">설정에서 내 동네를 정하면 가까운 중고나라 매물을 볼 수 있어요</span>';
     const sum = areaOn
       ? `<span>${AREA_LABEL[f.area]} ${f.rows.length}건${S.withUnknown && f.unknown ? ` (지역 모름 ${f.unknown}건 포함)` : ''}</span>${f.hiddenUnknown ? `<span class="muted">· 지역 모름 ${f.hiddenUnknown}건은 숨김</span><button class="btn btn-text" id="showUnk">함께 보기</button>` : ''}<span class="muted">· 기준: ${esc(b.base)}(앱 설정)</span>`
-      : `<span>매물 ${f.rows.length}건 · ${SORT_LABEL[S.sort] || '싼 순'} · 앱 판정 그대로</span>`;
+      : `<span>${f.variant ? esc(f.variant) + ' ' : ''}매물 ${f.rows.length}건 · ${SORT_LABEL[S.sort] || '싼 순'} · 앱 판정 그대로</span>`;
     const rows = f.rows.length ? `<ol class="rows">${f.rows.map((l) => rowHTML(l, p)).join('')}</ol>`
       : (all.length ? '<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" id="clearF">거르기 풀기</button></p>' : `<p class="empty">${esc(p.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
 
@@ -688,6 +699,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
         ${lows}${trend}${ledger}
         <div class="list-tools" role="toolbar" aria-label="매물 보기 도구">
           ${['j', 'd', 'b'].map((m) => `<button class="mkt" data-mk="${m}" aria-pressed="${S.mk[m]}">${mkMark(m)}<b>${f.counts[m]}</b></button>`).join('')}
+          ${vTool}
           ${areaTool}
           <div class="tools-right">
             <label class="sel">정렬 <select id="fSort">${['low', 'seen', 'near'].map((s) => `<option value="${s}"${S.sort === s ? ' selected' : ''}>${SORT_LABEL[s]}</option>`).join('')}</select></label>
@@ -948,14 +960,14 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
   }
   document.addEventListener('submit', (e) => { if (e.target.id === 'lockForm') { e.preventDefault(); unlock(); } });
   document.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-go],[data-open],[data-pick],[data-jump],[data-mk],#showUnk,#clearF,#csv,#reload,#retok');
+    const t = e.target.closest('[data-go],[data-open],[data-pick],[data-jump],[data-mk],[data-variant],#showUnk,#clearF,#csv,#reload,#retok');
     if (!t) return;
     if (t.dataset.go) { e.preventDefault(); go(t.dataset.go); return; }
     if (t.dataset.open) { e.preventDefault(); go('product', t.dataset.open); return; }
     if (t.dataset.pick) { e.preventDefault(); S.q = ''; go('product', t.dataset.pick); return; }
     if (t.dataset.jump) {
       e.preventDefault();
-      S.area = 'all'; S.q = ''; S.mk = { j: true, d: true, b: true };
+      S.area = 'all'; S.q = ''; S.mk = { j: true, d: true, b: true }; S.variant = '';
       const key = t.dataset.key;
       go('product', t.dataset.jump);
       setTimeout(() => {
@@ -967,8 +979,10 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
       return;
     }
     if (t.dataset.mk) { S.mk[t.dataset.mk] = !S.mk[t.dataset.mk]; render(); return; }
+    // 변형 칩: 하나만 고르고, 고른 칩을 다시 누르면 풀어요(앱 ChoiceChip 과 같게)
+    if (t.dataset.variant) { S.variant = S.variant === t.dataset.variant ? '' : t.dataset.variant; render(); return; }
     if (t.id === 'showUnk') { S.withUnknown = true; render(); return; }
-    if (t.id === 'clearF') { S.area = 'all'; S.q = ''; S.mk = { j: true, d: true, b: true }; render(); return; }
+    if (t.id === 'clearF') { S.area = 'all'; S.q = ''; S.mk = { j: true, d: true, b: true }; S.variant = ''; render(); return; }
     if (t.id === 'csv') { csvSave(); toast('보이는 매물을 CSV로 저장했어요'); return; }
     if (t.id === 'reload') { location.reload(); return; }
     if (t.id === 'retok') { S.needToken = true; S.lockErr = ''; setPhase('lock'); }

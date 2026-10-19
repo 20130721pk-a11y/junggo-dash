@@ -158,6 +158,64 @@ test('마켓 토글·찾기·정렬', () => {
   assert.deepEqual(RV.filterListings(withAsk, {}).rows.map((l) => l.title), ['b', 'a']);
 });
 
+test('앱 = 웹: 앱 결과 화면 칩 결과(Pipeline.chipRows)와 같은 줄·마켓 단추 숫자·변형 칩 (QA-1)', () => {
+  // fixtures/app-chips.json = 앱 WebBundleTest.chipRowsAreWrittenForTheWebToCompare 가 만든 묶음 + 앱 칩마다 줄(키)
+  const app = JSON.parse(fs.readFileSync(path.join(REPO, 'test/fixtures/app-chips.json'), 'utf8'));
+  const ls = app.product.listings;
+  assert.ok(ls.some((l) => Array.isArray(l.dupRows) && l.dupRows.length), '같은 글 묶음이 있는 자료');
+  assert.deepEqual(RV.variantChips(ls), app.chips);
+  const only = (m) => (m ? { j: m === 'j', d: m === 'd', b: m === 'b' } : undefined);
+  let n = 0;
+  for (const c of app.cases) {
+    const o = { mk: only(c.mk), variant: c.variant || '', area: c.area, withUnknown: c.withUnknown };
+    const f = RV.filterListings(ls, o);
+    const label = `마켓 ${c.mk || '전체'} · 변형 ${c.variant || '전부'} · 지역 ${c.area}${c.withUnknown ? '' : '(모름 숨김)'}`;
+    assert.deepEqual(f.rows.map((l) => l.key), c.keys, label);
+    // 그 마켓 단추 숫자 = 앱에서 그 마켓 칩을 눌렀을 때 줄 수
+    if (c.mk) assert.equal(RV.filterListings(ls, { ...o, mk: undefined }).counts[c.mk], c.keys.length, label + ' 단추 숫자');
+    n++;
+  }
+  assert.equal(n, 48);
+});
+
+test('같은 글 묶음: 거른 뒤 다시 묶기·옛 묶음(dupRows 없음)·변형 이름 없는 매물', () => {
+  const mkL = (key, m, price, extra = {}) => ({ key, m, title: 'RTX 4080 같은 글', price, place: null, ...extra });
+  const rep = mkL('j:1', 'j', 100, { dups: 2, dupRows: [mkL('b:1', 'b', 100), mkL('d:1', 'd', 100)] });
+  const list = [rep, mkL('b:2', 'b', 200)];
+  const all = RV.filterListings(list, {});
+  assert.deepEqual(all.rows.map((l) => l.key), ['j:1', 'b:2']);
+  assert.equal(all.rows[0], rep, '다 남으면 묶음 줄 그대로');
+  assert.deepEqual(all.counts, { j: 1, d: 1, b: 2 }, '마켓마다 같은 글도 한 줄');
+  const onlyB = RV.filterListings(list, { mk: { j: false, d: false, b: true } });
+  assert.deepEqual(onlyB.rows.map((l) => [l.key, l.m, l.dups || 0]), [['b:1', 'b', 0], ['b:2', 'b', 0]], '번개장터만: 같은 글의 번개장터 매물이 줄');
+  const jb = RV.filterListings(list, { mk: { j: true, d: false, b: true } });
+  assert.deepEqual(jb.rows.map((l) => [l.key, l.dups || 0]), [['j:1', 1], ['b:2', 0]]);
+  // 옛 묶음(dupRows 없음)은 대표 줄만
+  const old = [mkL('j:1', 'j', 100, { dups: 2 }), mkL('b:2', 'b', 200)];
+  assert.deepEqual(RV.filterListings(old, {}).counts, { j: 1, d: 0, b: 1 });
+  // 변형: 이름 없는 매물은 '기본', 변형이 하나뿐이면 칩 없음, 없는 이름은 거르지 않음
+  const vs = [{ key: 'a', m: 'j', title: 'x', price: 1, variant: null }, { key: 'b', m: 'j', title: 'y', price: 2, variant: 'Ti' }, { key: 'c', m: 'j', title: 'z', price: 3, variant: null }];
+  assert.deepEqual(RV.variantChips(vs), ['기본', 'Ti']);
+  assert.deepEqual(RV.filterListings(vs, { variant: '기본' }).rows.map((l) => l.key), ['a', 'c']);
+  assert.equal(RV.filterListings(vs, { variant: 'SUPER' }).rows.length, 3);
+  assert.deepEqual(RV.variantChips(vs.map((l) => ({ ...l, variant: null }))), []);
+  assert.deepEqual(RV.variantChips(vs.map((l) => ({ ...l, variant: 'XT' }))), []);
+  // 묶기 전 수로 칩 순서: 기본 1줄이지만 같은 글 3 → 기본이 앞
+  const w = [{ key: 'p', m: 'j', title: 'a', price: 1, variant: 'Ti' }, { key: 'q', m: 'j', title: 'b', price: 2, variant: 'Ti' }, { key: 'r', m: 'j', title: 'c', price: 3, variant: '기본', dupRows: [{ key: 's', m: 'b' }, { key: 't', m: 'd' }] }];
+  assert.deepEqual(RV.variantChips(w), ['기본', 'Ti']);
+});
+
+test('변형 칩: 시험 묶음 4080 = SUPER · 기본, 고르면 그 변형만', () => {
+  const p = sample().products[0];
+  assert.deepEqual(RV.variantChips(p.listings), ['SUPER', '기본']);
+  const sup = RV.filterListings(p.listings, { variant: 'SUPER' });
+  assert.equal(sup.variant, 'SUPER');
+  assert.equal(sup.rows.length, 6);
+  assert.ok(sup.rows.every((l) => l.variant === 'SUPER'));
+  assert.equal(RV.filterListings(p.listings, { variant: '기본' }).rows.length, 7);
+  assert.deepEqual(RV.variantChips(sample().products[3].listings), [], '변형이 하나(XT)면 칩 없음');
+});
+
 test('알림함 꼬리표가 앱과 같아요 (W2-4)', () => {
   const b = sample();
   const now = MADE;
@@ -274,8 +332,10 @@ test('잠금 짝: 수집기(Node)가 junggo-radar-view 로 잠근 상자를 box.
 
 test('시험 묶음에 안 보내는 칸이 없어요 (W2-7 — 웹 쪽 자료 확인)', () => {
   const banned = /"(seller|sellerId|storeSeq|uid|lat|lng|lon|latitude|longitude|content|description|token|model|manufacturer)"\s*:/;
-  const text = fs.readFileSync(path.join(REPO, 'test/fixtures/radar-bundle.sample.json'), 'utf8');
-  assert.equal(banned.test(text), false);
+  for (const f of ['radar-bundle.sample.json', 'app-chips.json']) {
+    const text = fs.readFileSync(path.join(REPO, 'test/fixtures', f), 'utf8');
+    assert.equal(banned.test(text), false, f);
+  }
 });
 
 test('웹은 지역 표를 받지 않아요 (W2-18)', () => {

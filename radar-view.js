@@ -124,40 +124,82 @@
     }
   }
 
+  /* ---------- 같은 글 묶음 (앱 Pipeline.chipRows — 칩으로 먼저 거른 뒤 묶기, QA-1) ---------- */
+  // 묶음 줄 = 앱이 같은 글로 묶은 대표 + dupRows(묶인 매물, 묶기 전 싼 순). 앱 결과 화면은 칩(마켓·변형·지역)으로 매물을 먼저 거른 뒤
+  // 묶어서, 여러 마켓에 같이 올린 글이 마켓 칩마다 한 줄이에요. 웹도 줄을 풀어 거른 뒤 다시 묶어요: 남은 매물 중 첫째가 줄, 나머지는 그 줄의 같은 글.
+  // dupRows 가 없는 묶음(앱 0.7.1.1 첫 판까지)은 대표 줄만 봐요.
+  const membersOf = (l) => [l, ...arr(l && l.dupRows).filter((d) => d && typeof d === 'object')];
+  function regroup(all, keep) {
+    const out = [];
+    for (const l of all) {
+      const ms = membersOf(l);
+      const kept = ms.filter(keep);
+      if (!kept.length) continue;
+      if (kept.length === ms.length) { out.push(l); continue; }
+      const [head, ...rest] = kept;
+      out.push({ ...head, dups: rest.length, dupRows: rest });
+    }
+    return out;
+  }
+
+  /* ---------- 변형 칩 (앱 Pipeline.variantChips 와 같은 규칙) ---------- */
+  // 묶음 매물의 variant = 앱 Variants.of(검색어, 제목) — 변형을 가르는 검색이면 모든 매물에 이름('기본'·'SUPER'·'Ti'…), 아니면 모두 null.
+  // 칩: 변형이 둘 이상일 때만, 묶기 전 매물이 많은 변형부터(같으면 싼 순으로 먼저 나온 것). 칩을 고르면 그 변형 매물만.
+  const BASE_VARIANT = '기본';
+  const variantOf = (l) => str(l && l.variant) || BASE_VARIANT;
+  function variantChips(list) {
+    const all = arr(list).filter(Boolean);
+    if (!all.some((l) => str(l.variant))) return [];
+    const order = [], weight = new Map();
+    for (const l of all) {
+      const v = variantOf(l);
+      if (!weight.has(v)) { weight.set(v, 0); order.push(v); }
+      // 묶기 전 매물 수: dupRows 가 있으면 그 수, 없으면(옛 묶음) dups
+      const n = Array.isArray(l.dupRows) ? membersOf(l).length : 1 + Math.max(0, Number(l.dups) || 0);
+      weight.set(v, weight.get(v) + n);
+    }
+    const chips = order.map((v, i) => ({ v, w: weight.get(v), i })).sort((a, b) => b.w - a.w || a.i - b.i).map((x) => x.v);
+    return chips.length >= 2 ? chips : [];
+  }
+
   /* ---------- 매물 보기 거르기 (계획서 5-2 ⑦, 디자인 W-C) ---------- */
   // area: all | near(가까운 동네만) | 3·5·10·20(km 안). withUnknown: 지역 모르는 매물도 함께 보기(기본 켬).
+  // variant: 변형 칩 이름(없으면 전부) — 이 매물 줄의 칩([variantChips])에 없는 이름이면 거르지 않아요.
+  // 거르기는 묶인 매물마다 하고 다시 묶어요([regroup]) — 앱 결과 화면과 같은 줄·건수.
+  // counts = 마켓 단추 숫자: 그 마켓만 켰을 때의 줄 수(다른 거르기는 그대로) = 앱에서 그 마켓 칩을 눌렀을 때의 '매물 n건'.
   function filterListings(list, o) {
     o = o || {};
     const mk = o.mk || { j: true, d: true, b: true };
     const area = AREAS.includes(String(o.area)) ? String(o.area) : 'all';
     const withUnknown = o.withUnknown !== false;
     const q = str(o.q).trim().toLowerCase();
-    const all = arr(list);
+    const all = arr(list).filter(Boolean);
+    const variant = str(o.variant) && variantChips(all).includes(str(o.variant)) ? str(o.variant) : '';
+    const lim = Number(area);
+    const placeOk = (l, wu) => {
+      if (area === 'all') return true;
+      if (isUnknown(l.place)) return wu;
+      if (area === 'near') return l.place.near === true;
+      // 거리를 알면 거리로, 모르면 가까운 동네 이름이면 넣어요(앱 Nearby.passes 와 같게)
+      return Number.isFinite(l.place.km) ? l.place.km <= lim : l.place.near === true;
+    };
+    const others = (l, wu) => (!variant || variantOf(l) === variant) && (!q || str(l.title).toLowerCase().includes(q)) && placeOk(l, wu);
     const counts = { j: 0, d: 0, b: 0 };
-    for (const l of all) if (counts[l.m] != null) counts[l.m]++;
-    let rows = all.filter((l) => mk[l.m] !== false);
-    if (q) rows = rows.filter((l) => str(l.title).toLowerCase().includes(q));
+    for (const m of Object.keys(counts)) counts[m] = regroup(all, (l) => l.m === m && others(l, withUnknown)).length;
+    const rows = regroup(all, (l) => mk[l.m] !== false && others(l, withUnknown));
     let unknown = 0, hiddenUnknown = 0;
     if (area !== 'all') {
-      const lim = Number(area);
-      rows = rows.filter((l) => {
-        if (isUnknown(l.place)) {
-          unknown++;
-          if (!withUnknown) hiddenUnknown++;
-          return withUnknown;
-        }
-        if (area === 'near') return l.place.near === true;
-        // 거리를 알면 거리로, 모르면 가까운 동네 이름이면 넣어요(앱 Nearby.passes 와 같게)
-        return Number.isFinite(l.place.km) ? l.place.km <= lim : l.place.near === true;
-      });
+      unknown = (withUnknown ? rows : regroup(all, (l) => mk[l.m] !== false && others(l, true))).filter((l) => isUnknown(l.place)).length;
+      if (!withUnknown) hiddenUnknown = unknown;
     }
-    const idx = new Map(all.map((l, i) => [l, i]));
-    const tie = (a, b) => idx.get(a) - idx.get(b);
+    const idx = new Map();
+    all.forEach((l, i) => membersOf(l).forEach((x) => idx.set(x.key, i))); // 다시 묶은 줄은 원래 줄 자리
+    const tie = (a, b) => (idx.get(a.key) ?? 0) - (idx.get(b.key) ?? 0);
     const price = (l) => (l.price > 0 ? l.price : Infinity);
     if (o.sort === 'seen') rows.sort((a, b) => (b.firstSeen || 0) - (a.firstSeen || 0) || tie(a, b));
     else if (o.sort === 'near') rows.sort((a, b) => kmOf(a) - kmOf(b) || price(a) - price(b) || tie(a, b));
     else rows.sort((a, b) => price(a) - price(b) || tie(a, b));
-    return { rows, counts, unknown, hiddenUnknown, area, withUnknown };
+    return { rows, counts, unknown, hiddenUnknown, area, withUnknown, variant };
   }
   const kmOf = (l) => (l.place && !isUnknown(l.place) && Number.isFinite(l.place.km) ? l.place.km : Infinity);
 
@@ -254,6 +296,6 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, filterListings, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, variantChips, filterListings, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

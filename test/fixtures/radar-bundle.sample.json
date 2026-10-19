@@ -864,7 +864,7 @@
       "d": -18,
       "why": "시세 120만(판매완료) 대비 -18%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": "2번 내림",
@@ -893,7 +893,7 @@
       "d": -15,
       "why": "시세 120만(판매완료) 대비 -15%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -922,7 +922,7 @@
       "d": -10,
       "why": "시세 120만(판매완료) 대비 -10%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": "끌올 3번",
@@ -951,7 +951,7 @@
       "d": -6,
       "why": "시세 120만(판매완료) 대비 -6%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -980,7 +980,7 @@
       "d": -4,
       "why": "시세 120만(판매완료) 대비 -4%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1096,7 +1096,7 @@
       "d": 12,
       "why": "시세 120만(판매완료) 대비 +12%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1154,7 +1154,7 @@
       "d": 40,
       "why": "시세 120만(판매완료) 대비 +40%"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1208,7 +1208,7 @@
       "d": -53,
       "why": "시세의 절반도 안 돼요 — 미끼·사기·다른 물건일 수 있어요"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1237,7 +1237,7 @@
       "d": -45,
       "why": "선입금·계약금 이야기가 있어요"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": true,
      "dups": 0,
      "news": null,
@@ -1266,7 +1266,7 @@
       "d": -36,
       "why": "미개봉·새제품인데 시세보다 36% 싸요 — 미끼·사기 글이 아닌지 확인해 주세요"
      },
-     "variant": null,
+     "variant": "기본",
      "unopened": true,
      "dups": 0,
      "news": null,
@@ -1314,7 +1314,7 @@
      "firstSeen": 1792377120000,
      "updated": 1792377120000,
      "grade": null,
-     "variant": null,
+     "variant": "슬림 디지털",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1339,7 +1339,7 @@
      "firstSeen": 1792294320000,
      "updated": 1792294320000,
      "grade": null,
-     "variant": null,
+     "variant": "기본",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1364,7 +1364,7 @@
      "firstSeen": 1792215120000,
      "updated": 1792294320000,
      "grade": null,
-     "variant": null,
+     "variant": "프로",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1425,9 +1425,9 @@
       "d": null,
       "why": "시세를 낼 매물이 아직 적어요(5건 미만)"
      },
-     "variant": null,
+     "variant": "XT",
      "unopened": false,
-     "dups": 0,
+     "dups": 1,
      "news": null,
      "star": false,
      "place": {
@@ -1437,7 +1437,38 @@
       "rough": false,
       "level": null,
       "unknown": true
-     }
+     },
+     "dupRows": [
+      {
+       "key": "b:1999",
+       "m": "b",
+       "title": "RX 9070 XT 니트로+ 16G",
+       "price": 780000,
+       "url": "https://m.bunjang.co.kr/products/1999",
+       "thumb": null,
+       "status": "selling",
+       "firstSeen": 1792369920000,
+       "updated": 1792369920000,
+       "grade": {
+        "k": "unknown",
+        "d": null,
+        "why": "시세를 낼 매물이 아직 적어요(5건 미만)"
+       },
+       "variant": "XT",
+       "unopened": false,
+       "dups": 0,
+       "news": null,
+       "star": false,
+       "place": {
+        "name": null,
+        "near": null,
+        "km": null,
+        "rough": false,
+        "level": null,
+        "unknown": true
+       }
+      }
+     ]
     },
     {
      "key": "d:1020",
@@ -1454,7 +1485,7 @@
       "d": null,
       "why": "시세를 낼 매물이 아직 적어요(5건 미만)"
      },
-     "variant": null,
+     "variant": "XT",
      "unopened": false,
      "dups": 0,
      "news": null,
@@ -1483,7 +1514,7 @@
       "d": null,
       "why": "시세를 낼 매물이 아직 적어요(5건 미만)"
      },
-     "variant": null,
+     "variant": "XT",
      "unopened": false,
      "dups": 0,
      "news": null,

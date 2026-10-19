@@ -188,6 +188,20 @@ with sync_playwright() as p:
     csvtxt = open(dl.value.path(), encoding='utf-8-sig').read()
     check(csvtxt.count('\n') == 14 and '기가바이트 RTX 4080 윈드포스 V2 16G' in csvtxt, 'CSV 13줄 + 머리')
 
+    # 변형 칩 (앱 결과 화면 변형 칩과 같은 거르기 — 0.7.1.1 앱 = 웹)
+    check(page.locator('button.vchip').all_inner_texts() == ['SUPER', '기본'], '변형 칩 SUPER · 기본 (앱과 같은 순서)')
+    page.click('button.vchip[data-variant="SUPER"]')
+    page.wait_for_timeout(50)
+    shot(page, '03b-product-variant')
+    check(page.locator('.rows .row').count() == 6 and 'SUPER 매물 6건' in page.inner_text('.list-sum') and page.locator('button.vchip[aria-pressed="true"]').count() == 1, "변형 'SUPER' 6건")
+    page.click('button.mkt[data-mk="j"]')
+    check(page.locator('.rows .row').count() == 3, 'SUPER + 중고나라 끔 3건')
+    page.click('button.mkt[data-mk="j"]')
+    page.click('button.vchip[data-variant="SUPER"]')
+    check(page.locator('.rows .row').count() == 13 and page.locator('button.vchip[aria-pressed="true"]').count() == 0, '같은 칩 다시 누르면 풀림')
+    page.click('button.vchip[data-variant="기본"]')
+    check(page.locator('.rows .row').count() == 7, "변형 '기본' 7건")
+
     # 다른 물건들
     page.click('[data-pick="s_5080"]')
     page.wait_for_timeout(50)
@@ -195,6 +209,7 @@ with sync_playwright() as p:
     t5 = text(page)
     check('믿을 만한 매물이 아직 없어요 · ⚠ 확인 필요 3건(아래 목록에 있어요)' in t5, '모두 ⚠ 물건 화면 문장 (W2-2)')
     check(page.locator('.hero').count() == 0, '모두 ⚠ → 최저가 칸 가격 없음')
+    check(page.locator('button.vchip').count() == 0 and page.locator('.rows .row').count() == 3, '변형이 하나면 칩 없음, 다른 물건으로 가면 변형 거르기 풀림')
     page.click('[data-pick="s_ps5"]')
     page.wait_for_timeout(50)
     shot(page, '05-product-ps5')
@@ -204,6 +219,13 @@ with sync_playwright() as p:
     page.click('[data-pick="s_9070"]')
     page.wait_for_timeout(50)
     check(page.locator('.hero .badge').count() == 0 and '시세를 낼 매물이 아직 적어요(5건 미만)' in text(page), '판정 보류 → 배지 없음 + 이유 글')
+    # 같은 글 묶음(dupRows): 앱처럼 마켓마다 센다(QA-1)
+    check(page.inner_text('button.mkt[data-mk="b"] b') == '2' and page.locator('.rows .row').count() == 3, '같은 글: 번개장터 단추 2(같은 글도 셈), 전체 3줄')
+    page.click('button.mkt[data-mk="j"]')
+    page.click('button.mkt[data-mk="d"]')
+    check(page.locator('.rows .row').count() == 2 and page.locator('a.row[href*="products/1999"]').count() == 1, '번개장터만: 같은 글의 번개장터 매물이 줄로')
+    page.click('button.mkt[data-mk="j"]')
+    page.click('button.mkt[data-mk="d"]')
 
     # ---------- 3. 관심 · 알림함 · 수집 상태 ----------
     page.click('.tab[data-go="watch"]')

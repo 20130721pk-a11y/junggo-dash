@@ -55,6 +55,14 @@ const l9070 = [
   L('d', '사파이어 9070XT 퓨어 화이트', 820000, g('unknown', null, '시세를 낼 매물이 아직 적어요(5건 미만)'), P('능곡동', 2.7, false, true), { seen: 26 * H, up: 26 * H }),
   L('b', '파워컬러 9070 XT 레드데빌', 850000, g('unknown', null, '시세를 낼 매물이 아직 적어요(5건 미만)'), UNK, { seen: 2 * D, up: 2 * D }),
 ];
+// 변형: 앱 Variants.of 처럼 변형을 가르는 검색은 모든 매물에 이름 — 이름 없는 매물(기본)은 '기본'(앱 묶음 꼴 그대로)
+for (const l of [...l4080, ...l5080]) if (l.variant == null) l.variant = '기본';
+lps5[0].variant = '슬림 디지털'; lps5[1].variant = '기본'; lps5[2].variant = '프로';
+for (const l of l9070) l.variant = 'XT';
+// 같은 글 묶음(앱 dupRows): 9070 첫 줄은 번개장터에도 같은 제목·값 — 웹이 칩으로 거른 뒤 다시 묶어요(앱 Pipeline.chipRows, QA-1)
+l9070[0].dups = 1;
+l9070[0].dupRows = [{ ...l9070[0], key: 'b:1999', m: 'b', url: url('b', '1999'), dups: 0, dupRows: undefined, firstSeen: at(5 * H), updated: at(5 * H) }];
+delete l9070[0].dupRows[0].dupRows;
 const spark = [112, 111, null, 109, 108, 108, 106, 104, 103, 99, 95, 97, 99, 101, 103, 104, 104, 103, 102, null, 97, 101, 102, 101, 101, 100, 100, 99, 99, 98].map((v) => (v == null ? null : v * 10000));
 
 const products = [

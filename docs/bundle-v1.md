@@ -74,7 +74,8 @@
 | `status` | 글 | `selling` · `reserved` |
 | `firstSeen` · `updated` | ms | 처음 본 때, 올린(끌올) 때 |
 | `grade` | {`k`, `d`, `why`} 또는 null | `k` = `honey`·`good`·`normal`·`caution`·`unknown`, `d` = 시세 대비 %(음수 = 쌈), `why` = 앱 이유 글. null = 다시 내는 중 |
-| `variant` · `unopened` · `dups` | 글/null · 참/거짓 · 수 | 변형, 미개봉, 같은 글 수 |
+| `variant` · `unopened` · `dups` | 글/null · 참/거짓 · 수 | 변형(앱 `Variants.of` — 변형을 가르는 검색이면 모든 매물에 이름, 기본은 `'기본'`, 아니면 모두 null), 미개봉, 같은 글 수 |
+| `dupRows` | [매물] (없으면 칸 없음) | 이 줄에 같은 글로 묶인 매물(여러 마켓·다시 올린 글), 묶기 전 싼 순 — 매물과 같은 꼴(`dupRows` 는 다시 없음). 보이는 조건을 통과한 것만. 앱 0.7.1.1(10/20)부터 |
 | `news` | 글 또는 null | '2번 내림 · 끌올 3번' |
 | `star` | 참/거짓 | 앱에서 ★ |
 | `place` | 아래 | 지역 |
@@ -82,6 +83,7 @@
 `place` `{ name, near, km, rough, level, sgg, unknown, text }` — `name` 짧은 동네 이름(`Listing.region`), `near` 물건 동네와 겹침(참/거짓/null), `km` 기준점에서 거리(소수 첫째, **거르기·표시에 같이 씀**, 시·군·구 수준이면 null), `rough` 동 가운데 어림 '≈'(앱 `Loc.approx`: 중고나라 참, 당근 거짓), `level` 앱 `Loc.level`(`dong`·`sgg`·`city`·null), `sgg` 시·군·구 수준일 때 이름(앱 `Loc.place`), `unknown` = 지역 모름(앱 `Loc.unknown`), **`text` = 앱이 만든 지역 글(`Nearby.placeText`) — 있으면 웹은 이것만 그대로 씀(W2-16, 추천)**.
 `text`가 없을 때 웹 글(앱 `Nearby.placeText`와 같은 규칙): `unknown` → '지역 모름' · 시·군·구 수준 → '정왕동 · 시흥시 쯤'(이름이 같으면 '시흥시 쯤') · km 있음 → '정왕동 · ≈2.3km'(10km 넘으면 정수, 앱 `Geo.label`) · km 없음 → '정왕동'.
 거르기(앱 `Nearby.passes`와 같게): 전체면 다 · 지역 모름은 '함께 보기'일 때만 · 가까운 동네만 = `near` 참 · n km 안 = `km` 있으면 `km ≤ n`, 없으면 `near` 참.
+거르기 칩(마켓·변형·지역)은 앱 결과 화면처럼 **묶인 매물마다 거른 뒤 다시 묶어요**(앱 `Pipeline.chipRows`) — 남은 매물 중 첫째가 줄. 그래서 같은 글이 여러 마켓에 있으면 마켓 단추마다 한 줄로 세요(QA-1). 변형 칩은 변형이 둘 이상일 때만, 묶기 전 매물이 많은 변형부터(앱 `Pipeline.variantChips`). `dupRows` 가 없는 옛 묶음은 대표 줄만 봐요.
 **좌표는 넣지 않아요**(G4). 웹은 지역 표를 받지 않고 거리를 다시 재지 않아요(W2-18).
 
 ## 새 꿀매 · 관심 · 알림
