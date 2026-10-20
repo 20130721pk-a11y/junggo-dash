@@ -212,6 +212,7 @@
     }
     const rec = C.slim(c, res.number);
     S.sent.push(rec); saveSent();
+    S.lastSt[rec.id] = 'sent';
     const pl = {};
     for (const k of ['q', 'card', 'word', 'pid', 'key', 'set', 'base', 'variantPick', 'on', 'op', 'dir', 'ids', 'hours', 'everyMin', 'url', 'all']) if (c[k] !== undefined) pl[k] = c[k];
     S.plain[rec.id] = { type, ...pl }; savePlain();
@@ -388,7 +389,7 @@
     }
     const note = arr(p.notes)[0] ? `<p class="facts">${esc(p.notes[0])}</p>` : '';
     const idPill = !confirmedOf(p) ? `<button class="pill brand" data-act="identify" data-pid="${esc(p.id)}"${lk()}>물건 정하기</button>` : '<span></span>';
-    return `<article class="card ${p.honey > 0 ? 'has-honey' : ''}" aria-label="${esc(p.name)}">${head}${cmdLine(rec)}${homeQueueText(p)}${body}${note}
+    return `<article class="card ${p.honey > 0 ? 'has-honey' : ''}" aria-label="${esc(p.name)}">${head}${cmdLine(rec, { label: true })}${homeQueueText(p)}${body}${note}
       <div class="card-foot">${idPill}<button class="btn btn-text btn-sm" data-open="${esc(p.id)}">결과 전체 보기 ›</button></div></article>`;
   }
   // 웹에서 추가했는데 앱이 아직 만들지 않은 물건 — 자리 카드(점선)
