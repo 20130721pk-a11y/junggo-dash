@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
+<!-- 콘텐츠 보안 정책(약관·리스크 L-2): 스크립트는 이 사이트 파일만(페이지 안 스크립트 없음), 연결은 이 사이트 + api.github.com 만 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https: data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'; object-src 'none'">
 <title>꿀매 레이더</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M14 6.72C15.47 9.03 18.2 12.67 18.2 16.24c0 4.7-8.4 4.7-8.4 0 0-3.57 2.73-7.21 4.2-9.52Z' fill='%23FFC24B'/%3E%3Ccircle cx='14' cy='14' r='12.6' fill='none' stroke='%23A98BF7' stroke-width='1.6'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +28,9 @@
   /* 간격 4 단위 */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
   /* 모서리 */
-  --r-badge: 6px; --r-ctl: 8px; --r-thumb: 11px; --r-box: 12px; --r-card: 16px; --r-pill: 999px;
+  --r-badge: 6px; --r-ctl: 8px; --r-field: 10px; --r-thumb: 11px; --r-box: 12px; --r-search: 13px; --r-card: 16px; --r-dialog: 20px; --r-pill: 999px;
+  --mk-j-soft: rgba(34,176,125,.16); --mk-d-soft: rgba(245,129,47,.16); --mk-b-soft: rgba(77,141,240,.16);
+  --scrim: rgba(0,0,0,.6);
   color-scheme: dark;
 }
 html { font-size: 100%; }
@@ -277,7 +281,6 @@ a { color: var(--brand-bright); }
 .skel { background: var(--surface2); border-radius: var(--r-ctl); }
 .skel-card { height: 220px; border-radius: var(--r-card); }
 
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: var(--r-ctl); background: var(--ink); color: var(--bg); font-size: .8125rem; font-weight: 600; }
 .foot { margin-top: 32px; color: var(--ink3); font-size: .75rem; }
 
 /* ===== 폭 ===== */
@@ -346,6 +349,266 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
 .center .btn[disabled] { color: var(--ink3); cursor: default; }
 .no-base { color: var(--ink3); font-size: .8125rem; }
 .row .rx .sold-maybe { display: block; }
+
+/* ===== 웹 조작 1판 (디자인 web-control-design.md 7장 · 시안 web-control-mock.html 그대로, 조작판만 뺌) ===== */
+.tab .cnt { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-size: .6875rem; line-height: 18px; text-align: center; }
+.cmdpill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--surface2); color: var(--ink2); font-size: .75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.cmdpill .ico { width: 13px; height: 13px; }
+.cmdpill.run { background: var(--brand-soft); color: var(--brand-bright); }
+.cmdpill.bad { background: var(--coral-soft); color: var(--coral); }
+.btn-text.gray { color: var(--ink3); } .btn-text.gray:hover { background: var(--surface2); color: var(--ink2); }
+.btn-text.coral { color: var(--coral); } .btn-text.coral:hover { background: var(--coral-soft); }
+.btn[disabled], .btn[aria-disabled="true"] { color: var(--ink3); background: var(--surface); border-color: var(--line); cursor: not-allowed; }
+.btn-text[disabled] { background: none; border-color: transparent; }
+.btn-fill[disabled] { background: var(--surface2); border-color: var(--surface2); }
+.btn-wide { width: 100%; height: 46px; font-size: .875rem; }
+.iconbtn { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--ink3); cursor: pointer; flex: none; text-decoration: none; }
+.iconbtn:hover { background: var(--surface2); color: var(--ink2); }
+.iconbtn.on { color: var(--ink); }
+.iconbtn.pending { color: var(--brand-bright); border: 1.5px dashed var(--brand-bright); border-radius: 50%; }
+.iconbtn[disabled] { cursor: not-allowed; opacity: .6; }
+.banner.brand { background: var(--brand-soft); } .banner.brand b, .banner.brand .ico { color: var(--brand-bright); }
+.banner ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; color: var(--ink2); font-size: .8125rem; }
+.grow { flex: 1; }
+.titlebar { display: flex; align-items: flex-end; gap: 8px; }
+/* 검색창 + 최근 */
+.searchrow { display: flex; gap: 8px; max-width: 760px; }
+.search { flex: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r-search); background: var(--surface); }
+.search:focus-within { border-color: var(--brand-bright); }
+.search:focus-within .ico { color: var(--brand-bright); }
+.search .ico { color: var(--ink3); width: 18px; height: 18px; }
+.search input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; outline: none; font-size: .9375rem; }
+.search input::placeholder { color: var(--ink3); }
+.searchrow .btn { height: 44px; }
+.recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0; }
+.recent .lbl { color: var(--ink3); font-size: .75rem; font-weight: 600; }
+.rchip { display: inline-flex; align-items: center; gap: 0; height: 30px; padding: 0 4px 0 0; border-radius: 999px; background: var(--surface2); color: var(--ink2); font-size: .75rem; font-weight: 600; }
+.rchip .rq { height: 100%; padding: 0 2px 0 12px; border: 0; background: none; color: inherit; font-weight: 600; cursor: pointer; border-radius: 999px 0 0 999px; }
+.rchip.on { background: var(--brand); color: #fff; }
+.rchip .x { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 50%; background: none; color: var(--ink3); cursor: pointer; opacity: 0; }
+.rchip .x .ico { width: 13px; height: 13px; }
+.rchip:hover .x, .rchip:focus-within .x { opacity: 1; }
+.rchip.on .x { color: rgba(255,255,255,.75); }
+.quota { margin-left: auto; color: var(--ink3); font-size: .75rem; }
+.quota.full { color: var(--ink2); }
+.under { margin: 6px 2px 0; color: var(--ink3); font-size: .75rem; }
+.under.bad { color: var(--coral); }
+.home { margin-top: 20px; }
+.home-head { flex-wrap: wrap; gap: 8px; }
+.empty-home { padding: 28px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); display: grid; gap: 10px; justify-items: start; }
+.card { min-width: 0; }
+.card.ghost { border: 1.5px dashed var(--ink3); background: transparent; }
+.card.ghost .chip-name { background: var(--surface2); color: var(--ink2); }
+.pill.brand { background: var(--brand-soft); color: var(--brand-bright); }
+.pill.line { background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink3); }
+button.pill { cursor: pointer; border: 0; }
+.card-foot { justify-content: space-between; align-items: center; }
+.low:focus-visible, .feed-row:focus-visible { outline: 2px solid var(--brand-bright); }
+.feed-row { border-color: var(--line); }
+/* 명령 처리 상태: 그 자리 한 줄 */
+.cmd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 32px; color: var(--ink2); font-size: .8125rem; }
+.cmd .ico { flex: none; }
+.cmd .ago { color: var(--ink3); }
+.cmd .acts { margin-left: auto; display: inline-flex; gap: 2px; }
+.cmd .acts .btn { height: 28px; }
+.cmd.run { color: var(--brand-bright); font-weight: 600; }
+.cmd.bad b { color: var(--coral); font-weight: 700; }
+.cmd.boxed { padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-box); margin-bottom: 12px; }
+.cmd .ios { color: var(--ink3); }
+.chg-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-bright); font-size: .75rem; font-weight: 600; white-space: nowrap; text-decoration: none; }
+/* 그냥 검색 진행 칸 */
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.step { display: flex; align-items: center; gap: 8px; color: var(--ink3); font-size: .8125rem; }
+.step .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid currentColor; font-size: .6875rem; font-weight: 700; flex: none; }
+.step .n .ico { width: 13px; height: 13px; }
+.step.done { color: var(--ink2); }
+.step.now { color: var(--brand-bright); font-weight: 700; }
+.steps-foot { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--ink3); font-size: .75rem; }
+.steps-foot .btn { margin-left: auto; }
+.skels { display: grid; gap: 8px; margin-top: 12px; }
+/* 결과 화면 */
+.pv.solo { grid-template-columns: minmax(0,1fr); }
+.pv-head .acts { margin-left: auto; display: flex; gap: 6px; }
+.back { display: inline-flex; align-items: center; gap: 4px; color: var(--ink2); background: none; border: 0; cursor: pointer; padding: 0 4px; font-size: .8125rem; }
+.subtabs { display: flex; gap: 4px; margin: 14px 0 12px; border-bottom: 1px solid var(--line); }
+.subtabs button { height: 36px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink2); font-weight: 600; cursor: pointer; }
+.subtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--brand-bright); }
+.chiprow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.chiprow .gap { width: 6px; }
+.mchip { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink2); font-size: .75rem; font-weight: 600; cursor: pointer; }
+.mchip.all { padding: 0 14px; }
+.mchip.all[aria-checked="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+.mchip.j[aria-checked="true"] { background: var(--mk-j-soft); border-color: var(--mk-j); color: var(--ink); }
+.mchip.d[aria-checked="true"] { background: var(--mk-d-soft); border-color: var(--mk-d); color: var(--ink); }
+.mchip.b[aria-checked="true"] { background: var(--mk-b-soft); border-color: var(--mk-b); color: var(--ink); }
+.cchip { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 13px; border: 0; border-radius: 999px; background: var(--surface2); color: var(--ink2); font-size: .75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.cchip[aria-checked="true"], .cchip[aria-pressed="true"] { background: var(--brand); color: #fff; }
+.cchip[disabled] { cursor: not-allowed; opacity: .55; }
+.cchip.ex { background: var(--coral-soft); color: var(--coral); text-decoration: line-through; }
+.cchip.in { background: var(--brand); color: #fff; }
+.cchip .c { color: var(--ink3); font-weight: 400; }
+.cchip.in .c { color: rgba(255,255,255,.75); }
+.cchip .ico { width: 14px; height: 14px; }
+.info { margin: 0 0 6px; color: var(--ink3); font-size: .75rem; font-weight: 600; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.info.brand { color: var(--brand-bright); }
+.info.link { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.info .btn-text { height: 26px; font-size: .75rem; }
+.sumline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0 8px; }
+.sumline .n { color: var(--ink2); font-size: .8125rem; font-weight: 500; }
+.sumline .right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.webonly { padding: 1px 7px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink3); font-size: .6875rem; font-weight: 400; }
+.find { width: 150px; }
+.idband { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 10px; border-radius: 14px; background: var(--brand-soft); cursor: pointer; }
+.idband b { display: block; font-size: .875rem; font-weight: 600; } .idband span { color: var(--ink2); font-size: .75rem; }
+.idband .go { margin-left: auto; color: var(--brand-bright); font-weight: 700; font-size: .8125rem; white-space: nowrap; }
+.conds { margin: 4px 0 8px; }
+.hero { grid-template-columns: 96px minmax(0,1fr) auto; }
+.hero .hclick { cursor: pointer; }
+.rbar { position: relative; height: 6px; margin: 26px 0 8px; border-radius: 3px; background: var(--surface2); }
+.rbar .tick { position: absolute; top: -18px; color: var(--ink3); font-size: .6875rem; white-space: nowrap; }
+.rbar .tick:nth-child(2) { transform: translateX(-50%); }
+.rbar .me { position: absolute; top: -1px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); transform: translateX(-50%); }
+.foot-hint { padding: 14px 4px 0; color: var(--ink3); font-size: .75rem; margin: 0; }
+/* 매물 줄 (끝에 ☆·아님·↗) */
+.row { grid-template-columns: 48px minmax(0,1fr) 104px 100px 104px 128px 60px 136px; gap: 10px; }
+.row:focus-visible { outline: 2px solid var(--brand-bright); outline-offset: -2px; }
+.row .ra { display: flex; justify-content: flex-end; align-items: center; gap: 0; }
+.notbtn { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; height: 32px; padding: 0 6px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--ink3); font-size: .75rem; cursor: pointer; }
+.notbtn:hover { background: var(--surface2); color: var(--ink2); }
+.notbtn[disabled] { cursor: not-allowed; opacity: .6; }
+.folded { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--line); color: var(--ink2); font-size: .8125rem; }
+.folded .btn-text { margin-left: auto; height: 28px; }
+/* 시세 탭 */
+.dist { display: grid; gap: 6px; margin-top: 10px; }
+.drow { display: grid; grid-template-columns: 70px minmax(0,1fr); align-items: center; gap: 10px; height: 36px; }
+.drow .lab { display: inline-flex; gap: 6px; align-items: center; color: var(--ink2); font-size: .75rem; }
+.dtrack { position: relative; height: 100%; }
+.dtrack .q { position: absolute; top: 8px; bottom: 8px; background: var(--surface2); border-radius: 4px; }
+.dtrack .md { position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--ink); }
+.dtrack .pt { position: absolute; top: 15px; width: 6px; height: 6px; border-radius: 50%; opacity: .6; margin-left: -3px; }
+.axis { display: flex; justify-content: space-between; margin: 4px 0 0 80px; color: var(--ink3); font-size: .6875rem; }
+.sum3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
+.sum3 .big { margin: 0; font-size: 1.375rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hint { margin: 6px 0 0; color: var(--ink3); font-size: .75rem; line-height: 1.45; white-space: pre-line; }
+/* 창 */
+.scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim); display: grid; place-items: center; padding: 40px 16px; }
+.scrim.clear { background: rgba(0,0,0,.35); }
+.dialog { width: 100%; max-width: 560px; max-height: calc(100vh - 80px); display: flex; flex-direction: column; background: var(--surface); border-radius: var(--r-dialog); overflow: hidden; }
+.dialog.lg { max-width: 640px; } .dialog.sm { max-width: 440px; }
+.dhead { padding: 20px 20px 4px; display: flex; gap: 8px; align-items: flex-start; }
+.dhead h2 { margin: 0; font-size: 1.125rem; font-weight: 700; flex: 1; }
+.dhead h2 .ico { width: 18px; height: 18px; }
+.dbody { padding: 4px 20px 16px; overflow-y: auto; }
+.dfoot { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
+.desc { margin: 4px 0 0; color: var(--ink3); font-size: .75rem; line-height: 1.45; }
+.flabel { display: flex; align-items: center; gap: 6px; margin: 16px 0 6px; font-size: .8125rem; font-weight: 600; }
+.flabel .chgdot, .swrow .chgdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-bright); margin-right: 6px; vertical-align: 2px; }
+.field { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-field); background: var(--surface2); color: var(--ink); }
+.field:focus { outline: none; border-color: var(--brand-bright); }
+.field.conflict { border-color: var(--coral); }
+.frow { display: flex; align-items: center; gap: 8px; } .frow .field { flex: 1; }
+.conf-note { margin: 4px 0 0; color: var(--coral); font-size: .75rem; }
+.swrow { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.swrow .t { flex: 1; } .swrow b { display: block; font-size: .8125rem; font-weight: 600; } .swrow span { color: var(--ink3); font-size: .75rem; }
+.sw { position: relative; width: 36px; height: 20px; border-radius: 999px; background: var(--surface2); border: 0; cursor: pointer; flex: none; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink3); }
+.sw[aria-checked="true"] { background: var(--brand); } .sw[aria-checked="true"]::after { left: 19px; background: #fff; }
+.sw[disabled] { cursor: not-allowed; opacity: .6; }
+.qcards { display: flex; flex-wrap: wrap; gap: 8px; }
+.qcard { padding: 10px 14px; border-radius: 14px; background: var(--brand-soft); border: 1px solid rgba(169,139,247,.5); text-align: left; cursor: pointer; }
+.qcard b { display: block; font-size: .875rem; } .qcard span { color: var(--ink3); font-size: .75rem; }
+.qcard[disabled] { background: var(--surface2); border-color: var(--line); cursor: not-allowed; } .qcard[disabled] b { color: var(--ink3); }
+.suggest { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface2); cursor: pointer; border: 0; width: 100%; text-align: left; }
+.suggest .mark { color: var(--brand-bright); font-weight: 700; } .suggest[aria-pressed="false"] .mark { color: var(--ink3); }
+.suggest b { display: block; font-size: .8125rem; } .suggest span span { color: var(--ink3); font-size: .75rem; }
+.band { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 6px; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface2); text-align: left; cursor: pointer; }
+.band b { display: block; font-size: .875rem; } .band span span { color: var(--ink3); font-size: .75rem; }
+.band .pick { margin-left: auto; color: var(--brand-bright); font-size: .75rem; font-weight: 700; }
+.band[aria-checked="true"] { background: var(--brand-soft); border-color: var(--brand-bright); }
+.preview { margin-top: 18px; padding: 12px 14px; border-radius: 14px; background: var(--surface2); }
+.preview .l { color: var(--ink2); font-size: .75rem; font-weight: 600; }
+.vbtns { display: grid; gap: 2px; margin-top: 14px; } .vbtns .btn-text { justify-content: flex-start; height: 40px; }
+.menu-scrim { position: fixed; inset: 0; z-index: 55; }
+.menu { position: fixed; z-index: 56; width: 240px; padding: 4px; background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; }
+.menu button { display: block; width: 100%; height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--ink); text-align: left; cursor: pointer; font-size: .8125rem; }
+.menu button:hover, .menu button:focus-visible { background: var(--surface); }
+.menu button.coral { color: var(--coral); }
+.menu button[disabled] { color: var(--ink3); cursor: not-allowed; }
+.drawer { position: fixed; z-index: 61; top: 0; right: 0; bottom: 0; width: 480px; max-width: 100%; display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--line); }
+.drawer.sm { width: 400px; background: var(--bg); }
+.drawer .dbody { flex: 1; }
+.sheet-head { display: grid; grid-template-columns: 96px 1fr; gap: 14px; }
+.sheet-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.sheet-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.facts-box { display: grid; gap: 4px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface2); color: var(--ink2); font-size: .8125rem; }
+.wchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cmdlist { margin: 0; padding: 0; list-style: none; }
+.cmdlist li { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.cmdlist .w { font-weight: 600; font-size: .8125rem; } .cmdlist .s { color: var(--ink2); font-size: .75rem; }
+.cmdlist .s.bad b { color: var(--coral); } .cmdlist .s.run { color: var(--brand-bright); }
+.cmdlist .cacts { margin: 4px 0 0 -8px; }
+.toast { position: fixed; z-index: 70; left: 24px; bottom: 24px; display: flex; align-items: center; gap: 12px; max-width: 420px; padding: 10px 10px 10px 14px; background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; font-size: .8125rem; color: var(--ink); }
+/* 설정 */
+.settings { display: grid; gap: 12px; }
+.sbox { padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.sbox h3 { margin: 0; font-size: .875rem; font-weight: 600; }
+.sbox .d { margin: 3px 0 10px; color: var(--ink3); font-size: .75rem; }
+.sbox .bad { color: var(--coral); }
+.phone { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface2); margin: 8px 0; }
+.phone .ico { color: var(--ink2); }
+.phone .t { flex: 1; } .phone b { display: block; font-size: .8125rem; font-weight: 600; } .phone span { color: var(--ink2); font-size: .75rem; }
+.phone .tag { padding: 3px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ink3); color: var(--ink2); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+.focusbox { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 9px 12px; border-radius: 12px; background: var(--brand-soft); }
+.focusbox > .ico { color: var(--brand-bright); }
+.fpick { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+/* 관심·알림함 */
+.wlist { margin-top: 12px; border-top: 1px solid var(--line); }
+.wrow { display: grid; grid-template-columns: 48px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.wrow .tags { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 2px; color: var(--ink3); font-size: .75rem; }
+.wacts { display: flex; align-items: center; gap: 6px; }
+.irow { cursor: pointer; }
+.irow .it { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.irow.unread .it { font-weight: 700; }
+.irow .ud { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-bright); flex: none; }
+/* 잠금·첫 연결 */
+.perm { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 10px 0; padding: 12px 14px; border-radius: 12px; background: var(--surface2); font-size: .8125rem; }
+.perm dt { color: var(--ink3); } .perm dd { margin: 0; color: var(--ink); font-weight: 600; }
+.center .field-l { display: block; margin: 10px 0 0; color: var(--ink2); font-size: .8125rem; }
+@media (max-width: 1080px) {
+  .row { grid-template-columns: 48px minmax(0,1fr) 100px 100px 96px 116px 136px; }
+  .row > .rn { display: none; }
+}
+@media (max-width: 900px) {
+  .row { grid-template-columns: 48px minmax(0,1fr) auto; }
+  .row > .rb, .row > .rp, .row > .rm, .row > .rw, .row > .rn { display: none; }
+  .row .compact { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; }
+  .row .compact .rp2 { font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }
+  .sum3 { grid-template-columns: minmax(0,1fr); }
+  .plist { display: none; }
+}
+@media (max-width: 760px) {
+  .row { grid-template-columns: 48px minmax(0,1fr) auto; grid-template-areas: none; }
+  .row > .ra { display: flex; }
+  .steps { grid-template-columns: minmax(0,1fr); }
+  .hero { grid-template-columns: 72px minmax(0,1fr); }
+  .hero .hstar { grid-column: 1 / -1; }
+  .scrim { padding: 0; place-items: stretch; }
+  .dialog { max-width: none !important; max-height: none; border-radius: 0; }
+  .dfoot { position: sticky; bottom: 0; background: var(--surface); }
+  .drawer, .drawer.sm { width: 100%; }
+  .rchip .rq, .cchip, .mchip, .iconbtn, .notbtn { min-height: 44px; }
+  .iconbtn { width: 44px; }
+  .rchip { height: 44px; }
+  .rchip .x { opacity: 1; width: 32px; height: 32px; }
+  .searchrow .btn { display: none; }
+  .toast { left: 16px; right: 16px; bottom: 76px; max-width: none; }
+  .menu { left: 16px !important; right: 16px; width: auto; }
+  .live-text .live-long { display: none; }
+  .cmdpill { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+  .quota { margin-left: 0; flex-basis: 100%; }
+  .pv-head .acts { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
@@ -356,6 +619,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></symbol>
   <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v15"/><path d="M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V5"/><path d="M6 11l6-6 6 6"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 15.5H3z"/><path d="M12 10v4.5"/><path d="M12 17.2v.1"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></symbol>
@@ -367,10 +631,19 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path d="M5.5 12h.01M12 12h.01M18.5 12h.01" stroke-width="3"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6c1.6 0 3 .5 4.2 1.2M21 12s-3.5 6-9 6c-1.6 0-3-.5-4.2-1.2"/><path d="M4 4l16 16"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 17.5h2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="14" r="4"/><path d="M11 11l8-8M16 6l3 3"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
 </svg>
 
 <header class="top">
-  <a class="brand" href="#" data-go="home" aria-label="꿀매 레이더 — 물건">
+  <a class="brand" href="#" data-go="home" aria-label="꿀매 레이더 — 홈">
     <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
       <circle cx="14" cy="14" r="12.6" fill="none" stroke="#473F6B" stroke-width="1.54"/>
       <circle cx="14" cy="14" r="6.44" fill="none" stroke="#473F6B" stroke-width="1.54"/>
@@ -381,648 +654,27 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
     </svg>
     <span>꿀매 레이더</span>
   </a>
-  <nav class="tabs" aria-label="보기" id="tabs" hidden>
-    <button class="tab" data-go="home"><svg class="ico"><use href="#i-grid"/></svg>물건</button>
+  <nav class="tabs" aria-label="탭" id="tabs" hidden>
+    <button class="tab" data-go="home"><svg class="ico"><use href="#i-grid"/></svg>홈</button>
     <button class="tab" data-go="watch"><svg class="ico"><use href="#i-star"/></svg>관심 매물</button>
-    <button class="tab" data-go="inbox"><svg class="ico"><use href="#i-bell"/></svg>알림함</button>
-    <button class="tab" data-go="status"><svg class="ico"><use href="#i-pulse"/></svg>수집 상태</button>
+    <button class="tab" data-go="inbox"><svg class="ico"><use href="#i-bell"/></svg>알림함<span class="cnt" id="inboxCnt" hidden></span></button>
+    <button class="tab" data-go="settings"><svg class="ico"><use href="#i-gear"/></svg>설정</button>
   </nav>
   <div class="live">
+    <span id="cmdPill"></span>
     <span class="live-text" id="live" role="status"></span>
-    <a class="btn btn-sm" id="oldView" href="./old.html" target="_blank" rel="noopener" title="7일 나란히 보는 동안만 있어요 — 지금 웹 화면 그대로">예전 보기</a>
+    <a class="btn btn-sm" id="oldView" href="./old.html" target="_blank" rel="noopener" title="7일 나란히 보는 동안만 있어요 — 예전 웹 화면 그대로">예전 보기</a>
   </div>
 </header>
 
 <div class="banners" id="banners"></div>
 <main class="page" id="page" tabindex="-1"></main>
-<div class="toast" id="toast" hidden></div>
+<div id="layer"></div>
+<div class="toast" id="toast" role="status" hidden></div>
 
 <script src="box.js"></script>
 <script src="radar-view.js"></script>
-<script>
-'use strict';
-(function () {
-  const RV = window.RadarView, BOX = window.JunggoBox;
-  const { esc, won, man, ago, clock, placeText, MARKET, MARK } = RV;
-  const $ = (s) => document.querySelector(s);
-  const now = () => Date.now();
-
-  // ---------- 어디서 받나 ----------
-  // GitHub 판: 비공개 데이터 저장소(기본 <주인>/junggo-dash-data)의 view 가지 radar.enc 를 읽기 토큰으로 받아요.
-  // 시험용: ?src=./폴더 → 그 폴더의 radar.json(잠그지 않은 디버그 묶음) 또는 radar.enc
-  const OWNER = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : '20130721pk-a11y';
-  const DEFAULT_REPO = `${OWNER}/junggo-dash-data`;
-  const LOCAL_SRC = (() => {
-    const s = new URLSearchParams(location.search).get('src') || '';
-    return /^\.\/[\w./-]*$/.test(s) && !s.includes('..') ? s.replace(/\/$/, '') : '';
-  })();
-  if (location.search) $('#oldView').href = './old.html' + location.search;
-  const PULL_MS = 5 * 60e3; // 창이 열려 있으면 5분마다 (초안)
-
-  // ---------- 이 기기 저장 (열쇠 jd.key 는 예전 보기와 같은 꼴) ----------
-  const lsGet = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
-  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 저장 못 해도 이번엔 열려요 */ } };
-  const lsDel = (k) => { try { localStorage.removeItem(k); } catch { /* 그대로 */ } };
-  const K_KEY = 'jd.key', K_TOK = 'jd.rtok';
-
-  // ---------- 상태 ----------
-  const S = {
-    phase: 'loading', // loading | lock | first | version | token | ready
-    bundle: null, box: null, key: null, salt: '', token: '', repo: '', lastCt: '', pulledAt: 0, level: '',
-    needToken: false, lockErr: '', busy: false,
-    tab: 'home', pid: '', mk: { j: true, d: true, b: true }, area: 'all', withUnknown: true, sort: 'low', q: '',
-    variant: '', vpid: '', // 변형 칩(앱 결과 화면과 같은 거르기) — 물건마다 따로라 다른 물건으로 가면 풀어요
-  };
-
-  // ---------- 작은 도우미 ----------
-  const ico = (id, cls) => `<svg class="ico ${cls || ''}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
-  const mkMark = (m, sm) => MARK[m] ? `<span class="mk mk-${m} ${sm ? 'sm' : ''}" aria-hidden="true">${MARK[m]}</span><span class="sr">${MARKET[m]}</span>` : '';
-  function thumb(l, size) {
-    const src = RV.safeUrl(l && l.thumb);
-    const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
-    const m = l && MARK[l.m] ? `<span class="mk mk-${l.m}">${MARK[l.m]}</span>` : '';
-    return `<span class="thumb ${size || ''} ${src ? 'has-img' : ''}" aria-hidden="true">${img}${m}</span>`;
-  }
-  const ext = (l) => { const u = RV.safeUrl(l && l.url); return u ? `href="${esc(u)}" target="_blank" rel="noopener noreferrer"` : ''; };
-  const B = () => S.bundle;
-  const live = () => RV.liveState(B(), now());
-  const late = () => S.bundle && live().late;
-  const day = () => S.bundle && live().day;
-  const prods = () => RV.arr(B() && B().products);
-  const prod = (id) => prods().find((p) => p.id === id);
-  const listOf = (p) => RV.arr(p && p.listings);
-  const findL = (p, key) => listOf(p).find((l) => l.key === key);
-  function toast(t) {
-    const el = $('#toast'); el.textContent = t; el.hidden = false;
-    clearTimeout(toast.h); toast.h = setTimeout(() => { el.hidden = true; }, 2400);
-  }
-  function badge(g, compact) {
-    const b = RV.badge(g, compact);
-    if (!b) return '';
-    const then = late() && g.k === 'honey' ? ' <span class="then">그때 기준</span>' : '';
-    return `<span class="badge ${b.cls}"${b.aria ? ` aria-label="${esc(b.aria)}"` : ''}>${b.icon ? ico(b.icon) : ''}${esc(b.text)}</span>${then}`;
-  }
-  function spark(vals, h, w) {
-    vals = RV.arr(vals);
-    const pts = vals.map((v, i) => [i, v]).filter((p) => Number.isFinite(p[1]));
-    if (pts.length < 2) return '';
-    const lo = Math.min(...pts.map((p) => p[1])), hi = Math.max(...pts.map((p) => p[1]));
-    const span = Math.max(hi - lo, 1), n = Math.max(vals.length - 1, 1);
-    const X = (i) => (w * i / n).toFixed(1), Y = (v) => (h - 4 - (h - 8) * ((v - lo) / span)).toFixed(1);
-    const d = pts.map((p, k) => (k ? 'L' : 'M') + X(p[0]) + ' ' + Y(p[1])).join(' ');
-    const last = pts[pts.length - 1];
-    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="최근 30일 최저가 추이, 가장 낮은 값 ${esc(man(lo))}, 오늘 ${esc(man(last[1]))}">
-      <path d="${d}" fill="none" stroke="#A98BF7" stroke-opacity=".85" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
-      <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3" fill="#F2F3F6"/></svg>`;
-  }
-  const mlows = (o, big) => ['j', 'd', 'b'].filter((m) => o && Number.isFinite(o[m])).map((m) => `<span class="mlow"${big ? ' style="font-size:.9375rem"' : ''}>${mkMark(m, !big)}${esc(man(o[m]))}</span>`).join('');
-  const vlows = (a) => RV.arr(a).filter((x) => Array.isArray(x) && Number.isFinite(x[1])).map(([v, n]) => `<span class="pill">${esc(v)} ${esc(man(n))}</span>`).join('');
-  const facts = (a) => RV.arr(a).map((f) => (f && f.icon ? `${ico(f.icon === 'target' ? 'target' : 'trend')} ${esc(f.t)}` : esc(f && f.t))).join(' · ');
-  const soldMaybe = (txt) => (day() ? ` · <span class="sold-maybe">${txt || '팔렸을 수 있어요'}</span>` : '');
-
-  // ---------- 머리 · 띠 ----------
-  function renderHead() {
-    const el = $('#live');
-    let dot = 'gray', long = '—', short = '—';
-    if (S.phase === 'loading') { long = short = '불러오는 중…'; }
-    else if (S.phase === 'ready') {
-      const b = B(), st = live(), t = now();
-      const when = `마지막 판정 ${clock(b.made, t)}(${ago(b.made, t)})`;
-      const dev = esc(RV.str(b.device) || '내 안드로이드');
-      if (b.stall) { dot = 'coral'; long = `확인 멈춤 · ${when} · ${dev}`; short = '멈춤'; }
-      else if (st.late) { long = `${when} · ${dev}`; short = esc(ago(b.made, t)); }
-      else { dot = ''; long = `감시 중 · ${when} · ${dev}`; short = `감시 중 · ${esc(ago(b.made, t))}`; }
-    }
-    el.innerHTML = `<span class="dot ${dot}" aria-hidden="true"></span><span class="sr">${dot === '' ? '감시 중' : dot === 'coral' ? '확인 멈춤' : '늦음'}</span><span class="live-long">${long}</span><span class="live-short">${short}</span>`;
-    const ready = S.phase === 'ready';
-    $('#tabs').hidden = !ready;
-    document.querySelectorAll('.tab').forEach((x) => {
-      const on = x.dataset.go === S.tab || (S.tab === 'product' && x.dataset.go === 'home');
-      if (on) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current');
-    });
-    $('#oldView').hidden = S.phase === 'lock' || S.phase === 'loading';
-    const out = [];
-    const ban = (title, sub, btn) => `<div class="banner" role="status">${ico('alert')}<div><b>${title}</b>${sub ? `<span>${sub}</span>` : ''}</div>${btn || ''}</div>`;
-    if (ready) {
-      const b = B(), st = live(), t = now();
-      if (st.late) {
-        const head = `폰이 ${clock(b.made, t)} 뒤로 결과를 올리지 않았어요(${ago(b.made, t)}). 아래는 그때 기준이에요.`;
-        out.push(ban(esc(head), st.day ? '하루가 넘어 팔린 매물이 섞여 있을 수 있어요.' : '에뮬레이터가 켜져 있는지 확인해 주세요.'));
-      }
-      if (b.stall && typeof b.stall === 'object') out.push(ban(esc(b.stall.title), esc(b.stall.text)));
-      if (b.notifOn === false) out.push(ban('폰 알림이 꺼져 있어요 — 꿀매가 떠도 폰이 울리지 않아요. 앱에서 켜 주세요'));
-      for (const m of RV.arr(b.markets)) {
-        if (m && m.bad) out.push(ban(esc(m.banner || `${MARKET[m.m] || ''} 확인이 막힌 것 같아요`), esc(m.text), '<button class="btn btn-sm" data-go="status">수집 상태 보기</button>'));
-      }
-    }
-    $('#banners').innerHTML = out.join('');
-  }
-
-  // ---------- 첫 화면 ----------
-  function cardHTML(p) {
-    const t = now();
-    const when = !(p.checkedAt > 0) ? '아직 확인 전' : late() ? `${clock(p.checkedAt, t)} 확인` : ago(p.checkedAt, t);
-    const head = `<div class="card-head">
-      <span class="chip-name">${esc(p.name)}</span>
-      ${Number.isFinite(p.pct) ? `<span class="pill" style="color:var(--ink2)">꿀매 -${esc(p.pct)}%</span>` : ''}
-      ${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}
-      ${p.focus ? `<span class="pill focus" title="집중 감시 중(앱에서 켬)">${ico('target')}집중</span>` : ''}
-      <span class="when">${esc(when)} · ${esc(p.count || 0)}건</span></div>`;
-    let body = '';
-    const low = (p.state === 'ok' || p.state === 'unknown') ? findL(p, p.lowKey) : null;
-    if (p.state === 'allCaution') body = `<p class="state-text ink2">${esc(p.stateCard)}</p>`;
-    else if (p.state === 'rebase') body = `<p class="state-text" style="color:var(--brand-bright)">${esc(p.stateCard)}</p>`;
-    else if (!low) body = `<p class="state-text muted">${esc(p.stateCard || '조건에 맞는 매물이 없어요')}</p>`;
-    else {
-      body = `<a class="low" data-open="${esc(p.id)}" href="#p=${encodeURIComponent(p.id)}">${thumb(low)}<div style="min-width:0">
-          <p class="ltitle">${esc(low.title)}</p>
-          <div class="price-row"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, true)}${p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
-          <p class="meta" style="margin:2px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · ${esc(ago(low.updated, t))}${soldMaybe()}</p>
-        </div></a>
-        ${RV.arr(p.facts).length ? `<p class="facts">${facts(p.facts)}</p>` : ''}
-        ${spark(p.spark, 28, 300) ? `<div style="height:28px">${spark(p.spark, 28, 300)}</div>` : ''}
-        ${mlows(p.marketLows) ? `<div class="lines">${mlows(p.marketLows)}</div>` : ''}
-        ${vlows(p.variantLows) ? `<div class="lines">${vlows(p.variantLows)}</div>` : ''}
-        ${p.cautionCard ? `<button class="note link" data-jump="${esc(p.id)}" data-key="${esc(p.cautionKey || '')}">${esc(p.cautionCard)}</button>` : ''}
-        ${p.nearText ? `<p class="facts">${esc(p.nearText)}</p>` : ''}`;
-    }
-    return `<article class="card ${p.honey > 0 ? 'has-honey' : ''}">${head}${body}
-      <div class="card-foot"><button class="btn btn-text btn-sm" data-open="${esc(p.id)}">물건 화면 ›</button></div></article>`;
-  }
-  function renderHome() {
-    const b = B(), t = now();
-    const feed = RV.arr(b.feed).map((f) => {
-      const p = prod(f.pid), l = findL(p, f.key);
-      if (!p || !l) return '';
-      const fresh = f.fresh && !late();
-      return `<a class="feed-row ${fresh ? 'fresh' : ''}" data-open="${esc(p.id)}" href="#p=${encodeURIComponent(p.id)}">${thumb(l)}
-        <div style="min-width:0"><div class="top-line"><span class="chip-name">${esc(p.name)}</span>${fresh ? '<span class="pill">새로</span>' : ''}<span class="meta">${esc(ago(f.at, t))}</span></div>
-        <p class="ltitle" style="margin-top:6px;font-weight:600">${esc(l.title)}</p>
-        <div class="price-row" style="margin-top:4px"><span class="price" style="font-size:1rem">${esc(won(l.price))}</span>${badge(l.grade, true)}</div>
-        <p class="meta" style="margin:3px 0 0">${esc(l.grade ? l.grade.why : '')} · ${esc(MARKET[l.m])}</p></div></a>`;
-    }).join('');
-    const cards = prods().length ? `<div class="cards">${prods().map(cardHTML).join('')}</div>`
-      : '<p class="empty">앱에 지켜볼 물건이 아직 없어요 — 물건은 앱에서 추가해요</p>';
-    return `<div class="home ${day() ? 'stale-day' : ''}">
-      <section aria-labelledby="hTitle">
-        <div class="home-head"><div><h2 class="sec-title" id="hTitle">${late() ? '그때 최저가' : '지금 최저가'}</h2>
-        <p class="sec-sub">같은 물건 · 3사 최저가 · 앱이 판정한 그대로예요</p></div>
-        <span class="app-only">${ico('lock')}물건·조건은 앱에서 바꿔요</span></div>
-        ${cards}
-      </section>
-      <aside aria-labelledby="fTitle">
-        <h2 class="sec-title" id="fTitle">새로 뜬 꿀매</h2>
-        <p class="sec-sub" style="margin-bottom:12px">꿀매 기준을 넘은 매물이 처음 보인 순서예요(3일)</p>
-        <div class="feed">${feed || '<p class="muted">아직 새 꿀매가 없어요. 레이더가 계속 지켜보고 있어요.</p>'}</div>
-      </aside></div>`;
-  }
-
-  // ---------- 물건 화면 ----------
-  function rowHTML(l, p, o) {
-    const t = now(), g = l.grade;
-    const sub = g && g.k === 'caution' ? `<p class="rs why">${esc(g.why)}</p>`
-      : `<p class="rs">${[g ? g.why : (p && p.state === 'rebase' && p.cut && p.cut.rebase) || '', l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : ''].filter(Boolean).map(esc).join(' · ')}</p>`;
-    const where = placeText(l.place);
-    const unknown = RV.isUnknown(l.place);
-    const sub2 = o && o.sub2 ? o.sub2 : sub;
-    const bdg = o && o.ended ? '<span class="badge b-plain">끝남</span>' : badge(g, false);
-    return `<li><a class="row" id="r-${esc(l.key)}" ${ext(l)}>
-      ${thumb(l, 'sm')}
-      <div class="rmain" style="min-width:0"><p class="rt"${o && o.ended ? ' style="color:var(--ink3)"' : ''}>${l.star || (o && o.star) ? ico('star', 'fill') + '<span class="sr">관심 매물</span>' : ''}${esc(l.title)}</p>${sub2}
-        <div class="compact"><span class="rp2">${esc(won(l.price))}</span>${bdg}<span class="meta">${esc(MARKET[l.m])} · ${esc(where)} · ${esc(ago(l.firstSeen, t))}${soldMaybe()}</span></div></div>
-      <span class="rb">${bdg}</span>
-      <span class="rp">${esc(won(l.price))}</span>
-      <span class="rm">${mkMark(l.m, true)}${esc(MARKET[l.m])}</span>
-      <span class="rw ${unknown ? 'unknown' : ''}" ${l.place && l.place.rough && !unknown ? 'title="판매 동네 가운데까지 어림 거리예요"' : ''}>${esc(where)}</span>
-      <span class="rn">${esc(ago(l.firstSeen, t))}</span>
-      <span class="rx">${ico('ext')}<span class="sr">새 창에서 열려요</span></span>
-    </a></li>`;
-  }
-  const AREA_LABEL = { all: '전체', near: '가까운 동네만', 3: '3km 안', 5: '5km 안', 10: '10km 안', 20: '20km 안' };
-  const SORT_LABEL = { low: '싼 순', seen: '처음 본 순', near: '가까운 순' };
-  function variantFor(p) {
-    if (S.vpid !== p.id) { S.vpid = p.id; S.variant = ''; }
-    return S.variant;
-  }
-  function visibleRows(p) {
-    const b = B();
-    return RV.filterListings(listOf(p), { mk: S.mk, area: b.base ? S.area : 'all', withUnknown: S.withUnknown, q: S.q, sort: S.sort, variant: variantFor(p) });
-  }
-  function renderProduct() {
-    const p = prod(S.pid) || prods()[0];
-    if (!p) return renderHome();
-    S.pid = p.id;
-    const t = now(), b = B();
-    const side = prods().map((q) => {
-      let s = '';
-      const lq = findL(q, q.lowKey);
-      if ((q.state === 'ok' || q.state === 'unknown') && lq) s = man(lq.price) || '가격문의';
-      else if (q.state === 'allCaution') s = '⚠ ' + (q.caution || listOf(q).length);
-      else if (q.state === 'rebase') s = '다시 내는 중';
-      else if (q.state === 'pending') s = '확인 전';
-      else s = '없음';
-      return `<button data-pick="${esc(q.id)}" aria-current="${q.id === p.id}">
-        <span class="pn">${esc(q.name)}</span>
-        <span class="ph">${q.honey > 0 ? `<span class="pill honey">${ico('drop')}${esc(q.honey)}</span>` : ''}</span>
-        <span class="ps">${esc(s)}<span class="pm"> · ${esc(q.checkedAt > 0 ? ago(q.checkedAt, t) : '아직 확인 전')}</span></span></button>`;
-    }).join('');
-
-    const label = late() ? '그때 최저가' : '지금 최저가';
-    const f = visibleRows(p);
-    // 칩(마켓·변형·지역)을 고르면 앱 결과 화면처럼 지금 최저가·⚠ n·칸 위 한 줄을 보이는 것 기준으로(RV.screenHero — 앱 판정 그대로 고르기만)
-    const mkOn = ['j', 'd', 'b'].filter((m) => S.mk[m] !== false);
-    const chipped = mkOn.length < 3 || !!f.variant || f.area !== 'all';
-    const picked = chipped && p.state !== 'rebase' && p.state !== 'pending'
-      ? RV.screenHero(f.heroRows, { name: p.name, chip: f.variant, base: p.baseVariant, market: mkOn.length === 1 ? mkOn[0] : '' })
-      : null;
-    const low = picked ? picked.hero : (p.state === 'ok' || p.state === 'unknown') ? findL(p, p.lowKey) : null;
-    const isLowKey = !!low && low.key === p.lowKey;
-    const cautionLine = picked ? picked.line : p.cautionPage;
-    const cautionKey = picked ? picked.cautionKey : p.cautionKey;
-    let hero = '';
-    if (low) {
-      const target = isLowKey ? RV.arr(p.facts).find((x) => x && x.icon === 'target') : null;
-      hero = `<div class="box"><p class="box-label">${label}</p>
-        <div class="hero">${thumb(low, 'lg')}<div style="min-width:0">
-          <p class="ltitle">${esc(low.title)}</p>
-          <div class="price-row" style="margin-top:6px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
-          <p class="meta" style="margin:4px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · 올린 때 ${esc(ago(low.updated, t))} · 처음 본 때 ${esc(ago(low.firstSeen, t))}</p>
-          ${low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
-          ${target ? `<p class="note">${ico('target')}${esc(target.t)}</p>` : ''}
-        </div></div>
-        ${cautionLine ? `<button class="note link" style="margin-top:12px" data-jump="${esc(p.id)}" data-key="${esc(cautionKey || '')}">${esc(cautionLine)}</button>` : ''}
-        <div class="hero-bottom"><span class="meta">${day() ? '<span class="sold-maybe">하루가 넘었어요 — 팔렸을 수 있어요</span>' : '원 매물에서 사요 — 거래는 마켓 앱에서'}</span>
-        <a class="btn" ${ext(low)}>원 매물 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a></div></div>`;
-    } else if (picked) {
-      // 칩 안에 믿을 만한 매물이 없음 — 앱 결과 화면 줄 그대로(회색 = 확인 필요)
-      hero = `<div class="box"><p class="box-label">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</div>`;
-    } else if (p.state === 'allCaution') {
-      hero = `<div class="box"><p class="box-label">${label}</p><p class="note" style="font-size:.9375rem">${esc(p.statePage)}</p></div>`;
-    } else if (p.state === 'rebase') {
-      hero = `<div class="box"><p class="box-label">${label}</p><p class="note brand" style="font-size:.9375rem">${esc(p.statePage)}</p></div>`;
-    } else {
-      hero = `<div class="box"><p class="box-label">${label}</p><p class="muted" style="margin:0">${esc(p.statePage || '조건에 맞는 매물이 없어요.')}</p></div>`;
-    }
-    const c = p.cut || {};
-    let cut = '';
-    if (c.rebase) cut = `<p class="ref-big">${esc(c.rebase)}</p>`;
-    else if (Array.isArray(c.rows)) cut = `<p class="meta" style="margin:0 0 4px;color:var(--ink2)">${esc(c.head)}</p>${c.rows.map((r) => `<div class="vcut ${r.hold ? 'hold' : ''}"><b>${esc(r.name)}</b><span>${esc(r.text)}</span></div>`).join('')}`;
-    else if (Array.isArray(c.single)) cut = `<p class="ref-big">${esc(c.single[0])}</p>${c.single[1] ? `<p class="meta" style="margin:3px 0 0;color:var(--ink2)">${esc(c.single[1])}</p>` : ''}`;
-    const judge = `<div class="box"><p class="box-label">꿀매 판정 기준</p>${cut}
-      <p class="meta" style="margin:8px 0 0">기준가 순서: 판매완료(중고나라 90일) → 사라진 매물 → 30일 관측 → 지금 올라온 가격 · 5건 이상일 때만 써요</p></div>`;
-
-    let lows = '';
-    if (p.state === 'ok') {
-      const boxes = [];
-      if (mlows(p.marketLows, true)) boxes.push(`<div class="box"><p class="box-label plain">마켓별 최저</p><div class="lines">${mlows(p.marketLows, true)}</div></div>`);
-      if (vlows(p.variantLows)) boxes.push(`<div class="box"><p class="box-label plain">변형별 최저</p><div class="lines">${vlows(p.variantLows)}</div></div>`);
-      if (p.nearText) boxes.push(`<div class="box"><p class="box-label plain">가까운 · 택배 최저</p><p class="facts" style="color:var(--ink2)">${esc(p.nearText)}</p></div>`);
-      if (boxes.length) lows = `<div class="grid3 ${boxes.length === 2 ? 'two' : ''}">${boxes.join('')}</div>`;
-    } else if (p.state === 'unknown' && mlows(p.marketLows, true)) {
-      lows = `<div class="grid3 two"><div class="box"><p class="box-label plain">마켓별 최저</p><div class="lines">${mlows(p.marketLows, true)}</div></div>
-        <div class="box"><p class="box-label plain">판정</p><p class="facts" style="color:var(--ink2)">${esc(low && low.grade ? low.grade.why : '')}</p></div></div>`;
-    }
-    const sp = spark(p.spark, 120, 800);
-    const trend = sp ? `<div class="box trend"><p class="box-label plain">최근 30일 최저가</p>${sp}<p class="meta" style="margin:4px 0 0">${esc(p.min30)}</p></div>`
-      : (p.state !== 'empty' && p.state !== 'pending' ? '<div class="box trend"><p class="box-label plain">최근 30일 최저가</p><p class="meta" style="margin:0">추이 선은 하루 넘게 지켜본 뒤부터 그려요</p></div>' : '');
-    const ledger = RV.arr(p.ledger).length ? `<div class="ledger">${p.ledger.map((x) => `<p class="note">${esc(x)}</p>`).join('')}</div>` : '';
-
-    const all = listOf(p);
-    const vchips = RV.variantChips(all);
-    const vTool = vchips.length ? `<span class="vchips" role="group" aria-label="변형">${vchips.map((v) => `<button class="vchip" data-variant="${esc(v)}" aria-pressed="${v === f.variant}">${esc(v)}</button>`).join('')}</span>` : '';
-    const areaOn = b.base && f.area !== 'all';
-    const areaTool = b.base
-      ? `<label class="sel">지역 <select id="fArea">${['all', 'near', '3', '5', '10', '20'].map((a) => `<option value="${a}"${S.area === a ? ' selected' : ''}>${AREA_LABEL[a]}</option>`).join('')}</select></label>
-         ${areaOn ? `<label class="chk"><input type="checkbox" id="fUnk"${S.withUnknown ? ' checked' : ''}> 지역 모르는 매물도</label>` : ''}`
-      : '<span class="no-base">설정에서 내 동네를 정하면 가까운 중고나라 매물을 볼 수 있어요</span>';
-    const sum = areaOn
-      ? `<span>${AREA_LABEL[f.area]} ${f.rows.length}건${S.withUnknown && f.unknown ? ` (지역 모름 ${f.unknown}건 포함)` : ''}</span>${f.hiddenUnknown ? `<span class="muted">· 지역 모름 ${f.hiddenUnknown}건은 숨김</span><button class="btn btn-text" id="showUnk">함께 보기</button>` : ''}<span class="muted">· 기준: ${esc(b.base)}(앱 설정)</span>`
-      : `<span>${f.variant ? esc(f.variant) + ' ' : ''}매물 ${f.rows.length}건 · ${SORT_LABEL[S.sort] || '싼 순'} · 앱 판정 그대로</span>`;
-    const rows = f.rows.length ? `<ol class="rows">${f.rows.map((l) => rowHTML(l, p)).join('')}</ol>`
-      : (all.length ? '<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" id="clearF">거르기 풀기</button></p>' : `<p class="empty">${esc(p.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
-
-    return `<div class="pv ${day() ? 'stale-day' : ''}">
-      <nav class="plist" aria-label="물건 목록">${side}</nav>
-      <section style="min-width:0">
-        <div class="pv-head"><h1>${esc(p.name)}</h1>${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}
-          <span class="app-only">${ico('lock')}조건은 앱에서 바꿔요</span></div>
-        ${RV.arr(p.conds).length ? `<ul class="conds" aria-label="조건 요약">${p.conds.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-        <div class="grid2">${hero}${judge}</div>
-        ${lows}${trend}${ledger}
-        <div class="list-tools" role="toolbar" aria-label="매물 보기 도구">
-          ${['j', 'd', 'b'].map((m) => `<button class="mkt" data-mk="${m}" aria-pressed="${S.mk[m]}">${mkMark(m)}<b>${f.counts[m]}</b></button>`).join('')}
-          ${vTool}
-          ${areaTool}
-          <div class="tools-right">
-            <label class="sel">정렬 <select id="fSort">${['low', 'seen', 'near'].map((s) => `<option value="${s}"${S.sort === s ? ' selected' : ''}>${SORT_LABEL[s]}</option>`).join('')}</select></label>
-            <label class="sr" for="fQ">결과 안에서 찾기</label><input class="find" id="fQ" type="search" placeholder="결과 안에서 찾기" value="${esc(S.q)}">
-            <button class="btn btn-sm" id="csv">CSV로 저장</button>
-          </div>
-        </div>
-        <div class="list-sum" role="status">${sum}</div>
-        ${rows}
-        <p class="foot">거리: 당근은 거래 위치까지, 중고나라는 판매 동네 가운데까지 어림(≈)이에요. 번개장터는 지금 동네를 몰라 '지역 모름'이에요.</p>
-      </section></div>`;
-  }
-
-  // ---------- 관심 · 알림함 · 수집 상태 ----------
-  function renderWatch() {
-    const ws = RV.arr(B().watches).filter((w) => w && w.listing);
-    const rows = ws.map((w) => {
-      const p = prod(w.pid);
-      const since = w.since ? `<span class="${w.sinceDir === 'down' ? 'since-down' : w.sinceDir === 'up' ? 'since-up' : ''}">${w.sinceDir === 'down' ? '▼ ' : w.sinceDir === 'up' ? '▲ ' : ''}${esc(w.since)}</span>` : '';
-      const sub = `<p class="rs">${p ? `<span class="chip-name" style="padding:1px 7px">${esc(p.name)}</span> ` : ''}${since}${w.diff ? ' · ' + esc(w.diff) : ''}</p>`;
-      return rowHTML(w.listing, p, { sub2: sub, ended: !!w.ended, star: true });
-    }).join('');
-    return `<section class="${day() ? 'stale-day' : ''}"><h2 class="sec-title">관심 매물</h2>
-      <p class="sec-sub">앱에서 ★한 매물이에요 · 웹에선 보기만 해요</p>
-      ${rows ? `<ol class="rows" style="margin-top:12px">${rows}</ol>` : '<p class="empty">앱에서 ★한 매물이 여기 보여요</p>'}</section>`;
-  }
-  const INBOX_ICON = { honey: 'drop', target: 'target', lowest: 'trend', nday: 'trend', drop: 'down', new: 'plus', caution: 'alert', watch: 'star', digest: 'list', system: 'gear' };
-  function renderInbox() {
-    const t = now();
-    const items = RV.arr(B().inbox).slice(0, 100);
-    let html = '', last = '';
-    for (const i of items) {
-      const d = RV.dayLabel(i.t, t);
-      if (d !== last) { html += `<p class="day">${esc(d)}</p>`; last = d; }
-      html += `<div class="irow ${i.kind === 'honey' ? 'honey' : ''}">${ico(INBOX_ICON[i.kind] || 'list')}<div style="min-width:0">
-        <p class="it">${esc(i.title)}</p>${i.text ? `<p class="ib">${esc(i.text)}</p>` : ''}<p class="ig">${RV.inboxTags(i, t).map(esc).join(' · ')}</p></div></div>`;
-    }
-    return `<section><h2 class="sec-title">알림함</h2><p class="sec-sub">최근 7일 · 최대 100줄 · 앱 알림함과 같은 순서예요</p>
-      <div class="inbox">${html || '<p class="empty">최근 7일 알림이 없어요</p>'}</div></section>`;
-  }
-  function renderStatus() {
-    const b = B(), t = now(), st = live();
-    const mk = RV.arr(b.markets).filter((m) => MARKET[m.m]).map((m) => `
-      <div class="box mkcard"><h3>${mkMark(m.m)}${esc(MARKET[m.m])}</h3><p>${m.okAt > 0 ? `마지막 성공 ${esc(clock(m.okAt, t))}` : '아직 성공 기록 없음'}</p><p class="${m.bad ? 'bad' : ''}">${esc(m.text)}</p></div>`).join('');
-    const gaps = RV.gaps(b, t).map((g) => `<div class="gap-row"><span>${esc(clock(g.from, t))} ~ ${g.open ? '지금' : esc(clock(g.to, t))} · ${esc(RV.dur(g.ms))}</span><span class="mark">PC를 껐던 때?</span></div>`).join('');
-    return `<div class="status">
-      <section class="box"><p class="box-label">앱</p><ul class="kv">
-        <li>기기 <b>${esc(RV.str(b.device) || '내 안드로이드')}</b></li><li>앱 <b>${esc(RV.str(b.app) || '—')}</b></li>
-        ${b.watchLabel ? `<li>감시 강도 <b>${esc(b.watchLabel)}</b></li>` : ''}<li>늦음 기준 <b>${st.line}분</b></li>
-        <li>오류 기록 <b>${esc(Number(b.errors) || 0)}건</b></li><li>마지막 올림 <b>${esc(clock(b.made, t))}</b></li></ul></section>
-      <section><h2 class="sec-title">마켓</h2><div class="mkcards" style="margin-top:10px">${mk || '<p class="muted">마켓 상태가 묶음에 없어요</p>'}</div></section>
-      <section class="box"><p class="box-label">최근 7일 올림 공백 <span class="muted">(7일 나란히 보는 동안만)</span></p>
-        <p class="meta" style="margin:0 0 6px">늦음 기준(${st.line}분)을 넘은 때예요. PC를 껐던 때인지 오른쪽에 표시해 주세요(웹은 저장하지 않아요).</p>
-        ${gaps || '<p class="meta" style="margin:0">최근 7일 동안 늦음 기준을 넘은 공백이 없어요.</p>'}</section>
-      <p class="foot">지역 표: 통계청 SGIS 행정동 경계(공공누리 제1유형)를 가공한 vuski/admdongkor 자료, CC BY 4.0. 거리는 앱이 재요.</p>
-    </div>`;
-  }
-
-  // ---------- 특수 화면 ----------
-  function renderSpecial() {
-    const p = S.phase;
-    if (p === 'lock') {
-      const tokbox = S.needToken ? `<div class="tokbox">
-          <p class="ink2">처음 한 번만: 데이터 저장소와 <b>웹 읽기 토큰</b>(그 저장소만 · Contents 읽기만)을 넣어 주세요. 토큰은 이 기기에 비밀번호로 잠가 둬요.</p>
-          <label class="field" for="lkRepo">데이터 저장소(주인/이름)</label><input id="lkRepo" type="text" autocomplete="off" spellcheck="false" value="${esc(S.repo || DEFAULT_REPO)}">
-          <label class="field" for="lkTok">웹 읽기 토큰</label><input id="lkTok" type="password" autocomplete="off" placeholder="github_pat_…">
-        </div>` : '';
-      return `<form class="center" id="lockForm" aria-labelledby="lk"><h1 id="lk">${ico('lock')} 잠긴 레이더예요</h1>
-        <p>앱이 판정한 결과가 이 비밀번호로 잠겨 있어요. 비밀번호는 이 기기 밖으로 나가지 않아요.</p>
-        <label class="sr" for="pw">비밀번호</label><input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
-        ${tokbox}
-        <p class="err" id="pwErr" ${S.lockErr ? '' : 'hidden'}>${esc(S.lockErr)}</p>
-        <label class="chk"><input type="checkbox" id="remember" checked> 이 기기에서 기억하기</label>
-        <div class="row-actions"><button class="btn btn-fill" id="unlock" type="submit"${S.busy ? ' disabled' : ''}>${S.busy ? '여는 중…' : '열기'}</button></div></form>`;
-    }
-    if (p === 'loading') return `<div class="home"><section><div class="skel" style="width:140px;height:22px;margin-bottom:16px"></div>
-      <div class="cards">${'<div class="skel skel-card"></div>'.repeat(4)}</div></section>
-      <aside><div class="skel" style="width:120px;height:22px;margin-bottom:16px"></div>${'<div class="skel" style="height:84px;margin-bottom:8px;border-radius:16px"></div>'.repeat(2)}</aside></div>`;
-    if (p === 'first') return `<section class="center"><h1>앱이 아직 결과를 올리지 않았어요</h1>
-      <p>앱 설정 › 웹 대시보드 연결에서 '결과 올리기'를 켜 주세요. 켜면 다음 확인이 끝날 때 여기에 보여요.</p>
-      <div class="row-actions"><a class="btn" href="./old.html${esc(location.search)}" target="_blank" rel="noopener">예전 보기</a></div></section>`;
-    if (p === 'version') return `<section class="center"><h1>앱과 웹 판이 맞지 않아요</h1>
-      <p>웹을 새로고침해 주세요. 그래도 같으면 앱을 새 판으로 올려 주세요.</p>
-      <div class="row-actions"><button class="btn btn-fill" id="reload">${ico('refresh')} 새로고침</button></div></section>`;
-    if (p === 'token') return `<section class="center"><h1 style="color:var(--coral)">웹 읽기 토큰이 막혔어요</h1>
-      <p>설정에서 다시 넣어 주세요. 토큰 기한이 지났거나 권한이 바뀌었을 수 있어요.</p>
-      <div class="row-actions"><button class="btn btn-fill" id="retok">토큰 다시 넣기</button></div></section>`;
-    return null;
-  }
-
-  // ---------- 그리기 ----------
-  function render() {
-    renderHead();
-    const page = $('#page');
-    const sp = renderSpecial();
-    if (sp) { page.innerHTML = sp; const pw = $('#pw'); if (pw) pw.focus(); return; }
-    S.level = live().level;
-    page.innerHTML = S.tab === 'product' ? renderProduct()
-      : S.tab === 'watch' ? renderWatch()
-      : S.tab === 'inbox' ? renderInbox()
-      : S.tab === 'status' ? renderStatus()
-      : renderHome();
-  }
-  function setPhase(p) { S.phase = p; render(); }
-
-  // ---------- 주소(#) ↔ 보기 ----------
-  function fromHash() {
-    const h = decodeURIComponent(location.hash.replace(/^#/, ''));
-    if (h.startsWith('p=')) { S.tab = 'product'; S.pid = h.slice(2); }
-    else if (h === 'watch' || h === 'inbox' || h === 'status') S.tab = h;
-    else S.tab = 'home';
-  }
-  function go(tab, pid) {
-    const h = tab === 'product' ? '#p=' + encodeURIComponent(pid) : tab === 'home' ? '#' : '#' + tab;
-    if (location.hash === h || (h === '#' && !location.hash)) { fromHash(); render(); window.scrollTo(0, 0); }
-    else location.hash = h; // hashchange 가 그려요
-  }
-  window.addEventListener('hashchange', () => { fromHash(); if (S.phase === 'ready') { render(); window.scrollTo(0, 0); } });
-
-  // ---------- 받기 · 열기 ----------
-  async function getJson(url) {
-    const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) return null;
-    try { return await r.json(); } catch { return null; }
-  }
-  function show(bundle) {
-    if (RV.check(bundle)) { S.bundle = null; setPhase('version'); return; }
-    S.bundle = bundle;
-    S.phase = 'ready';
-    render();
-  }
-  async function openBox(box, key) { return BOX.open(box, key, RV.LABEL); }
-  async function remember(box, key, on) {
-    if (on) lsSet(K_KEY, { salt: box.salt, raw: await BOX.exportKey(key) });
-    else lsDel(K_KEY);
-  }
-  async function saveToken(box, key) {
-    const sealed = await BOX.seal({ t: S.token }, key, box.salt, RV.TOKEN_LABEL, box.iter);
-    lsSet(K_TOK, { salt: box.salt, iter: box.iter || BOX.ITER, repo: S.repo, box: sealed });
-  }
-
-  // 받아서(바뀌었으면) 열어 그려요. first = 처음 열 때(오류를 화면으로)
-  async function pull(first) {
-    S.pulledAt = now();
-    if (LOCAL_SRC) {
-      const plain = await getJson(`${LOCAL_SRC}/radar.json?t=${now()}`);
-      if (plain) { show(plain); return; }
-      const box = await getJson(`${LOCAL_SRC}/radar.enc?t=${now()}`);
-      if (!box) { if (first || !S.bundle) setPhase('first'); return; }
-      return gotBox(box, first);
-    }
-    const res = await RV.fetchRadar({ repo: S.repo, token: S.token });
-    if (!res.ok) {
-      if (res.why === 'token') { S.bundle = null; setPhase('token'); return; }
-      if (res.why === 'missing') { if (!S.bundle) setPhase('first'); return; }
-      if (res.why === 'bad') { S.bundle = null; setPhase('version'); return; }
-      if (!S.bundle) { S.lockErr = res.why === 'rate' ? 'GitHub 요청 한도에 걸렸어요 — 몇 분 뒤 다시 열어 주세요.' : '데이터를 받지 못했어요 — 인터넷 연결을 확인해 주세요.'; S.needToken = false; setPhase('lock'); }
-      return; // 이미 보이는 게 있으면 그대로 두고 다음 차례에
-    }
-    return gotBox(res.box, first);
-  }
-  async function gotBox(box, first) {
-    S.box = box;
-    if (S.bundle && box.ct === S.lastCt) { if (live().level !== S.level) render(); else renderHead(); return; }
-    if (S.key && box.salt === S.salt) {
-      try { const v = await openBox(box, S.key); S.lastCt = box.ct; show(v); return; } catch { /* 열쇠가 바뀜 → 비밀번호 */ }
-    }
-    if (!S.key) {
-      const k = lsGet(K_KEY);
-      if (k && k.salt === box.salt && typeof k.raw === 'string') {
-        try { const key = await BOX.importKey(k.raw); const v = await openBox(box, key); S.key = key; S.salt = box.salt; S.lastCt = box.ct; show(v); return; } catch { lsDel(K_KEY); }
-      }
-    }
-    S.key = null; S.bundle = null; S.needToken = false; S.lockErr = first ? '' : '앱의 잠금 열쇠가 바뀌었어요 — 비밀번호를 다시 넣어 주세요.';
-    setPhase('lock');
-  }
-
-  async function unlock() {
-    if (S.busy) return;
-    const pw = $('#pw').value;
-    const keep = $('#remember').checked;
-    const tokIn = $('#lkTok') ? $('#lkTok').value.trim() : '';
-    const repoIn = $('#lkRepo') ? $('#lkRepo').value.trim() : '';
-    const fail = (msg) => { S.busy = false; S.lockErr = msg; setPhase('lock'); };
-    if (!pw) return fail('비밀번호를 적어 주세요.');
-    if (S.needToken && !tokIn) return fail('웹 읽기 토큰을 넣어 주세요.');
-    if (S.needToken && !RV.REPO_RE.test(repoIn)) return fail("데이터 저장소는 '주인/이름' 꼴로 적어 주세요.");
-    S.busy = true; S.lockErr = ''; render();
-    try {
-      let key = null;
-      if (LOCAL_SRC) {
-        const box = S.box || await getJson(`${LOCAL_SRC}/radar.enc?t=${now()}`);
-        if (!box || !BOX.isBox(box)) return fail('잠근 묶음이 없어요.');
-        key = await BOX.deriveKey(pw, box.salt, box.iter);
-        let v;
-        try { v = await openBox(box, key); } catch { return fail('비밀번호가 맞지 않아요'); }
-        S.key = key; S.salt = box.salt; S.lastCt = box.ct; S.box = box;
-        await remember(box, key, keep);
-        S.busy = false; show(v); return;
-      }
-      const rt = lsGet(K_TOK);
-      if (S.needToken) { S.token = tokIn; S.repo = repoIn; }
-      else if (!S.token && rt && rt.box) {
-        key = await BOX.deriveKey(pw, rt.salt, rt.iter);
-        try { const o = await BOX.open(rt.box, key, RV.TOKEN_LABEL); S.token = RV.str(o && o.t); S.repo = rt.repo || DEFAULT_REPO; } catch { return fail('비밀번호가 맞지 않아요'); }
-      } else if (!S.token) { S.needToken = true; return fail('웹 읽기 토큰을 넣어 주세요.'); }
-      const res = await RV.fetchRadar({ repo: S.repo, token: S.token });
-      if (!res.ok) {
-        if (res.why === 'token') { S.needToken = true; return fail(res.status === 401 ? '토큰이 맞지 않거나 기한이 지났어요.' : '이 토큰으로는 이 데이터 저장소를 볼 수 없어요 — 토큰을 만들 때 저장소를 골랐는지, 이름이 맞는지 확인해 주세요.'); }
-        if (res.why === 'missing') { S.busy = false; setPhase('first'); return; }
-        if (res.why === 'bad') { S.busy = false; setPhase('version'); return; }
-        if (res.why === 'repo') { S.needToken = true; return fail("데이터 저장소는 '주인/이름' 꼴로 적어 주세요."); }
-        return fail(res.why === 'rate' ? 'GitHub 요청 한도에 걸렸어요 — 몇 분 뒤 다시 해 주세요.' : '데이터를 받지 못했어요 — 인터넷 연결을 확인해 주세요.');
-      }
-      const box = res.box;
-      if (!key || (rt && rt.salt !== box.salt) || S.needToken) key = await BOX.deriveKey(pw, box.salt, box.iter);
-      let v;
-      try { v = await openBox(box, key); } catch { return fail('비밀번호가 맞지 않아요'); }
-      S.key = key; S.salt = box.salt; S.lastCt = box.ct; S.box = box; S.needToken = false;
-      await saveToken(box, key);
-      await remember(box, key, keep);
-      S.busy = false; show(v);
-    } catch {
-      fail('열지 못했어요 — 새로고침한 뒤 다시 해 주세요.');
-    }
-  }
-
-  async function boot() {
-    fromHash();
-    render();
-    if (LOCAL_SRC) { await pull(true); return; }
-    const rt = lsGet(K_TOK);
-    if (rt && rt.repo) S.repo = rt.repo;
-    const k = lsGet(K_KEY);
-    if (rt && rt.box && k && k.salt === rt.salt && typeof k.raw === 'string') {
-      try {
-        const key = await BOX.importKey(k.raw);
-        const o = await BOX.open(rt.box, key, RV.TOKEN_LABEL);
-        S.token = RV.str(o && o.t); S.key = key; S.salt = k.salt;
-        await pull(true);
-        return;
-      } catch { /* 비밀번호로 */ }
-    }
-    S.needToken = !(rt && rt.box);
-    setPhase('lock');
-  }
-
-  // ---------- 동작 ----------
-  function csvSave() {
-    const p = prod(S.pid);
-    if (!p) return;
-    const blob = new Blob([RV.csv(visibleRows(p).rows, now())], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `꿀매레이더-${RV.str(p.name).replace(/[\\/:*?"<>|]/g, '_')}.csv`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  }
-  document.addEventListener('submit', (e) => { if (e.target.id === 'lockForm') { e.preventDefault(); unlock(); } });
-  document.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-go],[data-open],[data-pick],[data-jump],[data-mk],[data-variant],#showUnk,#clearF,#csv,#reload,#retok');
-    if (!t) return;
-    if (t.dataset.go) { e.preventDefault(); go(t.dataset.go); return; }
-    if (t.dataset.open) { e.preventDefault(); go('product', t.dataset.open); return; }
-    if (t.dataset.pick) { e.preventDefault(); S.q = ''; go('product', t.dataset.pick); return; }
-    if (t.dataset.jump) {
-      e.preventDefault();
-      S.area = 'all'; S.q = ''; S.mk = { j: true, d: true, b: true }; S.variant = '';
-      const key = t.dataset.key;
-      go('product', t.dataset.jump);
-      setTimeout(() => {
-        const r = key && document.getElementById('r-' + key);
-        if (!r) return;
-        r.scrollIntoView({ block: 'center' }); r.classList.add('flash'); r.focus({ preventScroll: true });
-        setTimeout(() => r.classList.remove('flash'), 1500);
-      }, 0);
-      return;
-    }
-    if (t.dataset.mk) { S.mk[t.dataset.mk] = !S.mk[t.dataset.mk]; render(); return; }
-    // 변형 칩: 하나만 고르고, 고른 칩을 다시 누르면 풀어요(앱 ChoiceChip 과 같게)
-    if (t.dataset.variant) { S.variant = S.variant === t.dataset.variant ? '' : t.dataset.variant; render(); return; }
-    if (t.id === 'showUnk') { S.withUnknown = true; render(); return; }
-    if (t.id === 'clearF') { S.area = 'all'; S.q = ''; S.mk = { j: true, d: true, b: true }; S.variant = ''; render(); return; }
-    if (t.id === 'csv') { csvSave(); toast('보이는 매물을 CSV로 저장했어요'); return; }
-    if (t.id === 'reload') { location.reload(); return; }
-    if (t.id === 'retok') { S.needToken = true; S.lockErr = ''; setPhase('lock'); }
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const t = e.target.closest('[data-open]');
-    if (t && t.tagName !== 'BUTTON' && t.tagName !== 'A') { e.preventDefault(); t.click(); }
-  });
-  document.addEventListener('change', (e) => {
-    const id = e.target.id;
-    if (id === 'fArea') { S.area = e.target.value; render(); }
-    else if (id === 'fSort') { S.sort = e.target.value; render(); }
-    else if (id === 'fUnk') { S.withUnknown = e.target.checked; render(); }
-  });
-  document.addEventListener('input', (e) => {
-    if (e.target.id !== 'fQ') return;
-    S.q = e.target.value; const pos = e.target.selectionStart; render();
-    const q = $('#fQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); }
-  });
-  // 5분마다(창을 보고 있을 때만) + 창을 다시 볼 때. 1분마다 'n분 전'·늦음을 다시 봐요
-  setInterval(() => { if ((S.phase === 'ready' || S.phase === 'first') && S.token + LOCAL_SRC && document.visibilityState === 'visible') pull(false); }, PULL_MS);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && S.phase === 'ready' && now() - S.pulledAt > 30e3) pull(false);
-  });
-  setInterval(() => { if (S.phase !== 'ready') return; if (live().level !== S.level) render(); else renderHead(); }, 60e3);
-  boot();
-})();
-</script>
+<script src="radar-cmd.js"></script>
+<script src="radar-ui.js"></script>
 </body>
 </html>

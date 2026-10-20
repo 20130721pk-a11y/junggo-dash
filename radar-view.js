@@ -183,12 +183,15 @@
       // 거리를 알면 거리로, 모르면 가까운 동네 이름이면 넣어요(앱 Nearby.passes 와 같게)
       return Number.isFinite(l.place.km) ? l.place.km <= lim : l.place.near === true;
     };
-    const others = (l, wu) => (!variant || variantOf(l) === variant) && (!q || str(l.title).toLowerCase().includes(q)) && placeOk(l, wu);
+    // 미개봉 / 중고 칩(앱 COND_NEW·COND_USED — 매물의 unopened 로): 'new' = 미개봉만, 'used' = 미개봉 아닌 것만
+    const cond = o.cond === 'new' || o.cond === 'used' ? o.cond : '';
+    const condOk = (l) => !cond || (cond === 'new') === !!l.unopened;
+    const others = (l, wu) => (!variant || variantOf(l) === variant) && condOk(l) && (!q || str(l.title).toLowerCase().includes(q)) && placeOk(l, wu);
     const counts = { j: 0, d: 0, b: 0 };
     for (const m of Object.keys(counts)) counts[m] = regroup(all, (l) => l.m === m && others(l, withUnknown)).length;
     const rows = regroup(all, (l) => mk[l.m] !== false && others(l, withUnknown));
     // 지금 최저가를 고를 줄(싼 순): 앱 결과 화면처럼 칩(마켓·변형·지역)으로만 좁혀요 — '결과 안에서 찾기'는 웹에만 있는 찾기라 빼요
-    const heroRows = q ? regroup(all, (l) => mk[l.m] !== false && (!variant || variantOf(l) === variant) && placeOk(l, withUnknown)) : rows.slice();
+    const heroRows = q ? regroup(all, (l) => mk[l.m] !== false && (!variant || variantOf(l) === variant) && condOk(l) && placeOk(l, withUnknown)) : rows.slice();
     let unknown = 0, hiddenUnknown = 0;
     if (area !== 'all') {
       unknown = (withUnknown ? rows : regroup(all, (l) => mk[l.m] !== false && others(l, true))).filter((l) => isUnknown(l.place)).length;
@@ -201,7 +204,7 @@
     if (o.sort === 'seen') rows.sort((a, b) => (b.firstSeen || 0) - (a.firstSeen || 0) || tie(a, b));
     else if (o.sort === 'near') rows.sort((a, b) => kmOf(a) - kmOf(b) || price(a) - price(b) || tie(a, b));
     else rows.sort((a, b) => price(a) - price(b) || tie(a, b));
-    return { rows, counts, unknown, hiddenUnknown, area, withUnknown, variant, heroRows };
+    return { rows, counts, unknown, hiddenUnknown, area, withUnknown, variant, cond, heroRows };
   }
 
   /* ---------- 칩으로 좁힌 지금 최저가 (앱 CardCore.screenHero 와 같은 규칙) ---------- */
