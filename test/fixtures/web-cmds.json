@@ -1,0 +1,697 @@
+{
+ "note": "웹 radar-cmd.js 가 잠근 명령(docs/command-v1.md 9장). 앱: DashBox.open(box, key, \"junggo-radar-cmd\") == plain. 비밀번호·소금은 시험 전용",
+ "label": "junggo-radar-cmd",
+ "title": "꿀매 레이더 명령",
+ "password": "cmd-시험-비밀번호-0721",
+ "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+ "iter": 100000,
+ "items": [
+  {
+   "type": "add",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7scbs_aaaaa",
+    "at": 1792472401000,
+    "from": "web",
+    "type": "add",
+    "q": "4080",
+    "card": "gpu:4080"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "isYbbdPQLg6aPvvX",
+    "ct": "QPWoo/GobtQbJsYh9mOs177tmGyAd5BzA7RnVe9FUYK0wBGwhpSZdrtmoFWtIAZwLUYr31E+I5ZR4lsCGBpwYbDXVDS9V8qhYo/mjkGuyEDFpEkJ6rDFwKOAaKXEc7ND54J4IxRcIVlT/UeTDJKBzdGIlxjxkTzi9JfEYpo9JA6D8CpC6YT5ouswF3BK"
+   }
+  },
+  {
+   "type": "add",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sd3k_aaaab",
+    "at": 1792472402000,
+    "from": "web",
+    "type": "add",
+    "q": "에어팟 프로2, airpods pro 2"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "iC5pQ6IkMQ+nhIB8",
+    "ct": "Esz3zYkUIhM+dN+K6oGlqtHM4QEpr/p98P+nENqSbBqoatsSuv/EcM7CG46kUqomLxM3JJ10N1g8oG0ekKObAezIn7RfbQrEvk3dgYICrhqNGQPz5DKv2XgGnOcKQypjwA+Bdj5UdFneITrzB7kzfpGcGwHX+IWw2B0qHdFW66umpXTjMCTioJyFXt9F2uPIcyhM9HPAzyel3uYULLBdfi/erNUrGh4ptw=="
+   }
+  },
+  {
+   "type": "edit",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sdvc_aaaac",
+    "at": 1792472403000,
+    "from": "web",
+    "type": "edit",
+    "pid": "s_4080",
+    "set": {
+     "thresholdPct": 20,
+     "targetPrice": "110만",
+     "excludeWords": "본체，노트북, 케이스",
+     "maxAgeDays": 60,
+     "maxKm": 5,
+     "matchMode": "content"
+    },
+    "base": {
+     "thresholdPct": 15,
+     "targetPrice": 1200000,
+     "excludeWords": [
+      "본체",
+      "노트북"
+     ],
+     "maxAgeDays": null,
+     "maxKm": null,
+     "matchMode": "title"
+    }
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "ciKaEJ30ZNWEaqo1",
+    "ct": "OdgeUgs1Zv2u/dJbVoCetj+WEdZFOQfbbgraWCuwjSTL1kZYMIE5THspwxRQIJr++wBigjlPXa3CogxjSAzdq+lJLGjyn5zXCZWnWBt5gaa9WmGfhitJ28Qo/VsDuh6F5kc3H2UYvL6a/mqbzzmY3q0WSaOrFTmiqLxPV2JjcB/CIVPFxoRB+4D5ccTUdEb+F9qNi0DilpRoehgnXD8456SfnXLc0cdAMkyhtMB9hzNIo4XzngWgrnwAauSQ70fXtCBx7wCqWmlSs5LqyE97LW2I5M41T2Z+tei3kMN7yLSV2Jh3dz2RNMSmlXA9TDJ6Tp6paokqjtVfo2zsJ5/I4lkNdBi0G9ugo+tM0+XnFt/XJzedeG/9MI6aWo6ZaDE3z9G2QwLKRxsxuNk+eDmkdYgj9g=="
+   }
+  },
+  {
+   "type": "edit",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sen4_aaaad",
+    "at": 1792472404000,
+    "from": "web",
+    "type": "edit",
+    "pid": "s_4080",
+    "set": {
+     "bandMin": "35",
+     "bandMax": "",
+     "priceMin": "1.5만",
+     "priceMax": "500원",
+     "basicFilter": false,
+     "lowestAlert": false,
+     "variantPick": "SUPER",
+     "category": "pc",
+     "regionWords": "정왕동, 배곧동",
+     "keyword": "4080, 4080s",
+     "includeWords": ""
+    },
+    "base": {
+     "bandMin": 850000,
+     "bandMax": null,
+     "priceMin": null,
+     "priceMax": null,
+     "basicFilter": true,
+     "lowestAlert": true,
+     "variantPick": "",
+     "category": "",
+     "regionWords": [],
+     "keyword": "4080",
+     "includeWords": []
+    }
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "oIaJQgdIQ0keVmhG",
+    "ct": "u3scGvgG7nrwS/wCfGEW/lkB/YKIu4QIRVHyDJPuxPrS7aFK07gt5LJdR+053RIelZWQaPSJ/AhuEIxOXkwKiNdzFTUUC8GMo/mMoUTH5OajpLI3jxUYk2WwOJIcPSs74DqtOmOSO3kzaV4Wg/3rMu+v5i59jS2RxPUOQbvJkeBj/uTxY7reuWKKPRLRrTOOQ369pSrE4S8bat9q13MiwimS4vECmuzdTazneCYLbNpQtgqH3LFXCIpTgSzY5AZj+uO1fXTdDTR0XQXTKNbwCySxCnB4MA20c2+2Z/CCb2Bii88CQQQDLOqkSIjYDR5OF9aXBgCJZndehn//EJ9vGqQ8YV99rcn1QAKGfyt3R7CHNFm3MwRtSzFrzQEEMkTXnhyqiEC1FKf4QSny8I+rjx6nMB9/i/40B19AT3clKsWqwFIhtPlWWCjvStmKlYyaha+bfORGHkz97A=="
+   }
+  },
+  {
+   "type": "identify",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sfew_aaaae",
+    "at": 1792472405000,
+    "from": "web",
+    "type": "identify",
+    "pid": "s_ps5",
+    "set": {
+     "category": "game",
+     "bandMin": 350000,
+     "bandMax": 520000,
+     "excludeWords": [
+      "타이어",
+      "게임"
+     ],
+     "includeWords": [
+      "미개봉"
+     ]
+    }
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "U27gkPEjPC+YURkc",
+    "ct": "x6zvtu17cv/oXU+ESCoCgnKI933N0M7DTF15buwgv5joggfX6LS2gy+ojoMR5QsVGlccUMbWmACfGLzFkMnptztTXUrQnRAxGTLTcnKKxTsOEzZ6XDCcGv71azDHK8OTCFvUKv6T2XV+H3lsrrGUoLysM3S3BMwgQGVk6XEPxKgsqH/W2jPRZpVM7+bPm7vF9Ok1RfameTsfg3pKW6WnzFmKTI5jwv2/7Jnbtv8NbmV2XfWuRrFGu8bM5FiD4JnFLZyXGkTPtAdoteP+k9kpHjNwv09C9wfEklg1/vEIwLAoZlCW1Y5i3Dq6/ZU4AA=="
+   }
+  },
+  {
+   "type": "remove",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sg6o_aaaaf",
+    "at": 1792472406000,
+    "from": "web",
+    "type": "remove",
+    "pid": "s_5080"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "HNGZhpwWO3WCxO2a",
+    "ct": "JBX59dKygSRCxvH3Ey1rFzU9p8QhH5CYYcndeqOI5PL2mFfyOt+9RX/t9WTn81rtf6vpHiDSQ/XIg2Y8gYZ05nDKMz8HMg20vB0O+c86jWfNMWCuXsvCHPQSAuxnMe09QLgWvwrDt3nd6QCw/8HKEytgowiazFrmqf1e9Gv+o0YUfrc6GDCWqr0a"
+   }
+  },
+  {
+   "type": "move",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sgyg_aaaag",
+    "at": 1792472407000,
+    "from": "web",
+    "type": "move",
+    "pid": "s_5080",
+    "dir": "up"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "y6omzMhlnrzHo3fV",
+    "ct": "pjWV7SNsPofdzdzSWlQdkpTWwuFrMeNjA+3EKougVMk/lF8uzOJsEuiu0su/N1rzDUkZE9UOBCvtahG1x71+LfxfvHW4sAeXkYbvvoeoUdN5e4KOg6wRtIlhouxCAEGhxXCuN0DaUhj0Vhh9pU5h77WuDhRrp0nJ9rNcAsNKqbIYiYxk7RYqyQX8TgvGzg=="
+   }
+  },
+  {
+   "type": "focus",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7shq8_aaaah",
+    "at": 1792472408000,
+    "from": "web",
+    "type": "focus",
+    "op": "start",
+    "ids": [
+     "s_4080",
+     "s_ps5"
+    ],
+    "hours": 2,
+    "everyMin": 10
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "ntY+LieyP0nSQLGe",
+    "ct": "Lclm/Y5Y8qevyj5+Tg1tzOTMil2zx7pRlJ2P6Chfh1V9UZ2bGZwBj1WuELSXr+3RnGZwd/6sBjI94YeGWD1hcj/uexea3Wx4019+QixDfRGQa8iEKKkcHTN7X1KhBsEf4F6GkifJeGh2OWQ2XgPDB4HONoZokLv0ex97jm9dkYdxUBUrpBux//8QQ7VqeOzhT756x8ZasuhE50EHJATPPD92qjKfuTUk9w=="
+   }
+  },
+  {
+   "type": "focus",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sii0_aaaai",
+    "at": 1792472409000,
+    "from": "web",
+    "type": "focus",
+    "op": "stop"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "a8IsXgLe1mR0v9hE",
+    "ct": "mJtb733kaPp+jRJziaJBbHbdAc/CorYs5Rpu90cqhXMjcaQyvkTTITJ/qFgj8P6eqbD2spnRlUXP+Dg0X50YHhI5qjZsSGlkO44QRkALPI+fYRAjS/chwbOQAsgOe3lgnw71WbQpuT85f1D1ddvWpVaoQY0AtZb9rEuphPeCGgS8TWHUmFs="
+   }
+  },
+  {
+   "type": "check",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sj9s_aaaaj",
+    "at": 1792472410000,
+    "from": "web",
+    "type": "check",
+    "pid": "s_4080"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "F9UVsMmjGrFcvuS8",
+    "ct": "/8m9l9syzXksNeYBlY+Y5Z/Ocf/hGm0TfY5iyola3RKSYW2auoxrzetofvSHcWwo2IyzMbues7EQMvZsdSBKUuEqfMs0qtGECZ7TlLWgwHwK9fXpNNiGqexW1dQ8jgyO2f8Q7go/mpPXrl7VSvSb4KEVc7Qp8nGt6umlvd2BLc48ThrCDxqEDX4="
+   }
+  },
+  {
+   "type": "check",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sk1k_aaaba",
+    "at": 1792472411000,
+    "from": "web",
+    "type": "check"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "opbrDaPfgi4c8ue+",
+    "ct": "pzsbr0vTh0N/tJID03LjQPxGPebeknbm9g90jqVBdwLIBBWXbWH6aLSUWCcnOuEvdEmbzOA0OdlARcvj1LkobaKSVjyu2jz1XIu5JMuX9tHkGRjL/YBizDFhRs705ODS8aZbV5zAuRvXtEV/gYLYcplMw60ivm0m1s94dgL6"
+   }
+  },
+  {
+   "type": "adhoc",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sktc_aaabb",
+    "at": 1792472412000,
+    "from": "web",
+    "type": "adhoc",
+    "q": "4080 super"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "1ol/CimcTy44VYud",
+    "ct": "u3CVRIpUrHWT+LBAXXU0Hm8HfoB1w4dMawRhQi/bLGdnyv9tfJ/JSmdGGYQURPGpOpzcGdzaHWD8zhiMP19Ugi3PFaAfWbrx/4/b/t/L0XxTbiSGgKSWDJYKaYFODqIIvBjuvAhedm1URgdaiM4RdBCC1hdu6hUA+t4jPsInc+J3N/wgCv7bBdu8FQ=="
+   }
+  },
+  {
+   "type": "saveAdhoc",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sll4_aaabc",
+    "at": 1792472413000,
+    "from": "web",
+    "type": "saveAdhoc",
+    "q": "4080 super",
+    "variantPick": "SUPER"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "joYgisrZ4OKzPY/w",
+    "ct": "hduw2RNsEjWEv5tfWoEQrk9BfKbN55yu1Y3joDWxevvxQ74z5vvb2K8mGmRUKP0XRxc4eX9Mrib6sB4bIkZX4aghStgkPVUN8Kc4YD1QYaLVdWNg0DVkGy5NlAapz9uFNWOWEYBtLsPsPNgW+DD8s6+8xiqIl8t3Pnki8imJCkTiD2hk8FVOqVWstKUSb5YmMSqL6FVdsP+ssn5pPn5lkIkZLQ=="
+   }
+  },
+  {
+   "type": "star",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7smcw_aaabd",
+    "at": 1792472414000,
+    "from": "web",
+    "type": "star",
+    "key": "j:1001",
+    "pid": "s_4080",
+    "on": true
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "JOk2wP/uG7nUK1sj",
+    "ct": "6XR2e65NLoDTaCXy7FQR3nXWUn/Wl7Y+ttvCFqmV9HHF/YNji4lPGrXvADcG032k0HZgq1ufqi1qRKPCvjgzMjqdMakEtinWWmZEZ8fhYCIPlsgBH4IRCIgChnlzCw5Zu+ByAvARhJOoOQ13KWWyVWLM0alWBxRBYD0blSbMiZ4fDQ5Ky+L5gV0vRnT8Ok/19ueb+8Y="
+   }
+  },
+  {
+   "type": "star",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sn4o_aaabe",
+    "at": 1792472415000,
+    "from": "web",
+    "type": "star",
+    "key": "j:1001",
+    "on": false
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "CUH3jAPyJ07N2mDP",
+    "ct": "IH0TWLulwJjJexcYMumPJNoEs9gfaITB4qT3EX3sIc4HBIi3FFv1EwHMIKzk2JeK3fZ2rhUq8TqzYjT3ppq4U2ONfRTmzwHtGRkCWQ5GdfBfhh+YPlqaLFvmG3a3RC7XYYfsMNtmRZtCGxcunqP3gtCWAjbdPR+hH5GHIasy4WkVy92FgpoPto6ZdVRWFeE="
+   }
+  },
+  {
+   "type": "hide",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7snwg_aaabf",
+    "at": 1792472416000,
+    "from": "web",
+    "type": "hide",
+    "pid": "s_4080",
+    "key": "b:1000"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "vKtDdh0a/fwg0FLH",
+    "ct": "/sx0ugkdvfwLx5SRPiSyTUw0od7YfnAOEjOMDR/Nq1lM1gt0giodVItvC248kAuWOFm5fwtvY+3c8xf2fOtNV1lE82z7+5RugJYqjWIerSNngCCXSeCmHsSj746wt/1DjctqEqgxt32Sn8lsu2A24yD1icd5Plmr8Z8FlYAK0eabcKneaYUT/hJC0cLZTwwBKA=="
+   }
+  },
+  {
+   "type": "unhide",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7soo8_aaabg",
+    "at": 1792472417000,
+    "from": "web",
+    "type": "unhide",
+    "pid": "s_4080",
+    "key": "b:1000"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "OLdigxNcOh93B4Xq",
+    "ct": "0OzKHFpP7auyCt53j+lwPihi1MTy0ZpFhrxxbD731/GUBjUiVEOR+hZ3ue2v65AuLMHF/nvUIKasvX64+NkUc+F/a8jSz08m0w/ava6CzZQosR3Tarj5HqMelAGrRsjsY8wMMcRLK2yjbzlCnASXV7jL8HZYy038qLlRJW638OGzTXYO9mc0JvICdX9t9I4BJ/0="
+   }
+  },
+  {
+   "type": "unhideAll",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7spg0_aaabh",
+    "at": 1792472418000,
+    "from": "web",
+    "type": "unhideAll",
+    "pid": "s_4080"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "JyE6lXTGvedS4n/g",
+    "ct": "YxyU78IlbM+Swf5pOTzBVcAal4OU0DNWQnvdIm7R6wMAngLtQhV6UKWt1MrmiYZ/b2Xsy/0dHzHWHrGfvNdEJoGSe6DeWJdN6H53Zp2lQaZS7rXGIRToQ+BL+kvehZHlFJg1ag4DsXGDD5zKrB+3Aawf8Zv2em2JZXcfD6X65C9MBy40w06lpIRJV70ptg=="
+   }
+  },
+  {
+   "type": "excludeWord",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sq7s_aaabi",
+    "at": 1792472419000,
+    "from": "web",
+    "type": "excludeWord",
+    "pid": "s_4080",
+    "word": "직거래",
+    "key": "j:1001"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "yelOrqIBZqBnPBan",
+    "ct": "F9A8ZJnKlMh5AffpZ+TqGTq/YSHbu2VUjtxCsS1Yyp6t+kjwgrtaO4NCecAPQkL9DwjDn9QHZAqZ0rsJQLZS+rMdHbraBNPM/9B+TK38iKNz/lm1/OkFswDiRCeHxBfnUWap+EIxO/D5WTkywXYcqlKr+F6zVctD0i2rji2FuQFtLsJuFNdphvabapFnX30Qh2lASdJPDuZ0oyzGXnQT1L3CF4T2vXQY5qvRXObSaA=="
+   }
+  },
+  {
+   "type": "watch",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sqzk_aaabj",
+    "at": 1792472420000,
+    "from": "web",
+    "type": "watch",
+    "key": "d:2001",
+    "op": "pin"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "b29eZgmgshrDmIT6",
+    "ct": "RSl3mJhayDk+y9Vi6Br3ustcr/SgDAEaCpoNTe/1UdWoDvCjR59T2bHKn3WFVABr9AUTu9pOa2P4xbrXJBgP3zD+dKxdc62SpP5gKHPB04qTvLLuC1oDsyL+EDzYQzyEwZzaNg0TIIoytDMGZSz48JeKsmB9SpRezQYg2+Xjxo/ETvql57bqrt6FZ7c+uu0="
+   }
+  },
+  {
+   "type": "watch",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7srrc_aaaca",
+    "at": 1792472421000,
+    "from": "web",
+    "type": "watch",
+    "key": "d:2001",
+    "op": "remove"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "K4mCSHjuZeMycsmF",
+    "ct": "bEPy69sFv4GldhBeTnWscXmzT4+3XlmuFqqTm8kYa3XKF9tcWWhSSji2SAEfgOH9YdD5OV22ovX38V9UvJoMvmX5xs8tzw5BLGo+Ow3ccVOyUeLGt1IbOcjyJZCEBsfIcNeyzUWExDnOJIdSvxPv1PC3bZCGWOBMNgxfTcSS+TYQjQwIZOaaA9VpsdmOAA=="
+   }
+  },
+  {
+   "type": "share",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7ssj4_aaacb",
+    "at": 1792472422000,
+    "from": "web",
+    "type": "share",
+    "url": "https://m.bunjang.co.kr/products/123456789"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "aWwQS/Xkwmm2QXKr",
+    "ct": "iis1sFixarrUTeP4KE56vdx+PDEn2uqBk9CzOtUGyxXByhZ3VKRc09jYCSysCondEGHKukVHTk2Sj7Zg3KPYbZPsobXrFUv46puuwRNnGFLW/GVZJ4UHoNaAQdHrOSR8QMdERNCjODTNXYQjIZjyKPGvStzyt5VQIq4S/gOcIORb+eilq84HcVmMGv8CzCWpKvo9/IdRAtfbZY9IZvW+QZCJ"
+   }
+  },
+  {
+   "type": "opened",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7staw_aaacc",
+    "at": 1792472423000,
+    "from": "web",
+    "type": "opened",
+    "key": "j:1001",
+    "pid": "s_4080"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "xDC2tLG8lFvBAqRR",
+    "ct": "uOYa85BIslnGVEmS+OwG3us4oXdA5UOB/PDbXHM0W7BWMF5ywNhCgvZiFSrfucDbvyYoESD2+Hky58oS7I1u6lXC5tAeBCwTCHbfQTUqRA7UBBF6cOwSduAInrOsboyEnXpRhvWkwqe9bgd11QOKdqM2g6ziLRM19MOGw75vzL7+dyahyHwrsLqYpKPskEqj2L4="
+   }
+  },
+  {
+   "type": "inboxRead",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7su2o_aaacd",
+    "at": 1792472424000,
+    "from": "web",
+    "type": "inboxRead",
+    "ids": [
+     "n_1",
+     "n_2"
+    ]
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "zwMXyjL/DEQhD1Bv",
+    "ct": "GC2ctUS3YPI+CH8+8It9/b1+XV4aln0ZOFc34NbdNqrrxqpReMln4LES4/8PZeXO1TiJB99V0QIh0Kvxkxt7SjJLfb5n3Z0oUtHdQbLJKqZ7t8C/WRw6Qw/Edb+NR91vwklOKVIpy+vjP7wdeng2IsHn34zqwE+Ch0Nzu96EbABhfbQSGsDP6dETDT65ES0="
+   }
+  },
+  {
+   "type": "inboxRead",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7suug_aaace",
+    "at": 1792472425000,
+    "from": "web",
+    "type": "inboxRead",
+    "all": true
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "EKsUQsX4PdhRCD1e",
+    "ct": "bWG0hHcHJquA0LuwyfgRdLA1o+4i9qgtpCK1/HtudzsFzGHYImeeQ9xDwSt5J/0IlwfJD1aCOd5aCE3T6jnssGVFBZPZo1Bej5x1eiLI4YX3atJPOIypcT/7jXZ8OUbOyM1zN6qhaA+rdwFYPY2170354n0gVSFniAfQMcMoecz7NwUI6B7Od/HEAfI="
+   }
+  },
+  {
+   "type": "recent",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7svm8_aaacf",
+    "at": 1792472426000,
+    "from": "web",
+    "type": "recent",
+    "op": "del",
+    "q": "4080 super"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "OTIQ+i2h5pppbdlt",
+    "ct": "UvHvWS4X7KR/WPjt8/lH9qVgYZl22WKVFF3nIJk9HntWndaVsmPPjP5qdhruFMZ3b7+j+LBaYmuvCyAHTlyBKCI0YNCrH150k7rz9UMzPlo3tAFUjzfOpYfNunULl/49cJGOuHN4tHOAI4/jMKdOAGEyEh1YyPvwnkw5idb3Dp9niKN7mGFl2s8LP8vJ/JiRaDk="
+   }
+  },
+  {
+   "type": "recent",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7swe0_aaacg",
+    "at": 1792472427000,
+    "from": "web",
+    "type": "recent",
+    "op": "clear"
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "cVcGz7GewMEv+pVj",
+    "ct": "TMvH9v1jufX1XAJRFbXRw/rlI5BhLlKawHNcSO4p9Ay1lFZvlUuG5MNdR1O6+HeYPkvkU9xRieSgVWvREtih/KnY1eYgP7Bm8P9kkzx1bEamh26MksMZrpa0AyduFXOvI1nIAEaAvELrJYSmYVrDYCQN36lcXVBnlm5pCezm0/SQgmyAwoNCJQ=="
+   }
+  },
+  {
+   "type": "prefs",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sx5s_aaach",
+    "at": 1792472428000,
+    "from": "web",
+    "type": "prefs",
+    "set": {
+     "defaultPct": 18,
+     "autoWatchN": 3,
+     "intensity": "save",
+     "quiet": {
+      "on": true,
+      "start": 23,
+      "end": 7
+     },
+     "digestOn": false
+    },
+    "base": {
+     "defaultPct": 15,
+     "autoWatchN": 2,
+     "intensity": "normal",
+     "quiet": {
+      "on": true,
+      "start": 1,
+      "end": 7
+     },
+     "digestOn": true
+    }
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "Kc2vDvkOWEVyoSmd",
+    "ct": "P185vrAQ6PTTHm4ao4eGtkk2D+Rw7cpld43jOn3lzmRcOoYIDG5kI5x5c6zsVB34koYfELya4k2OOIyf/2D4aN3VFwNja48co4DuqerWH67TBMnk2I/MmZ+y/QV7IeITb0oCLmVnM6fq6nssMW90FDhknQJMl7rb1ll9e+wQaJkeSKYWafmtG1WFoxUPS6dafzZNKEt9jrVlTHbEyNoz0d8OuW7X0dFgD5npN+UNuW3HdAhHyO5GT8evxoxh3XfDlo53uo2TwWrmvMafh8j/jhzhZbdCC+JPS8RwrzZK+WLuO6a7mIU="
+   }
+  },
+  {
+   "type": "home",
+   "plain": {
+    "v": 1,
+    "kind": "junggo-radar-cmd",
+    "id": "c_mvg7sxxk_aaaci",
+    "at": 1792472429000,
+    "from": "web",
+    "type": "home",
+    "set": {
+     "daangnHome": "정왕동, 배곧동, 은행동",
+     "distanceBase": "정왕동"
+    },
+    "base": {
+     "daangnHome": "정왕동",
+     "distanceBase": ""
+    }
+   },
+   "box": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 100000,
+    "salt": "Y21kLXRlc3Qtc2FsdC0wNw==",
+    "iv": "knefNpMjuGavW5Ja",
+    "ct": "gsviH8+7DsGd8ktXV7k4PaiahIpccIZu2WaDT1gxHQ5ICOr3epQLhNAjLImRV4ftKdQ5X9mZv7KwCtjr6ViOffiZUPpXUF87I/kIb7eZZv1ommlbLsHYBgK76R5dYlbtRzi+rJdiJnWqunOckD/wJ3clsWjPuHKjp7QL1ZPwi+n6VgZkD5LL1H5rh5O+E8kcDmwp+9yoavTV9rUW7tAYVzlmMv+mVsmBpuxqvIUPUhRnP6H5lD5WUgGTvCrRLEtS/4P/kJnIwk5txKvLvw=="
+   }
+  }
+ ]
+}
