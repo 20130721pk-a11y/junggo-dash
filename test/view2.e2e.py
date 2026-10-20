@@ -43,6 +43,11 @@ for f in ('index.html', 'old.html', 'box.js', 'radar-view.js', 'radar-cmd.js', '
     shutil.copy(os.path.join(REPO, f), os.path.join(site, f))
 for d in ('plain', 'v99', 'sealed', 'empty'):
     os.makedirs(os.path.join(site, d))
+APP_F = os.path.join(REPO, 'test/fixtures/app-cmds.json')
+APP = json.load(open(APP_F, encoding='utf-8'))['bundle'] if os.path.exists(APP_F) else None
+if APP:
+    os.makedirs(os.path.join(site, 'app'))
+    json.dump(APP, open(os.path.join(site, 'app/radar.json'), 'w', encoding='utf-8'), ensure_ascii=False)
 json.dump(SAMPLE, open(os.path.join(site, 'plain/radar.json'), 'w', encoding='utf-8'), ensure_ascii=False)
 json.dump({**SAMPLE, 'v': 99}, open(os.path.join(site, 'v99/radar.json'), 'w', encoding='utf-8'), ensure_ascii=False)
 # 잠근 상자 (수집기와 같은 잠금 — 앱 DashBox 와 같은 꼴)
@@ -415,6 +420,24 @@ with sync_playwright() as p:
     shot(page, '18-zoom200')
     check(page.evaluate('() => document.documentElement.scrollWidth') <= 1280, '글자 200%에서 가로 밀림 없음')
     page.close()
+    # ---------- 9. 앱이 만든 묶음(app-cmds.json — 앱 web-control 가 만듦)으로 보기 ----------
+    if APP:
+        page = new_page(ctx, (APP['made'] - MADE) / 60e3 + 3)
+        page.goto(BASE + '?src=./app')
+        page.wait_for_selector('.cards')
+        shot(page, '19-app-home')
+        check(page.locator('.card').count() == len(APP['products']), '앱 묶음: 물건 카드 수 = 묶음 물건 수')
+        p0 = APP['products'][0]
+        page.goto(BASE + '?src=./app#p=' + p0['id'])
+        page.wait_for_selector('.sumline')
+        shot(page, '20-app-product')
+        check(shown(page) == len(p0['listings']), "앱 묶음: 결과 화면 '매물 n건' = 묶음 매물 줄 수(칩 없음)")
+        check(page.locator('.mchip').count() == 4, '앱 묶음: 마켓 칩 넷(전체·중·당·번)')
+        for tab in ('watch', 'inbox', 'settings'):
+            page.goto(BASE + '?src=./app#' + tab)
+            page.wait_for_timeout(150)
+        check('수집 상태' in text(page), '앱 묶음: 설정·수집 상태')
+        page.close()
     browser.close()
 
 srv.shutdown()

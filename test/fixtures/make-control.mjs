@@ -29,7 +29,7 @@ export function control() {
   b.notifLine = '알림이 켜져 있어요';
   b.battery = { exempt: true, lastBgAt: at(12 * M), text: '와이파이 15분·데이터 30분마다' };
   b.daangn = { hour: 23, day: 410, hourMax: 150, dayMax: 3000, restUntil: null };
-  b.quota = { adhoc: { used: 2, limit: 6, times: [at(40 * M), at(20 * M)] }, checkAllAt: null };
+  b.quota = { adhoc: { used: 2, limit: 6, times: [at(40 * M), at(20 * M)] }, checkAllAt: null, daangn: { used: 12, limit: 60 } };
   b.homeQueue = null;
   b.misfits = 12;
   b.metrics = ["꿀매 정밀도 92% ('이 매물 아님'이 안 눌린 꿀매 알림)", '알림 지연 중간 6분 (올라온 때 → 알림)'];
@@ -51,7 +51,7 @@ export function control() {
   p4080.notes = ['당근은 내 동네(정왕동) 근처만 모아요'];
   p4080.merged = 2;
   p4080.identify = {
-    bands: [{ lo: 850000, hi: 1350000, n: 10, mid: 1080000, tags: '본체' }, { lo: 1500000, hi: 1700000, n: 2, mid: 1630000, tags: '화이트' }],
+    bands: [{ lo: 850000, hi: 1350000, from: 980000, to: 1290000, n: 10, mid: 1080000, tags: '본체' }, { lo: 1500000, hi: 1700000, from: 1580000, to: 1690000, n: 2, mid: 1630000, tags: '화이트' }],
     pick: { index: 0, withHigher: true }, intro: "본체로 보이는 가격대를 골라 뒀어요. 맞으면 아래 '이대로 정하기'만 누르세요.",
     words: [{ w: '화이트', n: 4, s: 0 }, { w: '풀박스', n: 3, s: 0 }, { w: '수냉', n: 1, s: 0 }], keptEx: ['본체', '컴퓨터', '데스크탑', 'pc', '노트북', '랩탑'], keptIn: [],
     previews: { '0|1': { n: 12, low: { price: 980000, title: '기가바이트 RTX 4080 윈드포스 V2 16G' }, doubt: 2 }, '0|0': { n: 10, low: { price: 980000, title: '기가바이트 RTX 4080 윈드포스 V2 16G' }, doubt: 2 }, '1|0': { n: 2, low: { price: 1580000, title: 'RTX 4080 SUPER ROG STRIX 화이트 미개봉' }, doubt: 0 }, none: { n: 14, low: { price: 980000, title: '기가바이트 RTX 4080 윈드포스 V2 16G' }, doubt: 2 } },
@@ -68,7 +68,7 @@ export function control() {
   ps5.confirmed = false;
   ps5.variantChoices = ['기본', '슬림 디지털', '프로'];
   ps5.identify = {
-    bands: [{ lo: 10000, hi: 90000, n: 22, mid: 40000, tags: '게임 · 타이틀' }, { lo: 350000, hi: 520000, n: 31, mid: 410000, tags: '디스크 · 슬림' }, { lo: 700000, hi: 950000, n: 9, mid: 820000, tags: '프로' }],
+    bands: [{ lo: 10000, hi: 90000, from: 20000, to: 60000, n: 22, mid: 40000, tags: '게임 · 타이틀' }, { lo: 350000, hi: 520000, from: 380000, to: 490000, n: 31, mid: 410000, tags: '디스크 · 슬림' }, { lo: 700000, hi: 950000, from: 780000, to: 890000, n: 9, mid: 820000, tags: '프로' }],
     pick: { index: 1, withHigher: false }, intro: "본체로 보이는 가격대를 골라 뒀어요. 맞으면 아래 '이대로 정하기'만 누르세요.",
     words: [{ w: '디스크', n: 31, s: 0 }, { w: '게임', n: 22, s: 0 }, { w: '타이틀', n: 9, s: 0 }, { w: '미개봉', n: 7, s: 0 }], keptEx: ['타이어', '미쉐린'], keptIn: [],
     previews: { '1|0': { n: 26, low: { price: 460000, title: '플레이스테이션5 슬림 디지털 + 듀얼센스' }, doubt: 2 }, '1|1': { n: 35, low: { price: 460000, title: '플레이스테이션5 슬림 디지털 + 듀얼센스' }, doubt: 2 } },

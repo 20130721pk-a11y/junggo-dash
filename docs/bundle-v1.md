@@ -120,7 +120,7 @@
 | `notifLine` | 글 | 알림 상태 한 줄(앱 `NotifCheck.line` 그대로) | '폰에서 확인해 주세요' |
 | `battery` | {`exempt` 참/거짓, `lastBgAt` ms, `text` 글} | 확인이 끊기지 않게 칸(보기만) | 칸에 상태 없음 |
 | `daangn` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`?} | 수집 상태 '당근 요청 최근 1시간 n번 · 오늘 n번' | 줄 없음 |
-| `quota` | {`adhoc`:{`used`, `limit`, `times`[ms]}, `checkAllAt` ms/null} | 앱이 센 웹 그냥 검색 1시간 횟수(보관 결과 빼고)·마지막 '지금 모두 확인' — 웹 셈과 다르면 앱 값 | 웹 셈만 |
+| `quota` | {`adhoc`:{`used`, `limit`, `times`[ms]}, `checkAllAt` ms/null, `daangn`:{`used`, `limit`}} | 앱이 센 웹 그냥 검색 1시간 횟수(보관 결과 빼고)·마지막 '지금 모두 확인' — 웹 셈과 다르면 앱 값. `daangn` = 웹발 당근 몫(L-5, 그냥 검색·지금 확인·추가·조건·동네 다시 모으기를 합친 1시간 요청 수 / 60 초안) — **웹은 그리지 않음**(앱 화면에 같은 글이 없어 앱 = 웹 기준으로 안 보임, 넘으면 결과 줄 `why` 로 알 수 있음) | 웹 셈만 |
 | `adhoc` | [그냥 검색 결과] 최대 3개, 새것 먼저 | 아래 '그냥 검색 결과' | 그냥 검색 결과 화면은 진행 칸만 |
 | `homeQueue` | {`done`, `total`, `ids`[pid]} 또는 null | 내 동네를 바꾼 뒤 다시 모으는 줄('새 동네로 다시 모으는 중 · 2/5') | 표시 없음 |
 | `misfits` | 수 | 오판 사례 건수(S13) | 0 |
@@ -144,7 +144,7 @@
 
 `identify` = {
 `cats`?: 쓰지 않음(카테고리 표는 웹이 앱 `Categories.ALL` 과 같은 표를 가짐 — 키·이름은 바뀌면 같이 고침),
-`bands`: [{`lo`, `hi`, `n`, `mid`, `tags`}] — 가격대 묶음(앱 `Identify.priceBands`, 줄 글 '85만 ~ 120만' / '31건 · 중간 98만 · 본체 · 미개봉' 의 재료, `tags` = 뒤쪽 글),
+`bands`: [{`lo`, `hi`, `from`, `to`, `n`, `mid`, `tags`}] — 가격대 묶음(앱 `Identify.priceBands`). 정하기 값은 `lo`·`hi`(명령 `identify` 의 `bandMin`·`bandMax`), 줄 글은 앱 시트와 같게 **`from ~ to`**(매물 대부분 가격, 앱 `Sheets.kt` '${manWon(from)} ~ ${manWon(to)}' — 10/20 앱 맞춤, 없으면 `lo ~ hi`) / '31건 · 중간 98만 · 본체 · 미개봉'(`tags` = 뒤쪽 글),
 `pick`: {`index`, `withHigher`} 또는 null — 앱 시트가 처음 골라 두는 값(정해 둔 값 → 본체 추천 순),
 `intro`: 글 — 가격대 위 안내 글(앱 시트 그대로),
 `words`: [{`w`, `n`, `s` 0 그대로·1 빼기·2 꼭}] — 자주 나오는 말 칩과 처음 상태,

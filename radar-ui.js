@@ -949,7 +949,7 @@
     const sel = d.sel;
     const bands = arr(id.bands);
     const bandHtml = bands.length >= 2 ? `<p class="flabel">가격대</p><p class="desc" style="margin:-2px 0 9px">${esc(str(id.intro) || "본체로 보이는 가격대를 골라 뒀어요. 맞으면 아래 '이대로 정하기'만 누르세요.")}</p>
-      <div role="radiogroup" aria-label="가격대">${bands.map((b, i) => `<button class="band" role="radio" aria-checked="${sel.band === i}" data-act="idBand" data-i="${i}"><span><b>${esc(man(b.lo))} ~ ${esc(man(b.hi))}</b><span>${esc(b.n)}건  ·  중간 ${esc(man(b.mid))}${b.tags ? '  ·  ' + esc(b.tags) : ''}</span></span><span class="pick">${sel.band === i ? '고름' : ''}</span></button>`).join('')}</div>
+      <div role="radiogroup" aria-label="가격대">${bands.map((b, i) => `<button class="band" role="radio" aria-checked="${sel.band === i}" data-act="idBand" data-i="${i}"><span><b>${esc(man(Number.isFinite(b.from) ? b.from : b.lo))} ~ ${esc(man(Number.isFinite(b.to) ? b.to : b.hi))}</b><span>${esc(b.n)}건  ·  중간 ${esc(man(b.mid))}${b.tags ? '  ·  ' + esc(b.tags) : ''}</span></span><span class="pick">${sel.band === i ? '고름' : ''}</span></button>`).join('')}</div>
       ${sel.band != null && sel.band < bands.length - 1 ? `<div class="chiprow" style="margin-top:2px"><button class="cchip" aria-pressed="${!!sel.withHigher}" data-act="idHigher">더 비싼 묶음도 함께</button><span class="desc" style="margin:0">프로·Ti 같은 비싼 변형이면</span></div>` : ''}` : '';
     const words = arr(id.words);
     const wordHtml = words.length ? `<p class="flabel">자주 나오는 말</p><p class="desc" style="margin:-2px 0 9px">한 번 누르면 빼기, 한 번 더 누르면 꼭 들어갈 말, 또 누르면 원래대로.</p>

@@ -81,8 +81,8 @@ BASE = 'http://127.0.0.1:%d/index.html' % srv.server_address[1]
 
 # ---------- 가짜 GitHub ----------
 class FakeGitHub:
-    def __init__(self):
-        self.bundle = json.loads(json.dumps(BASE_BUNDLE))
+    def __init__(self, bundle=None):
+        self.bundle = json.loads(json.dumps(bundle or BASE_BUNDLE))
         self.box = None
         self.issues = {}
         self.next = 1
@@ -422,6 +422,20 @@ with sync_playwright() as p:
     check(ca['type'] == 'add' and ca['q'] == '5070' and ca['card'] == 'gpu:5070', "add{q:'5070', card:'gpu:5070'}")
     check(page.locator('.card.ghost').count() == 1 and '웹에서 추가' in page.inner_text('.card.ghost'), '자리 카드(점선) + 그 자리 한 줄')
 
+    # ---------- 8b. 물건 정하기(C-5): 가격대 줄 글 = 앱 시트 'from ~ to', 정하기 값 = lo·hi ----------
+    page.click('.card:has-text("플레이스테이션 5") [data-act="identify"]')
+    page.wait_for_selector('#dI')
+    bands = page.locator('.band b').all_inner_texts()
+    check(bands == ['2만 ~ 6만', '38만 ~ 49만', '78만 ~ 89만'], "가격대 줄 = 앱 시트 글 'from ~ to'(10/20 앱 맞춤)")
+    check(page.locator('.band[aria-checked="true"]').count() == 1 and '고름' in page.inner_text('.band[aria-checked="true"]'), '앱이 미리 고른 가격대(pick)')
+    check('이대로면 매물 26건' in page.inner_text('.preview') and '460,000원' in page.inner_text('.preview'), '미리보기 = 앱이 센 값(identify.previews)')
+    page.click('[data-act="idWord"][data-w="게임"]')
+    check('− 게임' in page.inner_text('[data-act="idWord"][data-w="게임"]') and '앱이 정한 뒤에 다시 세요' in page.inner_text('.preview'), '단어 칩 빼기 · 단어를 바꾸면 웹은 미리보기를 세지 않음(판정은 앱)')
+    page.click('[data-act="idGo"]')
+    page.wait_for_timeout(600)
+    ci = gh.plain(gh.last())
+    check(ci['type'] == 'identify' and ci['set'] == {'category': 'game', 'bandMin': 350000, 'bandMax': 520000, 'excludeWords': ['타이어', '미쉐린', '게임'], 'includeWords': []}, 'identify{set} = 고른 묶음 lo·hi + 예전 빼기 단어 + 칩')
+
     # ---------- 9. 그만 지켜보기(C-9) ----------
     page.click('#menu-s_9070')
     page.click('.menu button:has-text("그만 지켜보기")')
@@ -549,6 +563,39 @@ with sync_playwright() as p:
     check(page.evaluate('() => document.documentElement.scrollWidth') <= 390, '휴대폰 폭 가로 밀림 없음(조건 창)')
     page.close()
     m.close()
+
+    # ---------- 17. 앱이 만든 묶음(test/fixtures/app-cmds.json — 앱 web-control 가 만듦)으로 ----------
+    app_f = os.path.join(REPO, 'test/fixtures/app-cmds.json')
+    if os.path.exists(app_f):
+        ab = json.load(open(app_f, encoding='utf-8'))['bundle']
+        gh5 = FakeGitHub(ab)
+        ctx5 = browser.new_context(viewport={'width': 1360, 'height': 900}, locale='ko-KR', timezone_id='Asia/Seoul')
+        page = new_page(ctx5, gh5, minutes=(ab['made'] - MADE) / 60e3 + 2)
+        connect(page)
+        shot(page, '19-app-home')
+        check(page.locator('.card').count() == len(ab['products']) and '물건 정하기' in page.inner_text('.card'), '앱 묶음: 홈 카드 · 미확정 알약')
+        check(page.inner_text('#cmdPill') == '', '이 브라우저가 보내지 않은 명령 결과 줄(앱 묶음 cmds)은 머리 알약에 안 셈')
+        page.goto(BASE + '#p=' + ab['products'][0]['id'])
+        page.wait_for_selector('.pv-head')
+        shot(page, '20-app-product')
+        check(page.locator('.sumline').count() == 1, '앱 묶음: 결과 화면')
+        page.click('.pv-head [data-act="edit"]')
+        page.wait_for_selector('#dE')
+        check(page.input_value('#e-keyword') == ab['products'][0]['cfg']['keyword'] and ab['products'][0]['pctPreview']['15'].split('\n')[0] in page.inner_text('#pctHint'), '앱 묶음: 조건 창 처음 값·꿀매 미리보기 = 앱 글')
+        page.click('[data-act="close"]')
+        page.click('.idband')
+        page.wait_for_selector('#dI')
+        shot(page, '21-app-identify', False)
+        idf = ab['products'][0]['identify']
+        check(page.locator('[data-act="idWord"]').count() == len(idf['words']) and (('이대로면 매물 %d건' % idf['previews']['none']['n']) in page.inner_text('.preview') if not idf['bands'] else True), '앱 묶음: 물건 정하기 단어 칩·미리보기(앱 값)')
+        page.keyboard.press('Escape')
+        for tab in ('watch', 'inbox', 'settings'):
+            page.click('.tab[data-go="%s"]' % tab)
+            page.wait_for_timeout(150)
+        shot(page, '22-app-settings')
+        check('당근 요청 최근 1시간' in page.inner_text('#page'), '앱 묶음: 설정·수집 상태')
+        page.close()
+        ctx5.close()
     browser.close()
 
 srv.shutdown()
