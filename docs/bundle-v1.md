@@ -98,3 +98,72 @@
 ## 넣지 않는 것 (W2-7)
 
 판매자 번호, 위도·경도(거래·동 가운데·기준점), 매물 설명, 장부 전체, 본 매물 키, 숨긴 매물 키, 판매완료 목록, 토큰, 기기 제조사·모델.
+
+---
+
+## 꼴 1 더하기 (웹 조작 1판 · 앱 0.7.3, 10/20)
+
+명령 길(`docs/command-v1.md`)과 웹 조작 화면에 쓰는 칸이에요. **꼴 번호는 그대로 1** — 칸을 더하기만 하고, 웹은 없는 칸을 비워서 그려요(옛 앱 묶음도 열림).
+칸 이름은 웹 담당이 먼저 붙인 안이에요(디자인 10-2 · 기획 2-2). 앱 담당이 바꾸려면 이 표를 먼저 고쳐 주세요. 넣지 않는 것(W2-7)은 그대로예요 — 숨긴 매물 **키**는 넣지 않고 **수**만.
+
+### 머리에 더함
+
+| 칸 | 꼴 | 뜻 · 쓰는 곳 | 없으면 |
+|---|---|---|---|
+| `platform` | `"android"`·`"ios"` | 기기 종류 — 아이폰이면 명령 줄 뒤에 '앱을 열면 처리해요' | 안드로이드로 봄 |
+| `cmds` | [결과 줄] | 명령 결과(최근 7일·50개, 새것 먼저) — 꼴은 `command-v1.md` 7장 | 모든 명령 '앱이 받기를 기다려요' |
+| `cmdLock` | {`until`, `why`} 또는 null | 열 수 없는 이슈가 몰려 앱이 명령 받기를 멈춤(L-4) — 웹 맨 위 코랄 띠 | 띠 없음 |
+| `cards` | [{`id`, `title`, `sub`, `keyword`, `category`}] | '+ 물건' 카드(앱 `Products.QUICK` 순서 그대로) | 카드 칸 대신 직접 쓰기만 |
+| `prefs` | {`defaultPct`, `autoWatchN`, `intensity`, `quiet`:{`on`,`start`,`end`}, `digestOn`, `daangnHome`, `distanceBase`} | 설정 S1·S2·S3·S6·S7·S11 지금 값(명령 `prefs`·`home` 의 `base`) | 설정 칸을 회색 '앱이 값을 올린 뒤에 바꿀 수 있어요' |
+| `intensityText` | {`save`, `normal`} 글 | 감시 강도 설명(앱 `SettingsScreen` 글 그대로) | 설명 없음 |
+| `focusPlan` | {`ids`, `until`, `everyMin`} 또는 null | 집중 감시 계획(띠·설정 칸) | 집중 감시 없음 |
+| `notifLine` | 글 | 알림 상태 한 줄(앱 `NotifCheck.line` 그대로) | '폰에서 확인해 주세요' |
+| `battery` | {`exempt` 참/거짓, `lastBgAt` ms, `text` 글} | 확인이 끊기지 않게 칸(보기만) | 칸에 상태 없음 |
+| `daangn` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`?} | 수집 상태 '당근 요청 최근 1시간 n번 · 오늘 n번' | 줄 없음 |
+| `quota` | {`adhoc`:{`used`, `limit`, `times`[ms]}, `checkAllAt` ms/null} | 앱이 센 웹 그냥 검색 1시간 횟수(보관 결과 빼고)·마지막 '지금 모두 확인' — 웹 셈과 다르면 앱 값 | 웹 셈만 |
+| `adhoc` | [그냥 검색 결과] 최대 3개, 새것 먼저 | 아래 '그냥 검색 결과' | 그냥 검색 결과 화면은 진행 칸만 |
+| `homeQueue` | {`done`, `total`, `ids`[pid]} 또는 null | 내 동네를 바꾼 뒤 다시 모으는 줄('새 동네로 다시 모으는 중 · 2/5') | 표시 없음 |
+| `misfits` | 수 | 오판 사례 건수(S13) | 0 |
+| `metrics` | 글[] | 지켜보는 숫자 줄(S14, 앱 글 그대로 — '꿀매 정밀도 92% (…)') | 칸 없음 |
+
+### 물건에 더함
+
+| 칸 | 꼴 | 뜻 |
+|---|---|---|
+| `cfg` | 아래 | 조건 원래 값(조건 창 E1~E16 채우기 · 명령 `edit` 의 `base`) |
+| `cfgText` | {`targetPrice`, `bandMin`, `bandMax`, `priceMin`, `priceMax`} 글 | 조건 창 입력칸에 처음 넣을 글(앱 `wonInput` 그대로 — '120만'). 비었으면 '' |
+| `confirmed` | 참/거짓 | 물건을 정했는지(카드 '물건 정하기' 알약 · 미확정 띠) — `cfg.confirmed` 와 같음 |
+| `variantChoices` | 글[] | 조건 창 '변형' 칩에 쓸 변형(검색어가 변형을 가르고 2개 이상일 때만, 앱 조건 창과 같은 차례). 없으면 칸을 안 그림 |
+| `pctPreview` | {"5".."45": 글} | 꿀매 기준 미리보기 글(앱 조건 창 Hint 그대로, 🍯 없이) — 5~45 모든 수. 웹은 계산하지 않고 고른 수의 글을 보여 줘요 |
+| `identify` | 아래 | 물건 정하기 창 재료 |
+| `dropped` | {`match` 수, `basic` 수} | 결과 화면 '제목이 검색어와 맞지 않는 n건은 뺐어요' · '고장·부품용·박스만·대여 글 n건은 뺐어요'(0 이면 줄 없음 — 앱과 같게) |
+| `notes` | 글[] | 마켓 안내(앱 `s.notes` 그대로, 카드 첫 줄·결과 화면 장부 아래) |
+| `merged` | 수 | '같은 글 n건을 한 줄로 묶었어요' 의 n(칩 없을 때) |
+
+`cfg` = { `keyword`, `thresholdPct`, `targetPrice`, `variantPick`, `matchMode`, `category`, `excludeWords`[], `includeWords`[], `bandMin`, `bandMax`, `basicFilter`, `hiddenCount`, `priceMin`, `priceMax`, `regionWords`[], `maxKm`, `maxAgeDays`, `lowestAlert`, `confirmed`, `label` } — 값은 `SavedSearch` 그대로(원 단위 수·null). `hiddenCount` 만 키 대신 수.
+
+`identify` = {
+`cats`?: 쓰지 않음(카테고리 표는 웹이 앱 `Categories.ALL` 과 같은 표를 가짐 — 키·이름은 바뀌면 같이 고침),
+`bands`: [{`lo`, `hi`, `n`, `mid`, `tags`}] — 가격대 묶음(앱 `Identify.priceBands`, 줄 글 '85만 ~ 120만' / '31건 · 중간 98만 · 본체 · 미개봉' 의 재료, `tags` = 뒤쪽 글),
+`pick`: {`index`, `withHigher`} 또는 null — 앱 시트가 처음 골라 두는 값(정해 둔 값 → 본체 추천 순),
+`intro`: 글 — 가격대 위 안내 글(앱 시트 그대로),
+`words`: [{`w`, `n`, `s` 0 그대로·1 빼기·2 꼭}] — 자주 나오는 말 칩과 처음 상태,
+`keptEx` · `keptIn`: 글[] — 칩에 없는 예전 빼기·꼭 단어(정하기 때 그대로 붙임 — 앱 시트와 같게),
+`previews`: { "<index>|<0 또는 1>": {`n`, `low`:{`price`,`title`} 또는 null, `doubt`} , "none": … } — 그 가격대(+ 더 비싼 묶음)·**처음 단어 상태**·지금 카테고리로 앱이 센 미리보기(`narrowCandidates` + `trustedLowest`). 웹은 고른 값이 이 열쇠와 맞을 때만 숫자를 보여 주고, 단어·카테고리를 바꾸면 '미리보기는 앱이 정한 뒤에 다시 세요'(웹은 판정하지 않음) }.
+없으면 창에 '앱이 후보를 올린 뒤에 열 수 있어요 · 지금 확인'.
+
+### 매물에 더함
+
+| 칸 | 꼴 | 뜻 |
+|---|---|---|
+| `grade.ref` | {`med`, `label`} 또는 없음 | 이 매물을 판정한 시세(원)와 종류 이름('판매완료'·'30일 관측'…) — 지금 최저가 칸 시세 막대(시세의 절반 ~ 1.3배, 앱 `PriceBar`) |
+| `sheet` | {`facts`: 글[], `words`: 글[]} 또는 없음 | 판단 창 재료 칸 줄들(앱 `ListingSheet` 글 그대로, 🎯 없이) · '이 말이 든 매물은 모두 빼기' 단어 칩. 크기 때문에 **물건마다 앞 100줄 + 새 꿀매·관심·알림함 매물**에만 넣어도 돼요 — 없으면 웹은 줄에 있는 것(가격·배지·이유·흥정·같은 글)만 보여 줘요 |
+
+### 관심 · 알림에 더함
+
+- 관심 `{ …, src: "star"|"share"|"auto", days, bumps, checkedAt, last: {text, t} 또는 null, events: [{t, text, price?}] 최대 10 }` — 출처 꼬리표·'3일째'·'끌올 2번'·'5분 전 확인'·'최근 · 가격 인하 2시간 전'·변화 기록 서랍.
+- 알림 `{ …, id, read, key? }` — 안 읽음 점·탭 숫자·명령 `inboxRead`, 누르면 판단 창(그 물건 `listings` 에서 `key` 로 찾음). 웹 명령 줄은 종류 `web`(command-v1 6장 10).
+
+### 그냥 검색 결과 (`adhoc[]`)
+
+`{ q, at(모은 때 = 앱 cachedAt), cmd?(그 명령 id), count, lowKey, state, stateCard, statePage, cautionPage, cautionKey, baseVariant, facts, cut, conds, notes, listings[], nearby: {total, near} 또는 null, ask: {v, n, b} 또는 null, dropped }` — 물건과 같은 꼴(매물 줄 = 앱 결과 화면 줄 전부)에 `nearby`('당근 31건 중 내 동네 근처 9건만 보여요' 의 31·9 — 앱 `CardCore` 줄), `ask`(변형 묻기 창 '이 검색은 {v} 매물이 훨씬 많아요({v} {n}건 · 기본 {b}건)')를 더함. `listings[].grade` 는 '시세 판정은 참고용'(판단 창 글).
