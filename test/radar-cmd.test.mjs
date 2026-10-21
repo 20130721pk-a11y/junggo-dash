@@ -136,6 +136,25 @@ test('카드 제안 = 앱 Products.suggest (그래픽카드 4자리 번호 · �
   assert.deepEqual(C.QUICK.map((c) => c.title), ['RTX 4080', 'RTX 5070', 'RTX 5080', 'RX 9070', '플레이스테이션 5']);
 });
 
+test("'+ 물건' 지켜보는 카드 = 앱 Products.watching · 확인 창 글 = 앱 StopWatch (0.7.2 R5)", () => {
+  const P = (id, keyword) => ({ id, name: keyword, cfg: { keyword } });
+  const list = [P('a', '4080'), P('b', 'rtx 4080'), P('c', '4080, 4080s'), P('d', '4080 super'), P('e', '플스5 디지털'), P('f', '5070 ti'), P('g', '에어팟 프로2')];
+  assert.deepEqual(C.watchingCard('gpu:4080', list).map((p) => p.id), ['a', 'b', 'c']);
+  assert.deepEqual(C.watchingCard('console:ps5', list), []);
+  assert.deepEqual(C.watchingCard('gpu:5070', list), []);
+  assert.deepEqual(C.watchingCard('console:ps5', [P('p', 'PS5'), P('q', 'ps5 프로')]).map((p) => p.id), ['p']);
+  assert.deepEqual(C.watchingCard('gpu:4080', [{ id: 'x' }, null, 'y']), []); // cfg 없는 옛 묶음
+  for (const c of C.QUICK) assert.deepEqual(C.watchingCard(c.id, [P('x', c.keyword)]).map((p) => p.id), ['x'], c.id);
+  // 앱 Release072Test.r5_dialogTexts 와 같은 글
+  assert.equal(C.STOP.title('RTX 4080'), "'RTX 4080' 그만 지켜볼까요?");
+  assert.equal(C.STOP.body, '지금 최저가·매물 장부·가격 기록이 지워지고 되돌릴 수 없어요. 다시 추가하면 처음부터 모아요.');
+  assert.equal(C.STOP.focus, '집중 감시도 함께 꺼져요.');
+  assert.deepEqual([C.STOP.cancel, C.STOP.ok], ['취소', '지우기']);
+  assert.equal(C.STOP.pickTitle('RTX 4080', 2), "'RTX 4080' 카드로 지켜보는 물건이 2개예요");
+  assert.equal(C.STOP.cardLine, '지켜보는 중 · 누르면 그만');
+  assert.equal(C.STOP.cardSpeech('RTX 4080'), 'RTX 4080, 지켜보는 중, 누르면 그만 지켜보기');
+});
+
 const P0 = {
   id: 's_4080', name: 'RTX 4080',
   cfg: { keyword: '4080', thresholdPct: 15, targetPrice: 1200000, variantPick: '', matchMode: 'title', category: 'pc', excludeWords: ['본체', '노트북'], includeWords: [],

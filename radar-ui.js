@@ -171,6 +171,7 @@
     const body = L.lead ? `<b>${esc(L.lead)}</b> — ${esc(L.text)}` : esc(L.text);
     return `<div class="cmd ${L.cls}${o.boxed ? ' boxed' : ''}" role="${role}" data-cmd="${esc(r.id)}">${ico(L.icon)}${label}<span>${body}<span class="ago">${agoT}</span>${ios}</span>${acts.length ? `<span class="acts">${acts.join('')}</span>` : ''}</div>`;
   }
+  const removingPid = (pid) => S.sent.some((r) => r.type === 'remove' && r.pid === pid && ['sent', 'running', 'done'].includes(stOf(r).st));
   const pendingPid = (pid, types) => S.sent.some((r) => r.pid === pid && (!types || types.includes(r.type)) && C.isOpen(stOf(r).st));
   const chgPill = '<span class="chg-pill">바꾸는 중</span>';
 
@@ -355,7 +356,7 @@
   }
   function cardHTML(p, i, n) {
     const t = now();
-    const removing = S.sent.find((r) => r.type === 'remove' && r.pid === p.id && ['sent', 'running', 'done'].includes(stOf(r).st));
+    const removing = removingPid(p.id) && S.sent.find((r) => r.type === 'remove' && r.pid === p.id && ['sent', 'running', 'done'].includes(stOf(r).st));
     if (removing) {
       return `<article class="card ghost" aria-label="${esc(p.name)} 지우는 중"><div class="card-head"><span class="chip-name">${esc(p.name)}</span><span class="pill line">지우는 중</span></div>${cmdLine(removing) || '<div class="cmd" role="status">' + ico('clock') + '<span>지우는 중 · 보냈어요</span></div>'}</article>`;
     }
@@ -902,6 +903,7 @@
     if (d && d.kind === 'edit' && C.editDiff(prod(d.pid), S.form || {}).changed.length && !d.askClose) {
       d.askClose = true; renderLayer(); return;
     }
+    if (d && d.kind === 'delete' && d.back) { S.dlg = d.back; renderLayer(); const c = document.getElementById(d.backFocus); if (c) c.focus(); return; }
     S.dlg = null; S.form = null;
     if (d && d.kind === 'pw') S.pend = null;
     renderLayer();
@@ -922,12 +924,14 @@
   function dlgAdd() {
     const d = S.dlg;
     const cards = arr(B().cards).length ? B().cards : C.QUICK;
-    const have = new Set(prods().map((p) => (p.cfg ? str(p.cfg.keyword) : '')).filter(Boolean));
+    const live = prods().filter((p) => !removingPid(p.id)); // 지우는 중인 물건은 곧바로 '추가할 수 있음'(앱 R5-2)
     const sug = C.suggest(d.text || '');
     const tooMany = (d.text || '').split(/[,，]/).filter((x) => x.trim()).length > 3;
     return dlgShell('', 'dA', `<div style="flex:1"><h2 id="dA">어떤 물건을 지켜볼까요?</h2><p class="desc">세 마켓에서 같은 물건의 최저가를 계속 지켜보다가, 진짜 꿀매가 뜨면 바로 알려 드려요.</p></div>${xBtn}`,
       `<p class="flabel">물건 카드</p><p class="desc" style="margin:-2px 0 10px">같은 말(4080 = RTX4080 = 지포스 4080)·카테고리·빼기 단어(완본체·노트북)가 들어간 채로 시작해요</p>
-        <div class="qcards">${cards.map((c) => { const on = have.has(c.keyword); return `<button class="qcard" data-act="addCard" data-card="${esc(c.id)}"${on ? ' disabled' : lk()}><b>${esc(c.title)}</b><span>${on ? '지켜보는 중' : esc(C.familyOf(c))}</span></button>`; }).join('')}</div>
+        <div class="qcards">${cards.map((c) => { const on = C.watchingCard(c.id, live).length > 0; return on
+          ? `<button class="qcard on" id="qc-${esc(c.id)}" data-act="stopCard" data-card="${esc(c.id)}" aria-label="${esc(C.STOP.cardSpeech(c.title))}"${lk()}><b>${esc(c.title)}</b><span><span class="dot" aria-hidden="true"></span>${esc(C.STOP.cardLine)}</span></button>`
+          : `<button class="qcard" id="qc-${esc(c.id)}" data-act="addCard" data-card="${esc(c.id)}"${lk()}><b>${esc(c.title)}</b><span>${esc(C.familyOf(c))}</span></button>`; }).join('')}</div>
         <p class="flabel" style="margin-top:20px">직접 쓰기</p><p class="desc" style="margin:-2px 0 8px">모델명이나 물건 이름(예: 4070 ti super, 에어팟 프로2). 쉼표로 여러 표기를 함께 찾아요(3개까지).</p>
         <form id="addForm"><label class="sr" for="addText">지켜볼 물건</label><input class="field" id="addText" autocomplete="off" placeholder="지켜볼 물건" value="${esc(d.text || '')}"></form>
         <p class="hint" id="addMany"${tooMany ? '' : ' hidden'}>3개까지만 찾아요 — 4번째부터는 빼요</p>
@@ -986,12 +990,19 @@
        <div class="vbtns"><button class="btn btn-text" data-act="saveV" data-v="${esc(ask.v)}">${esc(ask.v)}만</button><button class="btn btn-text" data-act="saveV" data-v="기본">기본만</button><button class="btn btn-text" data-act="saveV" data-v="">둘 다(지금 최저가는 기본, ${esc(ask.v)} 는 변형별 줄)</button></div>`,
       '<span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button>');
   }
+  // '그만 지켜보기' 확인 창(0.7.2 R5) — 홈 ⋯ 와 '+ 물건' 창의 지켜보는 카드가 같은 창(글 = 앱 StopWatch). 물건이 둘 이상이면 창 안에서 하나 고르기.
   function dlgDelete() {
-    const p = prod(S.dlg.pid);
-    if (!p) return '';
-    return dlgShell('sm', 'dD', `<h2 id="dD">'${esc(p.name)}' 그만 지켜볼까요?</h2>`,
-      '<p id="dDd" class="ink2" style="margin:4px 0 0">최저가·장부·이력이 지워져요.</p>',
-      `<span class="grow"></span><button class="btn btn-text gray" data-act="close" id="delCancel">취소</button><button class="btn btn-text coral" data-act="delGo"${lk()}>지우기</button>`, 'alertdialog');
+    const d = S.dlg;
+    const list = (d.pids || [d.pid]).map(prod).filter(Boolean);
+    if (!list.length) { if (d.back) { S.dlg = d.back; return dlgAdd(); } return ''; }
+    if (list.length === 1) d.sel = list[0].id;
+    const many = list.length > 1;
+    const fp = B().focusPlan;
+    const focusing = !!(d.sel && fp && arr(fp.ids).includes(d.sel) && fp.until > now());
+    const pick = many ? `<div role="radiogroup" aria-label="그만 지켜볼 물건" style="margin:8px 0 4px">${list.map((p) => `<button class="band" role="radio" aria-checked="${d.sel === p.id}" data-act="delPick" data-pid="${esc(p.id)}"><span><b>${esc(p.name)}</b><span>${esc(p.cfg ? str(p.cfg.keyword) : '')}</span></span><span class="pick">${d.sel === p.id ? '고름' : ''}</span></button>`).join('')}</div>` : '';
+    return dlgShell('sm', 'dD', `<h2 id="dD">${esc(many ? C.STOP.pickTitle(d.card || list[0].name, list.length) : C.STOP.title(list[0].name))}</h2>`,
+      `${pick}<p id="dDd" class="ink2" style="margin:4px 0 0">${esc(C.STOP.body)}</p>${focusing ? `<p class="ink2" style="margin:6px 0 0">${esc(C.STOP.focus)}</p>` : ''}`,
+      `<span class="grow"></span><button class="btn btn-text gray" data-act="close" id="delCancel">${esc(C.STOP.cancel)}</button><button class="btn btn-text coral" data-act="delGo"${locked() ? lk() : dis(!d.sel)}>${esc(C.STOP.ok)}</button>`, 'alertdialog');
   }
   const chipsRadio = (name, list, cur, act) => `<div class="chiprow" role="radiogroup" aria-label="${esc(name)}">${list.map(([v, l]) => `<button class="cchip" role="radio" aria-checked="${cur === v}" data-act="${act}" data-v="${esc(v === null ? 'null' : v)}">${esc(l)}</button>`).join('')}</div>`;
   function dlgEdit() {
@@ -1355,7 +1366,7 @@
       await BOX.open(S.box, k, RV.LABEL); // 맞는 비밀번호인지
       S.cmdKey = k;
       const pend = S.pend;
-      S.pend = null; S.dlg = null;
+      S.pend = null; S.dlg = (pend && pend.o && pend.o.back) || null;
       renderLayer();
       if (pend) await send(pend.type, pend.fields, pend.o);
       else render();
@@ -1487,6 +1498,17 @@
         send('add', { q: c.keyword, card: /^(gpu:[0-9]{4}|console:ps5)$/.test(c.id) ? c.id : undefined });
         return;
       }
+      case 'stopCard': {
+        // 지켜보는 카드 → 홈 ⋯ '그만 지켜보기'와 같은 창. 지우거나 취소하면 '+ 물건' 창으로 돌아가요(앱 R5-2)
+        const cards = arr(B().cards).length ? B().cards : C.QUICK;
+        const c = cards.find((x) => x.id === t.dataset.card);
+        const list = c ? C.watchingCard(c.id, prods().filter((p) => !removingPid(p.id))) : [];
+        if (!list.length) return;
+        S.dlg = { kind: 'delete', pids: list.map((p) => p.id), card: c.title, sel: list.length === 1 ? list[0].id : null, back: S.dlg, backFocus: t.id };
+        renderLayer(true);
+        return;
+      }
+      case 'delPick': S.dlg.sel = t.dataset.pid; renderLayer(); return;
       case 'addSugToggle': S.dlg.useCard = S.dlg.useCard === false; $('#addSug').innerHTML = sugHTML(C.suggest(S.dlg.text || ''), S.dlg.useCard !== false); return;
       case 'addGo': {
         const text = (S.dlg.text || '').trim();
@@ -1531,7 +1553,14 @@
       }
       case 'unhideAll': send('unhideAll', { pid }); return;
       case 'delete': S.menu = null; openDlg({ kind: 'delete', pid }); return;
-      case 'delGo': { const p = S.dlg.pid; S.dlg = null; renderLayer(); send('remove', { pid: p }); return; }
+      case 'delGo': {
+        const d = S.dlg, p = d.sel || d.pid;
+        if (!p) return;
+        S.dlg = d.back || null; renderLayer();
+        if (d.back) { const c = document.getElementById(d.backFocus); if (c) c.focus(); }
+        send('remove', { pid: p }, { back: d.back });
+        return;
+      }
       case 'move': S.menu = null; renderLayer(); send('move', { pid, dir: t.dataset.dir }); return;
       case 'focusOne': S.menu = null; renderLayer(); send('focus', { op: 'start', ids: [pid], hours: 1, everyMin: 5 }); return;
       case 'focusStop': S.menu = null; renderLayer(); send('focus', { op: 'stop' }); return;

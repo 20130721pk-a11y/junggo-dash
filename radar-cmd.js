@@ -390,6 +390,18 @@
     if (p && !p[1]) return ps5Card();
     return null;
   }
+  // 이 카드로 지켜보는 물건(앱 Products.watching, 0.7.2 R5): 검색어(cfg.keyword)가 이 카드와 맞는(suggest) 것 전부
+  const watchingCard = (cardId, products) => arr(products).filter((p) => isObj(p) && isObj(p.cfg) && (suggest(str(p.cfg.keyword)) || {}).id === cardId);
+  // '그만 지켜보기' 확인 창 글 — 앱 data/StopWatch.kt 와 같은 글(홈 ⋯ 와 '+ 물건' 창이 같은 창)
+  const STOP = {
+    title: (name) => `'${name}' 그만 지켜볼까요?`,
+    body: '지금 최저가·매물 장부·가격 기록이 지워지고 되돌릴 수 없어요. 다시 추가하면 처음부터 모아요.',
+    focus: '집중 감시도 함께 꺼져요.',
+    cancel: '취소', ok: '지우기',
+    pickTitle: (card, n) => `'${card}' 카드로 지켜보는 물건이 ${n}개예요`,
+    cardLine: '지켜보는 중 · 누르면 그만',
+    cardSpeech: (title) => `${title}, 지켜보는 중, 누르면 그만 지켜보기`,
+  };
   // 앱 Products.QUICK — 묶음 cards 가 없을 때만 씀(옛 앱)
   const QUICK = [gpuCard('4080'), gpuCard('5070'), gpuCard('5080'), gpuCard('9070'), ps5Card()];
   const familyOf = (c) => (str(c && c.category) === 'game' ? '게임기' : str(c && c.category) === 'pc' ? '그래픽카드' : str(c && c.family));
@@ -516,7 +528,7 @@
     CATEGORIES, PCT_PRESETS, PCT_MIN, PCT_MAX, KM_CHOICES, PERIODS, QUIET_CHOICES, FOCUS_HOURS, FOCUS_EVERY, FOCUS_MAX, HOME_MAX, SHARE_HOSTS,
     OPEN_MAX, ADHOC_PER_HOUR, ADHOC_CACHE_MS, CHECK_ALL_MS, POLL_MS, POLL_FOR_MS, TOAST_MS, DONE_FOLD_MS, KEEP_MS, STALE_MS, ID_RE, QUICK,
     newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
-    adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
+    adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);
