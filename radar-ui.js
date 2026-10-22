@@ -928,6 +928,7 @@
       d.askClose = true; renderLayer(); return;
     }
     if (d && d.kind === 'delete' && d.back) { S.dlg = d.back; renderLayer(); const c = document.getElementById(d.backFocus); if (c) c.focus(); return; }
+    if (d && d.kind === 'model' && d.back) { S.dlg = d.back; renderLayer(); return; }
     S.dlg = null; S.form = null;
     if (d && d.kind === 'pw') S.pend = null;
     renderLayer();
@@ -976,9 +977,13 @@
     }
     const sel = d.sel;
     const bands = arr(id.bands);
-    const bandHtml = bands.length >= 2 ? `<p class="flabel">가격대</p><p class="desc" style="margin:-2px 0 9px">${esc(str(id.intro) || "본체로 보이는 가격대를 골라 뒀어요. 맞으면 아래 '이대로 정하기'만 누르세요.")}</p>
+    // '모델' 칸(R12 4단계, 앱 IdentifySheet ModelSection 과 같은 글·같은 셈 — radar-cmd.js modelRows 등)
+    const mm = sel.m;
+    const modelOn = !!mm && !mm.off && C.canSplitModels(mm.defs);
+    const bandIntro = modelOn ? C.MODEL_TEXT.introModels : mm && str(id.intro) === C.MODEL_TEXT.introModels ? C.MODEL_TEXT.introSplit : (str(id.intro) || "본체로 보이는 가격대를 골라 뒀어요. 맞으면 아래 '이대로 정하기'만 누르세요.");
+    const bandHtml = bands.length >= 2 ? `<p class="flabel">가격대</p><p class="desc" style="margin:-2px 0 9px">${esc(bandIntro)}</p>
       <div role="radiogroup" aria-label="가격대">${bands.map((b, i) => `<button class="band" role="radio" aria-checked="${sel.band === i}" data-act="idBand" data-i="${i}"><span><b>${esc(man(Number.isFinite(b.from) ? b.from : b.lo))} ~ ${esc(man(Number.isFinite(b.to) ? b.to : b.hi))}</b><span>${esc(b.n)}건  ·  중간 ${esc(man(b.mid))}${b.tags ? '  ·  ' + esc(b.tags) : ''}</span></span><span class="pick">${sel.band === i ? '고름' : ''}</span></button>`).join('')}</div>
-      ${sel.band != null && sel.band < bands.length - 1 ? `<div class="chiprow" style="margin-top:2px"><button class="cchip" aria-pressed="${!!sel.withHigher}" data-act="idHigher">더 비싼 묶음도 함께</button><span class="desc" style="margin:0">프로·Ti 같은 비싼 변형이면</span></div>` : ''}` : '';
+      ${sel.band != null && sel.band < bands.length - 1 && !modelOn ? `<div class="chiprow" style="margin-top:2px"><button class="cchip" aria-pressed="${!!sel.withHigher}" data-act="idHigher">더 비싼 묶음도 함께</button><span class="desc" style="margin:0">프로·Ti 같은 비싼 변형이면</span></div>` : ''}` : '';
     const words = arr(id.words);
     const wordHtml = words.length ? `<p class="flabel">자주 나오는 말</p><p class="desc" style="margin:-2px 0 9px">한 번 누르면 빼기, 한 번 더 누르면 꼭 들어갈 말, 또 누르면 원래대로.</p>
       <div class="chiprow">${words.map((w) => { const s = sel.words[w.w] | 0; return `<button class="cchip${s === 1 ? ' ex' : s === 2 ? ' in' : ''}" data-act="idWord" data-w="${esc(w.w)}" aria-label="${esc(w.w)} ${esc(w.n)}건 · ${s === 1 ? '빼기' : s === 2 ? '꼭 들어갈 말' : '그대로'}">${s === 1 ? '− ' : s === 2 ? '+ ' : ''}${esc(w.w)} <span class="c">${esc(w.n)}</span></button>`; }).join('')}</div>` : '';
@@ -990,20 +995,83 @@
         : '<div class="l">조건에 맞는 매물이 없어요</div>';
     } else if (pv.kind === 'category') prev = '<div class="meta">카테고리는 정한 뒤 그 안에서 다시 모아요</div>';
     else prev = '<div class="meta">미리보기는 앱이 정한 뒤에 다시 세요(웹은 판정하지 않아요)</div>';
+    // 모델 칸을 고친 목록이면 한 줄 더(앱 '모델 2개 · 모델 모름 3건') — 지금 최저 앞 모델은 앱이 센 미리보기 매물에서
+    if (modelOn && mm.user) {
+      const r = C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned);
+      const line = [`모델 ${C.modelNames(mm.defs).length}개`, r.unknown > 0 ? `${C.UNKNOWN_MODEL} ${r.unknown}건` : ''].filter(Boolean).join(' · ');
+      prev = `<div class="meta" style="color:var(--ink2)">${esc(line)}</div>` + prev;
+      if (pv.kind === 'ok' && pv.pv.low) {
+        const lm = C.assignModel(mm.defs, str(pv.pv.low.title));
+        if (lm !== C.UNKNOWN_MODEL) prev = prev.replace('<span class="l">지금 최저 </span>', `<span class="l">지금 최저(${esc(lm)}) </span>`);
+      }
+    }
     return dlgShell('lg', 'dI', head,
       `<p class="flabel">카테고리</p><p class="desc" style="margin:-2px 0 9px">세 마켓 모두 이 안에서만 찾아요. 품번 숫자가 겹치는 다른 물건이 빠져요.</p>
         <div class="chiprow" role="radiogroup" aria-label="카테고리">${C.CATEGORIES.map(([k, l]) => `<button class="cchip" role="radio" aria-checked="${sel.category === k}" data-act="idCat" data-k="${esc(k)}">${esc(l)}</button>`).join('')}</div>
-        ${bandHtml}${wordHtml}<div class="preview">${prev}</div>`,
+        ${mm ? modelSection(p, kw, mm, sel) : ''}${bandHtml}${wordHtml}<div class="preview">${prev}</div>`,
       `<button class="btn btn-text gray" data-act="close">나중에</button><span class="grow"></span><button class="btn btn-fill" data-act="idGo"${lk()}>이대로 정하기</button>`);
   }
-  function openIdentify(pid) {
+  function openIdentify(pid, focusModels) {
     const p = prod(pid);
     if (!p) return;
     const id = p.identify && typeof p.identify === 'object' ? p.identify : {};
     const pick = id.pick && typeof id.pick === 'object' ? id.pick : null;
     const words = {};
     for (const w of arr(id.words)) if (w && str(w.w)) words[w.w] = w.s | 0;
-    openDlg({ kind: 'identify', pid, sel: { category: p.cfg ? str(p.cfg.category) : '', band: pick ? pick.index : null, withHigher: pick ? !!pick.withHigher : false, words } });
+    // '모델' 칸 처음 상태(앱 ModelEdit.start — 묶음 identify.models, 넓은 검색어만)
+    const im = id.models && typeof id.models === 'object' ? id.models : null;
+    const m = im ? { defs: C.cleanDefs(im.defs), off: !!im.off, user: im.src === 'user', touched: false, renamed: {}, auto: C.cleanDefs(im.auto), pinned: str(im.pinned) || null } : null;
+    openDlg({ kind: 'identify', pid, focusModels: !!(focusModels && m), sel: { category: p.cfg ? str(p.cfg.category) : '', band: pick ? pick.index : null, withHigher: pick ? !!pick.withHigher : false, words, m } });
+    if (focusModels && m) { const el = document.getElementById('idModels'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }
+  }
+  // 고른 가격대 → { lo, hi }(앱 IdentifyPlan.picked 와 같은 값 — radar-cmd identifySet)
+  function bandSel(p, sel) {
+    const set = C.identifySet(p, sel);
+    return sel.band == null && set.bandMin == null && set.bandMax == null ? null : { lo: set.bandMin, hi: set.bandMax };
+  }
+  // 물건 정하기 '모델' 칸(디자인 4-8 · 앱 Sheets.kt ModelSection)
+  function modelSection(p, kw, mm, sel) {
+    const id = p.identify;
+    const can = C.canSplitModels(mm.defs);
+    const T = C.MODEL_TEXT;
+    const head = `<div id="idModels"></div><p class="flabel">모델</p><p class="desc" style="margin:-2px 0 9px">${esc(mm.user ? T.user : T.intro)}${mm.user ? ` <button class="btn btn-text" data-act="mRevert">${esc(T.revert)}</button>` : ''}</p>
+      <div class="chiprow" role="radiogroup" aria-label="모델 나누기"><button class="cchip${can ? '' : ' dim'}" role="radio" aria-checked="${!mm.off && can}" data-act="mOff" data-v="0">모델마다 따로</button><button class="cchip" role="radio" aria-checked="${mm.off || !can}" data-act="mOff" data-v="1">나누지 않기</button></div>`;
+    if (mm.off) return `${head}<p class="hint">${esc(T.off)}</p>`;
+    const rows = can ? C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned) : { rows: C.modelNames(mm.defs).map((n) => ({ n, c: 0, mid: 0, w: [], base: false })), unknown: 0 };
+    const canMerge = C.modelNames(mm.defs).length >= 2;
+    const menuOpen = S.dlg && S.dlg.mMenu;
+    const rowHtml = rows.rows.map((r) => `<div class="mrow"><span class="mt"><b>${esc(r.n)}</b><span>${esc([`${r.c}건`, r.mid > 0 ? `중간 ${man(r.mid)}` : '', r.w.join('·')].filter(Boolean).join(' · '))}</span></span>
+        ${r.base ? '<span class="mbase">기준</span>' : ''}<button class="iconbtn" data-act="mMenu" data-n="${esc(r.n)}" aria-haspopup="menu" aria-expanded="${menuOpen === r.n}" aria-label="${esc(r.n)} 메뉴">${ico('more')}</button>
+        ${menuOpen === r.n ? `<div class="mmenu" role="menu"><button role="menuitem" data-act="mRename" data-n="${esc(r.n)}">이름 바꾸기</button>${canMerge ? `<button role="menuitem" data-act="mMerge" data-n="${esc(r.n)}">다른 모델과 합치기</button>` : ''}<button role="menuitem" data-act="mRemove" data-n="${esc(r.n)}">${esc(T.remove)}</button></div>` : ''}</div>`).join('');
+    return `${head}${can ? '' : `<p class="hint">${esc(T.two)}</p>`}<div class="mrows">${rowHtml}</div>
+      ${can && rows.unknown > 0 ? `<p class="hint" style="margin:2px 0 0 4px">${esc(T.unknown(rows.unknown))}</p>` : ''}
+      <button class="btn btn-text madd" data-act="mAdd">${esc(T.add)}</button>`;
+  }
+  // 모델 칸 작은 창(이름 바꾸기 · 합치기 · 더하기) — 물건 정하기 창으로 돌아가요(back)
+  function dlgModel() {
+    const d = S.dlg, back = d.back, mm = back && back.sel && back.sel.m;
+    const p = back && prod(back.pid);
+    if (!mm || !p) return '';
+    const T = C.MODEL_TEXT;
+    if (d.sub === 'merge') {
+      const others = C.modelNames(mm.defs).filter((n) => n !== d.from);
+      if (!d.into || !others.includes(d.into)) d.into = others[0] || '';
+      return dlgShell('sm', 'dM', '<h2 id="dM">다른 모델과 합치기</h2>',
+        `<p class="ink2" style="margin:4px 0 8px">${esc(T.mergeHint(d.from))}</p><div role="radiogroup" aria-label="합칠 모델">${others.map((o) => `<button class="band" role="radio" aria-checked="${d.into === o}" data-act="mInto" data-n="${esc(o)}"><span><b>${esc(o)}</b></span><span class="pick">${d.into === o ? '고름' : ''}</span></button>`).join('')}</div>`,
+        `<span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button><button class="btn btn-fill" data-act="mOk"${dis(!d.into)}>합치기</button>`);
+    }
+    const add = d.sub === 'add';
+    const cnt = add && d.text.trim() ? T.count(C.matchCount(p.identify.models, d.text)) : '';
+    return dlgShell('sm', 'dM', `<h2 id="dM">${add ? '모델 더하기' : '이름 바꾸기'}</h2>`,
+      `<p class="ink2" style="margin:4px 0 8px">${esc(add ? T.addHint : T.renameHint)}</p><label class="sr" for="mText">${add ? '모델 낱말' : '새 이름'}</label><input class="field" id="mText" autocomplete="off" value="${esc(d.text)}">
+       ${add ? `<p class="hint" id="mCount">${esc(cnt)}</p>` : ''}`,
+      `<span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button><button class="btn btn-fill" data-act="mOk">${add ? '더하기' : '바꾸기'}</button>`);
+  }
+  // 모델 칸 고치기(앱 IdentifySheet edit — 고치면 사람 목록·손댐)
+  function mEdit(next) {
+    const mm = S.dlg.sel.m;
+    if (JSON.stringify(next) === JSON.stringify(mm.defs)) return;
+    mm.defs = next; mm.user = true; mm.touched = true;
   }
   function dlgVariant() {
     const a = adhocEntry();
@@ -1184,7 +1252,7 @@
     let html = '';
     if (S.menu) html = menuHTML();
     else if (S.dlg) {
-      const fn = { pw: dlgPw, add: dlgAdd, identify: dlgIdentify, variant: dlgVariant, edit: dlgEdit, delete: dlgDelete, home: dlgHome, sheet: drawerSheet, watchlog: drawerWatch, cmds: drawerCmds }[S.dlg.kind];
+      const fn = { pw: dlgPw, add: dlgAdd, identify: dlgIdentify, model: dlgModel, variant: dlgVariant, edit: dlgEdit, delete: dlgDelete, home: dlgHome, sheet: drawerSheet, watchlog: drawerWatch, cmds: drawerCmds }[S.dlg.kind];
       html = fn ? fn() : '';
       if (!html) S.dlg = null;
     }
@@ -1277,7 +1345,13 @@
     if (location.hash === h || (h === '#' && !location.hash)) { fromHash(); render(); window.scrollTo(0, 0); }
     else location.hash = h;
   }
-  window.addEventListener('hashchange', () => { fromHash(); if (S.phase === 'ready') { S.dlg = null; render(); window.scrollTo(0, 0); } });
+  window.addEventListener('hashchange', () => {
+    fromHash();
+    if (S.phase === 'ready') { S.dlg = null; render(); window.scrollTo(0, 0); }
+    // 화면을 옮긴 뒤 열 창(알림함 이행 줄 → 물건 정하기 '모델' 칸)
+    const after = S.afterNav; S.afterNav = null;
+    if (after && S.phase === 'ready') after();
+  });
 
   // ---------- 받기 · 열기 ----------
   async function getJson(url) {
@@ -1554,13 +1628,49 @@
       }
       case 'identify': S.menu = null; openIdentify(pid); return;
       case 'idCat': S.dlg.sel.category = t.dataset.k; renderLayer(); return;
-      case 'idBand': { const i = +t.dataset.i; S.dlg.sel.band = S.dlg.sel.band === i ? null : i; if (S.dlg.sel.band == null) S.dlg.sel.withHigher = false; renderLayer(); return; }
+      case 'idBand': {
+        const i = +t.dataset.i, sel = S.dlg.sel, mm = sel.m;
+        sel.band = sel.band === i ? null : i;
+        // 모델이 나뉜 물건은 고른 무리와 위쪽 전부(앱 G-16 — 한 모델을 통째로 자르지 않게)
+        sel.withHigher = sel.band == null ? false : !!(mm && !mm.off && C.canSplitModels(mm.defs));
+        renderLayer(); return;
+      }
+      // 물건 정하기 '모델' 칸(R12 4단계)
+      case 'identifyModels': S.menu = null; openIdentify(pid, true); return;
+      case 'mOff': { const mm = S.dlg.sel.m, o = t.dataset.v === '1'; if (o !== mm.off) { mm.off = o; mm.touched = true; } S.dlg.mMenu = null; renderLayer(); return; }
+      case 'mRevert': { const mm = S.dlg.sel.m; mm.defs = mm.auto.slice(); mm.user = false; mm.off = false; mm.renamed = {}; mm.touched = true; renderLayer(); return; }
+      case 'mMenu': S.dlg.mMenu = S.dlg.mMenu === t.dataset.n ? null : t.dataset.n; renderLayer(); return;
+      case 'mRemove': S.dlg.mMenu = null; mEdit(C.removeModel(S.dlg.sel.m.defs, t.dataset.n)); renderLayer(); return;
+      case 'mRename': case 'mMerge': case 'mAdd': {
+        const back = S.dlg; back.mMenu = null;
+        const sub = a === 'mRename' ? 'rename' : a === 'mMerge' ? 'merge' : 'add';
+        openDlg({ kind: 'model', sub, from: t.dataset.n || '', text: sub === 'rename' ? t.dataset.n : '', back });
+        return;
+      }
+      case 'mInto': S.dlg.into = t.dataset.n; renderLayer(); return;
+      case 'mOk': {
+        const d = S.dlg, back = d.back, mm = back.sel.m;
+        const text = (($('#mText') || {}).value ?? d.text) || '';
+        if (d.sub === 'rename') {
+          const next = C.renameModel(mm.defs, d.from, text);
+          if (JSON.stringify(next) !== JSON.stringify(mm.defs)) {
+            const first = Object.keys(mm.renamed).find((k) => mm.renamed[k] === d.from) || d.from;
+            mm.renamed = { ...mm.renamed, [first]: text.trim() };
+            S.dlg = back; mEdit(next);
+          }
+        } else if (d.sub === 'merge') { S.dlg = back; if (d.into) mEdit(C.mergeModel(mm.defs, d.from, d.into)); }
+        else { S.dlg = back; mEdit(C.addModel(mm.defs, text)); }
+        S.dlg = back; renderLayer(); return;
+      }
       case 'idHigher': S.dlg.sel.withHigher = !S.dlg.sel.withHigher; renderLayer(); return;
       case 'idWord': { const w = t.dataset.w; const s = S.dlg.sel.words[w] | 0; S.dlg.sel.words[w] = (s + 1) % 3; renderLayer(); return; }
       case 'idGo': {
         const p = prod(S.dlg.pid);
         if (!p) return;
         const set = C.identifySet(p, S.dlg.sel);
+        // 모델 칸을 고쳤으면만 보냄(손대지 않으면 앱이 자동 목록을 계속 바꿀 수 있게 — 앱 시트와 같음)
+        const mm = S.dlg.sel.m;
+        if (mm && mm.touched) set.models = { defs: mm.defs, off: mm.off, user: mm.user, renamed: mm.renamed };
         S.dlg = null; renderLayer();
         send('identify', { pid: p.id, set });
         return;
@@ -1656,6 +1766,13 @@
       case 'inboxOpen': {
         const it = arr(B().inbox).find((x) => x && x.id === t.dataset.id);
         if (it && typeof it.read === 'boolean' && !isRead(it)) { S.readLocal.add(it.id); send('inboxRead', { ids: [it.id] }, { quiet: true }); render(); }
+        // 모델 이행 줄(앱이 묶음 open 'identifyModels' 로 알려 줌 — 앱 SearchAlerts.opensModels): 그 물건 화면 + 물건 정하기 '모델' 칸
+        if (it && it.open === 'identifyModels' && prod(it.pid)) {
+          const h = '#p=' + encodeURIComponent(it.pid);
+          if (location.hash === h) openIdentify(it.pid, true);
+          else { S.afterNav = () => openIdentify(it.pid, true); go('product', it.pid); }
+          return;
+        }
         if (key && anyListing(key)) openDlg({ kind: 'sheet', key, pid: it ? it.pid || '' : '' });
         return;
       }
@@ -1750,6 +1867,12 @@
       const u = C.adhocUse(B(), S.sent, now());
       $('#qUnder').hidden = !cached;
       $('#qGo').disabled = !el.value.trim() || (u.full && !cached);
+      return;
+    }
+    if (el.id === 'mText' && S.dlg && S.dlg.kind === 'model') {
+      S.dlg.text = el.value;
+      const c = $('#mCount'), p = prod(S.dlg.back.pid);
+      if (c && p) c.textContent = el.value.trim() ? C.MODEL_TEXT.count(C.matchCount(p.identify.models, el.value)) : '';
       return;
     }
     if (el.id === 'addText' && S.dlg && S.dlg.kind === 'add') {
