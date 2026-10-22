@@ -526,12 +526,25 @@
   const keywordParts = (kw) => alts(kw).flatMap((a) => groupsOf(a).flat()).concat(alts(kw).map(norm));
   const usefulWord = (w, parts) => !(w.length < 2 || STOP_WORDS.has(w) || (/^[0-9]+$/.test(w) && w.length < 3) || parts.some((q) => q.includes(w)));
   // 앱 Models.hits: 낱말이 같거나(같은 말 묶음), 한글 세 글자 이상이면 붙여 쓴 제목 안에 있어도
+  // 제목은 한 번만 쪼갠다(앱 Models.Title, 0.7.5 QA B-4 — 모델 줄을 셀 때 낱말마다 제목을 다시 쪼개면 넓은 검색어에서 느렸다). 셈 결과는 같다.
+  const T_CACHE = new Map();
+  function titleParts(title) {
+    const k = String(title == null ? '' : title);
+    let p = T_CACHE.get(k);
+    if (!p) {
+      if (T_CACHE.size > 5000) T_CACHE.clear();
+      const toks = tokens(k);
+      p = { toks: new Set(toks), heads: new Set(toks.map((t) => aliasesOf(t)[0])), glued: norm(k) };
+      T_CACHE.set(k, p);
+    }
+    return p;
+  }
   function hits(title, w) {
     const group = aliasesOf(w);
-    const toks = tokens(title);
-    if (toks.some((t) => group.includes(t) || aliasesOf(t)[0] === group[0])) return true;
-    const glued = norm(title);
-    return group.some((g) => g.length >= 3 && /^[가-힣]+$/.test(g) && glued.includes(g));
+    const t = titleParts(title);
+    // 예전: toks.some((x) => group.includes(x) || aliasesOf(x)[0] === group[0]) 와 같은 셈
+    if (t.heads.has(group[0]) || group.some((g) => t.toks.has(g))) return true;
+    return group.some((g) => g.length >= 3 && /^[가-힣]+$/.test(g) && t.glued.includes(g));
   }
   // 앱 Models.assign: 맞는 모델이 하나면 그 이름, 좁은·넓은 모델이 같이 맞으면 좁은 쪽, 서로 다른 모델 둘 이상이거나 없으면 '모델 모름'(같은 이름 둘 = 합친 모델)
   function assignModel(defs, title) {
