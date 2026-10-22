@@ -178,3 +178,21 @@
 - 웹이 지킬 것(앱 = 웹): 매물 모델은 `variant` 그대로(웹이 `models` 로 다시 매기지 않음) · '모델 모름' 칩은 맨 뒤 · 모름 칩을 고르면 지금 최저가 칸 없음 · 판정 이유·판단 재료·조건 요약 글은 앱 글 그대로(`grade.why`·`facts`·`sheet.facts`·`conds` — '모델 자동 2개'·'기준 모델 크로스웨이브'·'모델 안 나눔').
 - 아직 없는 것(3단계 앱 화면과 함께): 물건 정하기 '모델' 칸 재료(`identify` 의 모델 후보·미리보기), 알림함 이행 줄의 '여는 곳', 조건 창 '지금 자동 기준 모델' 글.
 
+
+## R12 4단계 더함 (앱 0.7.5 dev-r12, 10/22)
+
+꼴 번호는 그대로 1 — 칸만 더함. 옛 묶음엔 없어서 웹은 비워 그려요.
+
+| 자리 | 칸 | 꼴 | 뜻 |
+|---|---|---|---|
+| 물건 | `autoModel` | 글 또는 없음 | 모델 물건만 — 조건 창 '자동이면 매물이 가장 많은 모델(지금 X)이에요'의 X(고른 모델과 상관없는 자동 기준, 앱 `RadarCore.baseName(split, null, baseModel)`) |
+| 물건 `identify` | `models` | 아래 | 물건 정하기 '모델' 칸 재료(넓은 검색어만 — 앱 `ModelEdit.start`가 null 이면 없음) |
+| 매물 `sheet.facts` | 끝 줄 | 글 | 저장한 물건의 '모델 모름' 매물이면 `SheetCore.UNKNOWN_HINT` '물건 정하기 › 모델에서 모델 낱말을 더할 수 있어요'(앱 판단 시트와 같은 자리) |
+| 알림 | `open` | `'identifyModels'` 또는 없음 | 누르면 그 물건(`pid`)의 물건 정하기 '모델' 칸을 연다 — 앱 `SearchAlerts.opensModels`(이행 줄이고 물건이 아직 있을 때) |
+
+`identify.models` = { `src` `'auto'`·`'user'`, `off` 참/거짓, `defs` 처음 목록[{`n`,`need`,`u`?}], `auto` '자동으로 되돌리기' 목록, `pinned` 기준 모델(고른 → 붙잡은) 또는 null,
+`items` 후보 매물 싼 순 [[제목, 값 또는 null, 표시]] — 표시 비트 1 = 앞 매물과 같은 글(앱 `Dedup.group`이 빼는 것, 판매자 정보는 싣지 않고 앱이 표시만), 2 = 처음 단어 상태(`identify.words` 의 s)로 빠지는 매물 }.
+웹은 판정하지 않고 앱 `ModelEdit`(rows·rename·merge·remove·add·matchCount)·`Models.assign/hits/userModel`을 `radar-cmd.js`로 옮긴 같은 셈으로 줄·건수를 내요 — 앱이 만든 `test/fixtures/app-models.json` 20경우와 같음(`test/radar-models.test.mjs`).
+가격대를 고르면 그 범위 + 허수 저가(중간값 10% 아래)를 빼고 셉니다(앱 `Pipeline.narrowCandidates`). 단어 칩을 바꾸면 줄은 처음 단어 상태 그대로예요(미리보기와 같이 '앱이 정한 뒤 다시 세요' 쪽).
+
+**R10(10/22)**: 그래픽카드 번호 검색어('4080' 등 물건 카드 검색어)는 계열 이름(rtx·gtx·rx·지포스·geforce·라데온·radeon)을 검색어 낱말로 봐서 `identify.words`(자주 나오는 말)·`sheet.words`(이 말 빼기)에 나오지 않아요(앱 `Identify.keywordParts`). 웹은 앱이 준 낱말을 그대로 그려서 따로 고칠 곳이 없어요.
