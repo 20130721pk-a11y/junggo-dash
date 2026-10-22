@@ -367,6 +367,7 @@
       ${Number.isFinite(p.pct) ? `<span class="pill">꿀매 -${esc(p.pct)}%</span>` : ''}${pend ? chgPill : ''}
       ${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}
       ${p.focus ? `<span class="pill brand" title="집중 감시 중">${ico('target')}<span class="sr">집중 감시 중</span></span>` : ''}
+      ${isModel(p) && str(p.baseVariant) ? `<span class="pill">${esc(p.baseVariant)} 기준</span>` : ''}
       <span class="when">${esc(when)} · ${esc(p.count || 0)}건</span>
       <button class="iconbtn" aria-haspopup="menu" aria-label="${esc(p.name)} 메뉴" data-act="menu" data-pid="${esc(p.id)}" data-i="${i}" data-n="${n}" id="menu-${esc(p.id)}">${ico('more')}</button></div>`;
     const rec = lastRec((r) => r.pid === p.id && ['edit', 'identify', 'check', 'move', 'unhideAll', 'excludeWord'].includes(r.type));
@@ -483,6 +484,15 @@
     return `<span class="webonly">웹만</span><label class="sel"><span class="sr">정렬</span><select id="fSort">${['low', 'seen', 'near'].map((s) => `<option value="${s}"${S.sort === s ? ' selected' : ''}>${SORT_LABEL[s]}</option>`).join('')}</select></label>
       <label class="sr" for="fQ">결과 안에서 찾기</label><input class="find" id="fQ" type="search" placeholder="결과 안에서 찾기" value="${esc(S.q)}"><button class="btn btn-sm" data-act="csv" data-ns="${esc(ns)}">CSV</button>`;
   }
+  // R12 모델 물건: 묶음 term 'model'(앱이 넓은 검색어를 모델로 나눔). 다섯 갈래('variant')·나누지 않음(null)은 지금 그대로
+  const isModel = (src) => !!src && src.term === 'model';
+  const AUTO_SPLIT_TEXT = '모델을 제목 낱말로 자동으로 나눴어요';
+  // 매물 줄 꼬리표(디자인 4-2·G-4, 앱 variantTag): 모델 물건은 '모델 모름'은 늘, 기준이 아닌 모델은 이름만. 다섯 갈래는 '변형 Ti'(웹 2판 그대로)
+  function vtagOf(l, ctx) {
+    if (!ctx.vtag || !l.variant) return '';
+    if (ctx.model) return RV.isUnknownModel(l.variant) ? l.variant : (l.variant !== ctx.base ? l.variant : '');
+    return l.variant !== ctx.base ? `변형 ${l.variant}` : '';
+  }
   // 매물 줄(웹 2판 줄 + ☆·아님 단추) — 줄 누름 = 판단 창, ↗ = 원 매물
   function rowHTML(l, ctx) {
     const t = now(), g = l.grade, p = ctx.p;
@@ -495,7 +505,7 @@
     }
     const unhiding = p && S.sent.some((r) => r.type === 'unhide' && r.pid === p.id && r.key === l.key && C.isOpen(stOf(r).st));
     const sub = g && g.k === 'caution' ? `<p class="rs why">${esc(g.why)}</p>`
-      : `<p class="rs">${[g ? g.why : (p && p.state === 'rebase' && p.cut && p.cut.rebase) || '', l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', ctx.vtag && l.variant && l.variant !== ctx.base ? `변형 ${l.variant}` : ''].filter(Boolean).map(esc).join(' · ')}</p>`;
+      : `<p class="rs">${[g ? g.why : (p && p.state === 'rebase' && p.cut && p.cut.rebase) || '', l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', vtagOf(l, ctx)].filter(Boolean).map(esc).join(' · ')}</p>`;
     const where = placeText(l.place);
     const unknown = RV.isUnknown(l.place);
     const sub2 = ctx.sub2 || sub;
@@ -529,7 +539,7 @@
     }
     return null;
   }
-  function heroBox(x, low, label, cautionLine, cautionKey) {
+  function heroBox(x, low, label, cautionLine, cautionKey, model) {
     const t = now(), p = x.p;
     const isLowKey = !!low && p && low.key === p.lowKey;
     const target = isLowKey ? arr(p.facts).find((f) => f && f.icon === 'target') : null;
@@ -545,7 +555,8 @@
           <p class="ltitle">${esc(low.title)}</p>
           <div class="price-row" style="margin-top:6px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
           <p class="meta" style="margin:4px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · 올린 때 ${esc(ago(low.updated, t))} · 처음 본 때 ${esc(ago(low.firstSeen, t))}</p>
-          ${low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
+          ${model && low.grade && low.grade.k === 'unknown' && low.price > 0 ? `<p class="note" style="margin-top:8px;color:var(--ink3)">${esc(model)} · 매물이 적어 판정 보류</p>`
+            : low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
           ${target ? `<p class="note">${ico('target')}${esc(target.t)}</p>` : ''}
           ${rbar}
         </div>
@@ -560,13 +571,16 @@
     const label = late() ? '그때 최저가' : '지금 최저가';
     const chipped = !!S.mkSel || !!f.variant || f.area !== 'all' || !!f.cond;
     const picked = chipped && src.state !== 'rebase' && src.state !== 'pending'
-      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel })
+      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term })
       : null;
     const low = picked ? picked.hero : (src.state === 'ok' || src.state === 'unknown') ? findL(src, src.lowKey) : null;
     const cautionLine = picked ? picked.line : src.cautionPage;
     const cautionKey = picked ? picked.cautionKey : src.cautionKey;
+    // 모델 물건(R12 디자인 4-4·G-6): 이름표 뒤에 기준 모델(모델 칩을 골랐으면 그 모델) — 다섯 갈래 변형은 그대로
+    const model = isModel(src);
+    const heroModel = model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : '';
     let hero;
-    if (low) hero = heroBox(x, low, label, cautionLine, cautionKey);
+    if (low) hero = heroBox(x, low, heroModel ? `${label} · ${heroModel}` : label, cautionLine, cautionKey, heroModel);
     else if (picked) hero = `<section class="box"><p class="box-label">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</section>`;
     else if (src.state === 'allCaution') hero = `<section class="box"><p class="box-label">${label}</p><p class="note" style="font-size:.9375rem">${esc(src.statePage)}</p></section>`;
     else if (src.state === 'rebase') hero = `<p class="info brand">${esc(src.statePage)}</p>`;
@@ -582,6 +596,11 @@
       lines.push(`<button class="info brand link" data-act="allDaangn">${S.allDaangn ? `당근 ${esc(nb.total)}건 모두 보는 중 · 근처만 보기` : `당근 ${esc(nb.total)}건 중 내 동네 근처 ${esc(nb.near)}건만 보여요 · 전체 보기`}</button>`);
     }
     if (x.a && x.a.ask) lines.push(`<p class="info">이 검색은 ${esc(x.a.ask.v)} 매물이 훨씬 많아요(${esc(x.a.ask.n)}건 · 기본 ${esc(x.a.ask.b)}건) · ${esc(x.a.ask.v)} 칩을 누르면 ${esc(x.a.ask.v)} 최저가를 봐요</p>`);
+    // '모델을 제목 낱말로 자동으로 나눴어요'(디자인 4-3·G-5, 앱 AutoSplitLine): 저장한 물건 = '고치기'(물건 정하기 '모델' 칸), 그냥 검색 = 안내만(대표 결정 3)
+    if (model && src.modelSource === 'auto') {
+      lines.push(x.a ? `<p class="info">${esc(AUTO_SPLIT_TEXT)} · 지켜보기에 넣으면 고칠 수 있어요</p>`
+        : `<p class="info">${esc(AUTO_SPLIT_TEXT)}${p ? `<button class="btn btn-text" data-act="identifyModels" data-pid="${esc(p.id)}"${lk()}>고치기</button>` : ''}</p>`);
+    }
     if (f.hiddenUnknown) lines.push(`<p class="info">지역 모름 ${esc(f.hiddenUnknown)}건은 숨겼어요 — '지역 모르는 매물도 함께 보기'를 켜면 보여요</p>`);
     let right;
     if (x.a) right = `<button class="btn btn-text btn-sm" data-act="saveAdhoc"${lk()}>+ 지켜보기</button>`;
@@ -604,7 +623,8 @@
     const merged = Number(src.merged) > 0 ? `<p class="info">같은 글 ${esc(src.merged)}건을 한 줄로 묶었어요(여러 마켓·다시 올린 글)</p>` : '';
     const ledger = arr(src.ledger).length || arr(src.notes).length ? `<div class="ledger">${arr(src.ledger).map((l) => `<p class="note">${esc(l)}</p>`).join('')}${arr(src.notes).map((n) => `<p class="meta">${esc(n)}</p>`).join('')}</div>` : '';
     const rowsShown = low ? f.rows.filter((l) => l.key !== low.key) : f.rows;
-    const ctx = { p: x.p, adhoc: !!x.a, base: src.baseVariant || '기본', vtag: true };
+    // 꼬리표 기준: 모델 물건은 앱처럼 고른 칩이 기준(칩 > 기준 모델), 다섯 갈래는 그대로
+    const ctx = { p: x.p, adhoc: !!x.a, base: model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : (src.baseVariant || '기본'), vtag: true, model };
     const rows = f.rows.length ? `<ul class="rows" style="margin-top:16px">${rowsShown.map((l) => rowHTML(l, ctx)).join('')}</ul>`
       : (all.length ? `<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" data-act="clearF">거르기 풀기</button></p>` : `<p class="empty">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
     return `${marketChips()}${chipRows(all, f)}${lines.join('')}${sum}${band}${info2.join('')}${conds}${merged}${ledger}${hero}${rows}
@@ -616,7 +636,7 @@
     const c = src.cut || {};
     let cut = '';
     if (c.rebase) cut = `<p class="ref-big">${esc(c.rebase)}</p>`;
-    else if (Array.isArray(c.rows)) cut = `<p class="ref-big">${esc(c.head)}</p>${c.rows.map((r) => `<div class="vcut ${r.hold ? 'hold' : ''}"><b>${esc(r.name)}</b><span>${esc(r.text)}</span></div>`).join('')}`;
+    else if (Array.isArray(c.rows)) cut = `<p class="ref-big">${esc(c.head)}</p>${c.rows.map((r) => `<div class="vcut ${r.hold ? 'hold' : ''}"><b>${esc(r.name)}</b><span>${esc(r.text)}</span></div>`).join('')}${c.unknown ? `<p class="hint">${esc(c.unknown)}</p>` : ''}`;
     else if (Array.isArray(c.single)) cut = `<p class="ref-big">${esc(c.single[0])}</p>${c.single[1] ? `<p class="meta" style="margin:3px 0 0;color:var(--ink2)">${esc(c.single[1])}</p>` : ''}`;
     const sp = spark(src.spark, 120, 800);
     const judge = `<section class="box"><p class="box-label">꿀매 판정 기준</p>${cut}
@@ -624,11 +644,13 @@
       ${sp ? `<p class="box-label plain" style="margin-top:12px">최근 30일 최저가</p><div class="trend">${sp}</div><p class="meta" style="margin:4px 0 0">${esc(src.min30)}</p>` : (x.p && src.state !== 'empty' && src.state !== 'pending' ? '<p class="meta" style="margin:10px 0 0">추이 선은 하루 넘게 지켜본 뒤부터 그려요</p>' : '')}</section>`;
     const f = visibleRows(listOf(src), x.id);
     const s = C.priceStats(f.rows);
+    // 모델 물건에서 칩을 안 고르면 모델이 섞인 중간값(디자인 4-6·G-12) — 웹 분포는 칩을 따라서 디자인 안내 글 그대로
+    const mixed = isModel(src) && !f.variant;
     if (!s) return `${judge}<p class="empty">시세를 내기엔 매물이 적어요. 검색 결과가 4건 이상일 때 분포를 보여드려요.</p>`;
     const pos = (v) => Math.min(100, Math.max(0, v / s.max * 100)).toFixed(1);
     const dist = s.dists.map((d) => `<div class="drow"><span class="lab">${mkMark(d.m)}${esc(d.count)}건</span><div class="dtrack"><span class="q" style="left:${pos(d.q1)}%;width:${(pos(d.q3) - pos(d.q1)).toFixed(1)}%"></span><span class="md" style="left:${pos(d.median)}%"></span>${d.dots.map((v) => `<span class="pt" style="left:${pos(v)}%;background:var(--mk-${d.m})"></span>`).join('')}</div></div>`).join('');
     return `${judge}
-      <div class="sum3"><div class="box"><p class="box-label">시세 · 보통(중간값)</p><p class="big">${esc(won(s.median))}</p><p class="hint">매물 절반이 ${esc(man(s.q1))}–${esc(man(s.q3))} 사이 · ${esc(s.count)}건 기준</p></div>
+      <div class="sum3"><div class="box"><p class="box-label">${mixed ? '시세 · 보통(중간값) · 모델 섞임' : '시세 · 보통(중간값)'}</p><p class="big">${esc(won(s.median))}</p>${mixed ? '<p class="hint" style="margin:0">모델 칩을 고르면 그 모델만 봐요</p>' : ''}<p class="hint">매물 절반이 ${esc(man(s.q1))}–${esc(man(s.q3))} 사이 · ${esc(s.count)}건 기준</p></div>
         <div class="box"><p class="box-label plain">최저가</p><p class="big">${esc(won(s.minL && s.minL.price))}</p><p class="hint">${esc(MARKET[s.minL && s.minL.m] || '')}</p></div>
         <div class="box"><p class="box-label plain">가장 비싼 매물</p><p class="big">${esc(won(s.maxL && s.maxL.price))}</p><p class="hint">${esc(MARKET[s.maxL && s.maxL.m] || '')}</p></div></div>
       <section class="box" style="margin-top:12px"><p class="box-label">마켓별 분포</p><div class="dist">${dist}</div>
@@ -1031,7 +1053,8 @@
         ${f.customPct ? `<div class="frow" style="margin-top:8px"><span class="meta">시세보다 -</span>${field('thresholdPct', '15', ' inputmode="numeric" style="max-width:90px"')}<span class="meta">% 이상 싸면 꿀매 (5~45)</span></div>${pctOk ? '' : `<p class="conf-note">5~45 사이로 적어 주세요(50% 넘게 싸면 '확인 필요'로 봐요)</p>`}` : ''}
         ${cfNote('thresholdPct')}<p class="hint" id="pctHint">${esc(pv || `시세보다 ${f.thresholdPct}% 이상 싼 같은 물건을 꿀매로 알려요(시세는 매물이 5건 넘게 모이면 내요)`)}</p>
         ${lab('targetPrice', '목표가')}<div class="frow">${field('targetPrice', '예: 120만 (비우면 없음)')}<span class="meta">이하면 바로 알림</span></div>${cfNote('targetPrice')}
-        ${vc.length >= 2 ? `${lab('variantPick', '변형')}${chipsRadio('변형', [['', '전부(따로 보기)'], ...vc.map((v) => [v, `${v} 만`])], f.variantPick, 'eVar')}<p class="hint">전부 = 변형마다 시세·최저가를 따로 보여 줘요. 하나만 고르면 그 변형만 지켜봐요.</p>${cfNote('variantPick')}` : ''}
+        ${isModel(p) && vc.length ? `${lab('variantPick', '기준 모델')}${chipsRadio('기준 모델', [['', '자동(매물 많은 모델)'], ...vc.map((v) => [v, `${v} 기준`])], f.variantPick, 'eVar')}<p class="hint">지금 최저가·최저가 알림·목표가를 이 모델로 봐요. 꿀매 알림은 모든 모델에서 와요.</p>${autoModelOf(p) ? `<p class="hint">자동이면 매물이 가장 많은 모델(지금 ${esc(autoModelOf(p))})이에요.</p>` : ''}${cfNote('variantPick')}`
+          : vc.length >= 2 ? `${lab('variantPick', '변형')}${chipsRadio('변형', [['', '전부(따로 보기)'], ...vc.map((v) => [v, `${v} 만`])], f.variantPick, 'eVar')}<p class="hint">전부 = 변형마다 시세·최저가를 따로 보여 줘요. 하나만 고르면 그 변형만 지켜봐요.</p>${cfNote('variantPick')}` : ''}
         ${lab('keyword', '검색어')}${field('keyword', '예: 4080, 4080s')}<p class="hint">쉼표로 나누면 여러 표기를 함께 찾아요(3개까지). 띄어쓰기·대소문자는 상관없고 플스5=PS5 같은 같은 말도 알아봐요.</p>${cfNote('keyword')}
         ${lab('matchMode', '검색어 확인')}${chipsRadio('검색어 확인', [['title', '제목에 있어야'], ['content', '제목·내용']], f.matchMode, 'eMatch')}<p class="hint">${f.matchMode === 'content' ? '당근 설명·사이트 검색 결과까지 봐요. 제목에 검색어가 없어도 남아서 엉뚱한 매물이 섞일 수 있어요.' : "제목에 검색어가 없거나, 모델 번호를 비교로만 쓴 매물('RX 9070 XT (5070급)')은 빼요. 최저가·시세가 엉뚱한 매물에 흔들리지 않아요."}</p>${cfNote('matchMode')}
         ${lab('category', '카테고리')}${chipsRadio('카테고리', C.CATEGORIES, f.category, 'eCat')}<p class="hint">고르면 세 마켓 모두 그 안에서만 찾아요. 4080·5070 같은 숫자 모델명은 품번이 겹치는 다른 물건이 빠져요.</p>${cfNote('category')}
@@ -1049,6 +1072,8 @@
         ? `<span class="meta" style="color:var(--ink)">바꾼 것을 버릴까요?</span><span class="grow"></span><button class="btn btn-text gray" data-act="eKeep">계속 고치기</button><button class="btn btn-text coral" data-act="eDiscard">버리기</button>`
         : `<span class="meta" id="eCount">바꾼 칸 ${diff.changed.length}개 <span class="webonly">웹만</span></span><span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button><button class="btn btn-fill" data-act="eSave" id="eSave"${locked() ? lk() : dis(!diff.changed.length || !pctOk)}>저장</button>`);
   }
+  // 조건 창 '자동이면 … (지금 X)'(대표 결정 4): 앱이 센 자동 기준 모델 — 묶음 autoModel(앱 0.7.5 R12 4단계), 없으면 고른 게 없을 때의 baseVariant
+  const autoModelOf = (p) => str(p.autoModel) || (p.cfg && !str(p.cfg.variantPick) ? str(p.baseVariant) : '');
   function openEdit(pid, reopenId) {
     const p = prod(pid);
     if (!p || !p.cfg) return;
@@ -1070,6 +1095,12 @@
        <p class="hint">당근 매물까지 몇 km 인지 여기서 재요. 큰 시는 가운데에서 재면 동네마다 몇 km 씩 틀어지니 사는 동을 적어 두세요. 물건마다 '조건 → 당근 거리'에서 3·5·10·20km 안만 볼 수 있어요.</p>`,
       `${str(pr.daangnHome) ? '<button class="btn btn-text coral" data-act="homeClear">지우기</button>' : ''}<span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button><button class="btn btn-fill" data-act="homeGo" id="homeGo"${locked() ? lk() : dis(n > C.HOME_MAX || (d.home.trim() === str(pr.daangnHome).trim() && d.base.trim() === str(pr.distanceBase).trim()))}>저장</button>`);
   }
+  // 판단 창 머리 갈래 글(앱 ListingSheet): 모델 물건 '모델 크로스웨이브' / '모델 모름', 다섯 갈래 '변형 Ti' 그대로
+  function sheetVariant(l, src) {
+    if (!l.variant) return '';
+    if (isModel(src)) return RV.isUnknownModel(l.variant) ? l.variant : `모델 ${l.variant}`;
+    return `변형 ${l.variant}`;
+  }
   // 판단 창 (C-7)
   function drawerSheet() {
     const d = S.dlg;
@@ -1086,7 +1117,7 @@
     const isAdhoc = !!hit.adhoc || d.adhoc;
     const hidden = p && lastHide(p.id, l.key);
     return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dL"><div class="dhead"><h2 id="dL" class="sr">판단 창</h2><span style="flex:1"></span>${xBtn}</div>
-      <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:1rem">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], l.variant ? `변형 ${l.variant}` : '', placeText(l.place), ago(l.firstSeen, t)].filter(Boolean).join(' · '))}</p></div></div>
+      <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:1rem">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.firstSeen, t)].filter(Boolean).join(' · '))}</p></div></div>
         <div class="price-row" style="margin-top:14px"><span class="price" style="font-size:1.75rem">${esc(won(l.price))}</span>${badge(l.grade, false)}</div>
         ${l.grade && l.grade.why ? `<p class="facts" style="color:var(--ink2)">${esc(l.grade.why)}</p>` : ''}
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
