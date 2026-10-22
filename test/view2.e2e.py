@@ -208,7 +208,7 @@ with sync_playwright() as p:
     check(csvtxt.count('\n') == 14 and '기가바이트 RTX 4080 윈드포스 V2 16G' in csvtxt, 'CSV 13줄 + 머리')
 
     # 변형 칩 (앱 결과 화면 변형 칩과 같은 거르기 — 0.7.1.1 앱 = 웹)
-    check(page.locator('[data-act="variant"]').all_inner_texts() == ['SUPER', '기본'], '변형 칩 SUPER · 기본 (앱과 같은 순서)')
+    check(page.locator('[data-act="variant"]').all_inner_texts() == ['SUPER 6', '기본 7'], "변형 칩 'SUPER 6' · '기본 7' (앱과 같은 순서 · 이름 건수 — 대표 결정 2)")
     check(page.locator('[data-act="cond"]').all_inner_texts() == ['미개봉', '중고'], '미개봉 · 중고 칩(앱 R5)')
     page.click('[data-act="variant"][data-v="SUPER"]')
     page.wait_for_timeout(50)

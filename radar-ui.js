@@ -463,10 +463,12 @@
   }
   function chipRows(all, f) {
     const vchips = RV.variantChips(all);
+    // 칩 글 = '이름 건수'(대표 결정 2 — 모델·변형 둘 다, 디자인 G-1: 이름 600 · 건수 400, 색은 같음). '모델 모름'은 늘 맨 뒤(G-2)
+    const vn = RV.variantCounts(all);
     const anyNew = all.some((l) => l && l.unopened);
     let out = '';
     if (vchips.length >= 2 || anyNew) {
-      out += `<div class="chiprow">${vchips.length >= 2 ? vchips.map((v) => `<button class="cchip" aria-pressed="${v === f.variant}" data-act="variant" data-v="${esc(v)}">${esc(v)}</button>`).join('') + '<span class="gap"></span>' : ''}
+      out += `<div class="chiprow">${vchips.length >= 2 ? vchips.map((v) => `<button class="cchip vchip" aria-pressed="${v === f.variant}" data-act="variant" data-v="${esc(v)}">${esc(v)} <span class="vn">${esc(vn.get(v) || 0)}</span></button>`).join('') + '<span class="gap"></span>' : ''}
         <button class="cchip" aria-pressed="${S.cond === 'new'}" data-act="cond" data-c="new">미개봉</button><button class="cchip" aria-pressed="${S.cond === 'used'}" data-act="cond" data-c="used">중고</button></div>`;
     }
     if (B().base) {
