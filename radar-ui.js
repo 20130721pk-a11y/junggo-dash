@@ -468,7 +468,7 @@
     const anyNew = all.some((l) => l && l.unopened);
     let out = '';
     if (vchips.length >= 2 || anyNew) {
-      out += `<div class="chiprow">${vchips.length >= 2 ? vchips.map((v) => `<button class="cchip vchip" aria-pressed="${v === f.variant}" data-act="variant" data-v="${esc(v)}">${esc(v)} <span class="vn">${esc(vn.get(v) || 0)}</span></button>`).join('') + '<span class="gap"></span>' : ''}
+      out += `<div class="chiprow">${vchips.length >= 2 ? vchips.map((v) => `<button class="cchip vchip" aria-pressed="${v === f.variant}" data-act="variant" data-v="${esc(v)}"><span>${esc(v)} <span class="vn">${esc(vn.get(v) || 0)}</span></span></button>`).join('') + '<span class="gap"></span>' : ''}
         <button class="cchip" aria-pressed="${S.cond === 'new'}" data-act="cond" data-c="new">미개봉</button><button class="cchip" aria-pressed="${S.cond === 'used'}" data-act="cond" data-c="used">중고</button></div>`;
     }
     if (B().base) {
