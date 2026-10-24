@@ -190,9 +190,11 @@
 | 매물 `sheet.facts` | 끝 줄 | 글 | 저장한 물건의 '모델 모름' 매물이면 `SheetCore.UNKNOWN_HINT` '물건 정하기 › 모델에서 모델 낱말을 더할 수 있어요'(앱 판단 시트와 같은 자리) |
 | 알림 | `open` | `'identifyModels'` 또는 없음 | 누르면 그 물건(`pid`)의 물건 정하기 '모델' 칸을 연다 — 앱 `SearchAlerts.opensModels`(이행 줄이고 물건이 아직 있을 때) |
 
-`identify.models` = { `src` `'auto'`·`'user'`, `off` 참/거짓, `defs` 처음 목록[{`n`,`need`,`u`?}], `auto` '자동으로 되돌리기' 목록, `pinned` 기준 모델(고른 → 붙잡은) 또는 null,
+`identify.models` = { `src` `'auto'`·`'user'`, `off` 참/거짓, `defs` 처음 목록[{`n`,`need`,`u`?}], `auto` '자동으로 되돌리기' 목록, `pinned` 기준 모델(고른 → 붙잡은) 또는 null, `cands` 추천 칩 재료[{`n` 이름, `c` 건수, `mid` 중간값}](B-5, 앱 `Models.suggest` — 웹은 이미 더한 모델을 빼고 8개, 앱 `ModelEdit.chips`),
 `items` 후보 매물 싼 순 [[제목, 값 또는 null, 표시]] — 표시 비트 1 = 앞 매물과 같은 글(앱 `Dedup.group`이 빼는 것, 판매자 정보는 싣지 않고 앱이 표시만), 2 = 처음 단어 상태(`identify.words` 의 s)로 빠지는 매물 }.
 웹은 판정하지 않고 앱 `ModelEdit`(rows·rename·merge·remove·add·matchCount)·`Models.assign/hits/userModel`을 `radar-cmd.js`로 옮긴 같은 셈으로 줄·건수를 내요 — 앱이 만든 `test/fixtures/app-models.json` 20경우와 같음(`test/radar-models.test.mjs`).
 가격대를 고르면 그 범위 + 허수 저가(중간값 10% 아래)를 빼고 셉니다(앱 `Pipeline.narrowCandidates`). 단어 칩을 바꾸면 줄은 처음 단어 상태 그대로예요(미리보기와 같이 '앱이 정한 뒤 다시 세요' 쪽).
 
 **R10(10/22)**: 그래픽카드 번호 검색어('4080' 등 물건 카드 검색어)는 계열 이름(rtx·gtx·rx·지포스·geforce·라데온·radeon)을 검색어 낱말로 봐서 `identify.words`(자주 나오는 말)·`sheet.words`(이 말 빼기)에 나오지 않아요(앱 `Identify.keywordParts`). 웹은 앱이 준 낱말을 그대로 그려서 따로 고칠 곳이 없어요.
+
+- (B-6, 10/25) 사람이 더한 모델의 `need` 에는 붙은 영문·숫자 덩어리('v12'·'m1')가 한 낱말로 들어올 수 있어요. 맞추기는 덩어리가 제목에 차례대로(사이는 없거나 띄어쓰기·'-'), 숫자로 끝나면 소수점·단위가 바로 붙지 않을 때만 — `radar-cmd.js` `gluedHit` = 앱 `Models.gluedHit`.

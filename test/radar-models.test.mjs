@@ -99,3 +99,19 @@ test('직접 더한 영문·숫자 모델은 한 덩어리로(B-6) — 앱 Model
   assert.ok(!C.hits('갤럭시탭 s 10.4인치', 's10'));
   assert.ok(!C.hits('갤럭시탭 s10인치', 's10'));
 });
+
+test('앱 = 웹: 붙은 영문·숫자 모델 맞추기·모델 글 → need·추천 칩·안내 글(B-5·B-6·B-8, 앱 WebBundleModel4Test 가 만든 답)', () => {
+  let n = 0;
+  for (const [t, w, want] of app.glued) { assert.equal(C.hits(t, w), want, `${t} / ${w}`); n++; }
+  assert.ok(n >= 150, `견준 경우 ${n}`);
+  for (const [t, want] of Object.entries(app.userWords)) assert.deepEqual(C.userModel(t).need, want, t);
+  const cc = app.chipCase;
+  assert.deepEqual(C.modelChips(cc.cands, C.cleanDefs(cc.defs)).map((c) => c.n), cc.want);
+  assert.deepEqual(C.modelChips(cc.cands, []).map((c) => c.n), cc.wantEmpty);
+  assert.equal(C.modelIntro(false, []), app.intro.none);
+  assert.equal(C.modelIntro(true, C.cleanDefs(cc.defs)), app.intro.user);
+  assert.equal(C.modelIntro(false, C.cleanDefs(cc.defs)), app.intro.auto);
+  assert.equal(C.MODEL_TEXT.chipLabel, app.intro.chipLabel);
+  // 앱이 묶음에 실은 칩 재료(Models.suggest)
+  assert.ok(Array.isArray(m.cands) && m.cands.every((c) => typeof c.n === 'string' && Number.isFinite(c.c) && Number.isFinite(c.mid)));
+});

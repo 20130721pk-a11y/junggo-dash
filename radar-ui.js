@@ -1034,7 +1034,7 @@
     const id = p.identify;
     const can = C.canSplitModels(mm.defs);
     const T = C.MODEL_TEXT;
-    const head = `<div id="idModels"></div><p class="flabel">모델</p><p class="desc" style="margin:-2px 0 9px">${esc(mm.user ? T.user : T.intro)}${mm.user ? ` <button class="btn btn-text" data-act="mRevert">${esc(T.revert)}</button>` : ''}</p>
+    const head = `<div id="idModels"></div><p class="flabel">모델</p><p class="desc" style="margin:-2px 0 9px">${esc(C.modelIntro(mm.user, mm.defs))}${mm.user ? ` <button class="btn btn-text" data-act="mRevert">${esc(T.revert)}</button>` : ''}</p>
       <div class="chiprow" role="radiogroup" aria-label="모델 나누기"><button class="cchip${can ? '' : ' dim'}" role="radio" aria-checked="${!mm.off && can}" data-act="mOff" data-v="0">모델마다 따로</button><button class="cchip" role="radio" aria-checked="${mm.off || !can}" data-act="mOff" data-v="1">나누지 않기</button></div>`;
     if (mm.off) return `${head}<p class="hint">${esc(T.off)}</p>`;
     const rows = can ? C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned) : { rows: C.modelNames(mm.defs).map((n) => ({ n, c: 0, mid: 0, w: [], base: false })), unknown: 0 };
@@ -1043,9 +1043,12 @@
     const rowHtml = rows.rows.map((r) => `<div class="mrow"><span class="mt"><b>${esc(r.n)}</b><span>${esc([`${r.c}건`, r.mid > 0 ? `중간 ${man(r.mid)}` : '', r.w.join('·')].filter(Boolean).join(' · '))}</span></span>
         ${r.base ? '<span class="mbase">기준</span>' : ''}<button class="iconbtn" data-act="mMenu" data-n="${esc(r.n)}" aria-haspopup="menu" aria-expanded="${menuOpen === r.n}" aria-label="${esc(r.n)} 메뉴">${ico('more')}</button>
         ${menuOpen === r.n ? `<div class="mmenu" role="menu"><button role="menuitem" data-act="mRename" data-n="${esc(r.n)}">이름 바꾸기</button>${canMerge ? `<button role="menuitem" data-act="mMerge" data-n="${esc(r.n)}">다른 모델과 합치기</button>` : ''}<button role="menuitem" data-act="mRemove" data-n="${esc(r.n)}">${esc(T.remove)}</button></div>` : ''}</div>`).join('');
+    // 추천 칩(B-5, 앱 시트 '추천' 줄): '자주 나오는 말' 칩과 같은 .cchip 꼴(고르지 않은 상태) — 누르면 바로 더함
+    const chips = C.modelChips(id.models && id.models.cands, mm.defs);
+    const chipHtml = chips.length ? `<p class="hint" style="margin:4px 0 6px 4px">${esc(T.chipLabel)}</p><div class="chiprow">${chips.map((c) => `<button class="cchip" data-act="mChip" data-n="${esc(c.n)}" aria-label="${esc(c.n)} ${esc(c.c)}건 · 모델로 더하기">${esc(c.n)} <span class="c">${esc(c.c)}</span></button>`).join('')}</div>` : '';
     return `${head}${can ? '' : `<p class="hint">${esc(T.two)}</p>`}<div class="mrows">${rowHtml}</div>
       ${can && rows.unknown > 0 ? `<p class="hint" style="margin:2px 0 0 4px">${esc(T.unknown(rows.unknown))}</p>` : ''}
-      <button class="btn btn-text madd" data-act="mAdd">${esc(T.add)}</button>`;
+      ${chipHtml}<button class="btn btn-text madd" data-act="mAdd">${esc(T.add)}</button>`;
   }
   // 모델 칸 작은 창(이름 바꾸기 · 합치기 · 더하기) — 물건 정하기 창으로 돌아가요(back)
   function dlgModel() {
@@ -1641,6 +1644,7 @@
       case 'mRevert': { const mm = S.dlg.sel.m; mm.defs = mm.auto.slice(); mm.user = false; mm.off = false; mm.renamed = {}; mm.touched = true; renderLayer(); return; }
       case 'mMenu': S.dlg.mMenu = S.dlg.mMenu === t.dataset.n ? null : t.dataset.n; renderLayer(); return;
       case 'mRemove': S.dlg.mMenu = null; mEdit(C.removeModel(S.dlg.sel.m.defs, t.dataset.n)); renderLayer(); return;
+      case 'mChip': S.dlg.mMenu = null; mEdit(C.addModel(S.dlg.sel.m.defs, t.dataset.n)); renderLayer(); return;
       case 'mRename': case 'mMerge': case 'mAdd': {
         const back = S.dlg; back.mMenu = null;
         const sub = a === 'mRename' ? 'rename' : a === 'mMerge' ? 'merge' : 'add';

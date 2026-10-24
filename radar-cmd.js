@@ -718,8 +718,22 @@
     }
     return true;
   }
+  // 추천 칩(B-5 — 앱 ModelEdit.chips): 묶음 identify.models.cands(앱 Models.suggest)에서 이미 더한 것(같은 이름·같은 낱말)을 빼고 8개
+  const CHIP_MAX = 8;
+  function modelChips(cands, defs) {
+    const ds = arr(defs);
+    const names = new Set(ds.map((d) => String(d.n).toLowerCase()));
+    const needs = new Set(ds.map((d) => [...new Set(d.need)].sort().join('\u0001')));
+    return arr(cands).filter((c) => isObj(c) && str(c.n) && Number.isFinite(c.c))
+      .filter((c) => !names.has(c.n.toLowerCase()) && !needs.has([...new Set(userModel(c.n).need)].sort().join('\u0001')))
+      .slice(0, CHIP_MAX);
+  }
+  // 앱 ModelEdit.intro(B-8): 사람이 고친 목록 · 자동으로 둘 이상 나눔 · 나누지 않음
+  const modelIntro = (user, defs) => (user ? MODEL_TEXT.user : canSplitModels(defs) ? MODEL_TEXT.intro : MODEL_TEXT.introNone);
   const MODEL_TEXT = {
     intro: '제목 낱말로 자동으로 나눴어요. 고치면 앱이 다시 바꾸지 않아요.',
+    introNone: '자동으로 나누지 않았어요. 추천을 누르거나 직접 더하면 모델마다 따로 판정해요.',
+    chipLabel: '추천',
     user: '직접 고친 목록이에요.',
     revert: '자동으로 되돌리기',
     off: '한 시세로 판정해요. 값이 다른 모델이 섞이면 싼 모델이 꿀매로 떠요.',
@@ -784,6 +798,6 @@
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
     UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
-    matchCount, modelRows, modelsOk,
+    matchCount, modelRows, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

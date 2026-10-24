@@ -252,6 +252,22 @@ with sync_playwright() as p:
     c2 = gh.plain(max(gh.issues))
     check(c2['type'] == 'identify' and 'models' not in c2['set'], '모델 칸을 안 고치면 models 없음(앱 시트와 같음)')
 
+    # 추천 칩(B-5): 묶음 cands 에서 이미 있는 모델을 뺀 칩 · 누르면 바로 줄이 생김 · 사람 목록 글
+    page.click('[data-act="identifyModels"]')
+    page.wait_for_selector('#idModels', state='attached')
+    im = APP['product']['identify']['models']
+    have = {d['n'].lower() for d in im['defs']}
+    want_chips = [f"{c['n']} {c['c']}" for c in im['cands'] if c['n'].lower() not in have][:8]
+    got_chips = [t.replace('\n', ' ').strip() for t in page.locator('[data-act="mChip"]').all_inner_texts()]
+    check(len(want_chips) >= 1 and got_chips == want_chips and '추천' in page.inner_text('#layer'), f"추천 칩 = 앱 cands − 이미 있는 모델 {got_chips}")
+    first_chip = page.locator('[data-act="mChip"]').first.get_attribute('data-n')
+    page.click('[data-act="mChip"] >> nth=0')
+    page.wait_for_timeout(80)
+    check(first_chip in page.locator('.mrow .mt b').all_inner_texts() and page.locator(f'[data-act="mChip"][data-n="{first_chip}"]').count() == 0 and '직접 고친 목록이에요.' in page.inner_text('#layer'), '칩을 누르면 그 모델 줄이 생기고 칩은 빠짐')
+    shot('m06-chips')
+    page.click('[data-act="close"]')
+    page.wait_for_timeout(80)
+
     # ---------- 알림함 이행 줄 → 물건 정하기 '모델' 칸 ----------
     page.evaluate("() => { location.hash = '#inbox'; }")
     page.wait_for_selector('.irow')
