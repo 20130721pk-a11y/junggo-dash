@@ -544,17 +544,50 @@
     if (!p) {
       if (T_CACHE.size > 5000) T_CACHE.clear();
       const toks = tokens(k).flatMap(unglue);
-      p = { toks: new Set(toks), heads: new Set(toks.map((t) => aliasesOf(t)[0])), glued: norm(k) };
+      const low = k.normalize('NFC').toLowerCase();
+      const spans = [...low.matchAll(RUN_RE)].map((m) => [m.index, m.index + m[0].length]);
+      p = { toks: new Set(toks), heads: new Set(toks.map((t) => aliasesOf(t)[0])), glued: norm(k), low, spans };
       T_CACHE.set(k, p);
     }
     return p;
+  }
+  const RUN_RE = /[0-9]+|[a-z]+|[가-힣]+/g;
+  // 앱 Models.isGlued: 영문·숫자(또는 한글·숫자)가 붙은 한 덩어리 말('v12'·'m1'·'s24'·'플스5', B-6)
+  const isGlued = (w) => /[0-9]/.test(w) && /[^0-9]/.test(w) && /^[0-9a-z가-힣]+$/.test(w);
+  // 앱 Models.UNIT_AFTER: 숫자 바로 뒤에 붙으면 단위('v 12개월'·'s10인치')
+  const UNIT_AFTER = ['개월', '인치', '분', '시간', '년', '일', '개', '회', '번', '원', '만원', '천원', '기가', '테라', '와트', '미터', '키로', '센치'];
+  // 앱 Models.gluedHit: 덩어리가 차례대로, 사이는 없거나 띄어쓰기·'-' 둘까지 · 숫자로 끝나면 소수점·단위가 바로 붙으면 아님
+  function gluedHit(t, parts) {
+    const n = parts.length, sp = t.spans;
+    if (!n || sp.length < n) return false;
+    const run = (i) => t.low.slice(sp[i][0], sp[i][1]);
+    outer: for (let i = 0; i + n <= sp.length; i++) {
+      for (let j = 0; j < n; j++) {
+        const r = run(i + j), p = parts[j];
+        const same = r === p || aliasesOf(r)[0] === aliasesOf(p)[0] ||
+          (j === 0 && p.length >= 2 && /^[가-힣]+$/.test(p) && /^[가-힣]+$/.test(r) && r.endsWith(p));
+        if (!same) continue outer;
+        if (j > 0) {
+          const g = t.low.slice(sp[i + j - 1][1], sp[i + j][0]);
+          if (g.length > 2 || !/^[ -]*$/.test(g)) continue outer;
+        }
+      }
+      if (/^[0-9]+$/.test(parts[n - 1])) {
+        const rest = t.low.slice(sp[i + n - 1][1]);
+        if (/^\.[0-9]/.test(rest)) continue;
+        if (UNIT_AFTER.some((u) => rest.startsWith(u))) continue;
+      }
+      return true;
+    }
+    return false;
   }
   function hits(title, w) {
     const group = aliasesOf(w);
     const t = titleParts(title);
     // 예전: toks.some((x) => group.includes(x) || aliasesOf(x)[0] === group[0]) 와 같은 셈
     if (t.heads.has(group[0]) || group.some((g) => t.toks.has(g))) return true;
-    return group.some((g) => g.length >= 3 && /^[가-힣]+$/.test(g) && t.glued.includes(g));
+    if (group.some((g) => g.length >= 3 && /^[가-힣]+$/.test(g) && t.glued.includes(g))) return true;
+    return group.some((g) => isGlued(g) && gluedHit(t, g.match(/[0-9]+|[a-z]+|[가-힣]+/g)));
   }
   // 앱 Models.assign: 맞는 모델이 하나면 그 이름, 좁은·넓은 모델이 같이 맞으면 좁은 쪽, 서로 다른 모델 둘 이상이거나 없으면 '모델 모름'(같은 이름 둘 = 합친 모델)
   function assignModel(defs, title) {
@@ -563,7 +596,23 @@
     const narrow = [...new Set(hit.filter((h) => !hit.some((x) => x.u === h.n)).map((h) => h.n))];
     return narrow.length === 1 ? narrow[0] : UNKNOWN_MODEL;
   }
-  const userModel = (name) => ({ n: String(name == null ? '' : name).trim(), need: [...new Set(tokens(name).map((t) => aliasesOf(t)[0]))] });
+  // 앱 Models.userWords(B-6): 붙은 덩어리('v12')는 need 하나, 영문 두 글자 이하 + 띄우고 숫자('v 12'·'m-1')도 붙은 말, 나머지는 낱말마다
+  function userWords(text) {
+    const low = String(text == null ? '' : text).normalize('NFC').toLowerCase();
+    const chunks = [];
+    let prevEnd = -1, prev = '', runs = 0;
+    for (const m of low.matchAll(RUN_RE)) {
+      const r = m[0];
+      const gap = prevEnd < 0 ? null : low.slice(prevEnd, m.index);
+      const join = gap != null && (gap === '' ||
+        (runs === 1 && (gap === ' ' || gap === '-') && prev.length <= 2 && /^[a-z]+$/.test(prev) && /^[0-9]+$/.test(r)));
+      if (join) { chunks[chunks.length - 1] += r; runs++; } else { chunks.push(r); runs = 1; }
+      prevEnd = m.index + r.length;
+      prev = r;
+    }
+    return [...new Set(chunks.map((c) => aliasesOf(c)[0]))];
+  }
+  const userModel = (name) => ({ n: String(name == null ? '' : name).trim(), need: userWords(name) });
   const cleanDefs = (defs) => arr(defs).filter((d) => isObj(d) && str(d.n) && Array.isArray(d.need) && d.need.length).map((d) => ({ n: d.n, need: d.need.map(String), ...(str(d.u) ? { u: d.u } : {}) }));
   const modelNames = (defs) => [...new Set(arr(defs).map((d) => d.n))];
   const canSplitModels = (defs) => modelNames(defs).length >= 2;

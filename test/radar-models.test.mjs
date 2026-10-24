@@ -77,3 +77,25 @@ test('붙여 쓴 상표 앞말 떼기(B-2) — 앱 ModelsB1Test.gluedBrandPrefix
   assert.equal(C.assignModel(defs, '맥북프로 14인치'), '프로');
   assert.equal(C.assignModel(defs, '맥북 프로 14인치'), '프로');
 });
+
+test('직접 더한 영문·숫자 모델은 한 덩어리로(B-6) — 앱 ModelsB6Test 와 같은 답', () => {
+  assert.deepEqual(C.userModel('v12').need, ['v12']);
+  assert.deepEqual(C.userModel('v 12').need, ['v12']);
+  assert.deepEqual(C.userModel('m-1').need, ['m1']);
+  assert.deepEqual(C.userModel('크로스웨이브 맥스').need, ['크로스웨이브', '맥스']);
+  assert.equal(C.userModel('pro 14').need.length, 2);
+  const add = (...ns) => ns.reduce((d, n) => C.addModel(d, n), []);
+  const dyson = add('v8', 'v10', 'v12', 'v15');
+  assert.equal(C.assignModel(dyson, '깨끗하게 세척한 다이슨 V6 무선 청소기(12분 사용)'), C.UNKNOWN_MODEL);
+  assert.equal(C.assignModel(dyson, '다이슨 v8 12개월 사용'), 'v8');
+  const mac = add('m1', 'm2', 'm3', 'm4');
+  assert.equal(C.assignModel(mac, '맥북 프로 14인치 M5 32GB 1TB 실버'), C.UNKNOWN_MODEL);
+  assert.equal(C.assignModel(mac, '맥북 파워 어댑터 67와트와 c to c 케이블(2m)'), C.UNKNOWN_MODEL);
+  assert.equal(C.assignModel(add('s7', 's8', 's9', 's10'), '갤럭시 탭 S6 Lite 10.4인치 64기가'), C.UNKNOWN_MODEL);
+  for (const t of ['다이슨 V12 디텍트 슬림', '다이슨 v 12 디텍트', '다이슨 v-12', '다이슨v12 무선', '다이슨 V12s 디텍트 슬림 서브마린', '다이슨(V12)']) assert.ok(C.hits(t, 'v12'), t);
+  for (const t of ['맥북 에어 M1 8기가', '맥북프로 m1pro 14인치', '맥북 M1 프로 16', '맥북에어m1']) assert.ok(C.hits(t, 'm1'), t);
+  for (const t of ['다이슨 v120', '로봇 dv12', '다이슨 v6 12분', '다이슨 v 12개월 사용', '다이슨 v12.5', 'v / 12']) assert.ok(!C.hits(t, 'v12'), t);
+  assert.ok(!C.hits('맥북 m11', 'm1'));
+  assert.ok(!C.hits('갤럭시탭 s 10.4인치', 's10'));
+  assert.ok(!C.hits('갤럭시탭 s10인치', 's10'));
+});
