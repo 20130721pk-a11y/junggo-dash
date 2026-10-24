@@ -142,24 +142,34 @@
     return out;
   }
 
-  /* ---------- 변형 칩 (앱 Pipeline.variantChips 와 같은 규칙) ---------- */
-  // 묶음 매물의 variant = 앱 Variants.of(검색어, 제목) — 변형을 가르는 검색이면 모든 매물에 이름('기본'·'SUPER'·'Ti'…), 아니면 모두 null.
-  // 칩: 변형이 둘 이상일 때만, 묶기 전 매물이 많은 변형부터(같으면 싼 순으로 먼저 나온 것). 칩을 고르면 그 변형 매물만.
+  /* ---------- 변형·모델 칩 (앱 Pipeline.variantChips·chipCounts 와 같은 규칙) ---------- */
+  // 묶음 매물의 variant = 앱 ModelSplit.of(제목) — 나누는 검색이면 모든 매물에 이름('기본'·'SUPER'·'Ti'… / 모델 이름), 아니면 모두 null.
+  // 모델 물건(R12, 묶음 term 'model')에서 모델을 못 알아본 매물은 '모델 모름'(앱 Models.UNKNOWN) — 빈 값→'기본' 바꿈과 섞이지 않게 따로 봐요.
+  // 칩: 이름 있는 변형·모델이 둘 이상일 때만, 묶기 전 매물이 많은 것부터(같으면 싼 순으로 먼저 나온 것), '모델 모름'은 늘 맨 뒤(디자인 G-2).
+  // 칩 글 = '이름 건수'(대표 결정 2, 디자인 G-1) — 건수는 [variantCounts](칩 차례를 정한 수와 같음).
   const BASE_VARIANT = '기본';
+  const UNKNOWN_MODEL = '모델 모름';
+  const isUnknownModel = (v) => v === UNKNOWN_MODEL;
   const variantOf = (l) => str(l && l.variant) || BASE_VARIANT;
-  function variantChips(list) {
+  // 묶기 전 매물 수: dupRows 가 있으면 그 수, 없으면(옛 묶음) dups
+  const weightOf = (l) => (Array.isArray(l.dupRows) ? membersOf(l).length : 1 + Math.max(0, Number(l.dups) || 0));
+  function variantCounts(list) {
     const all = arr(list).filter(Boolean);
-    if (!all.some((l) => str(l.variant))) return [];
-    const order = [], weight = new Map();
+    const weight = new Map();
+    if (!all.some((l) => str(l.variant))) return weight;
     for (const l of all) {
       const v = variantOf(l);
-      if (!weight.has(v)) { weight.set(v, 0); order.push(v); }
-      // 묶기 전 매물 수: dupRows 가 있으면 그 수, 없으면(옛 묶음) dups
-      const n = Array.isArray(l.dupRows) ? membersOf(l).length : 1 + Math.max(0, Number(l.dups) || 0);
-      weight.set(v, weight.get(v) + n);
+      weight.set(v, (weight.get(v) || 0) + weightOf(l));
     }
+    return weight;
+  }
+  function variantChips(list) {
+    const weight = variantCounts(list);
+    const order = [...weight.keys()];
     const chips = order.map((v, i) => ({ v, w: weight.get(v), i })).sort((a, b) => b.w - a.w || a.i - b.i).map((x) => x.v);
-    return chips.length >= 2 ? chips : [];
+    const named = chips.filter((v) => !isUnknownModel(v));
+    // 앱 결과 화면: 이름 있는 칩이 둘 이상일 때만 칩 줄(ResultsScreen namedChips >= 2)
+    return named.length >= 2 ? named.concat(chips.filter(isUnknownModel)) : [];
   }
 
   /* ---------- 매물 보기 거르기 (계획서 5-2 ⑦, 디자인 W-C) ---------- */
@@ -211,9 +221,14 @@
   // 판정은 하지 않아요: 매물마다 앱이 낸 grade.k(⚠ 여부)와 묶음 baseVariant(기준 변형)로 고르기만.
   // rows = filterListings 의 heroRows(싼 순). o = { name: 물건 이름, chip: 변형 칩, base: 묶음 baseVariant, market: 한 마켓만 켰을 때 그 코드 }.
   // 돌려주는 것: { hero, doubtful, line, cautionKey } — line 은 결과 화면 칸 위 한 줄 글(없으면 null), cautionKey = 첫 ⚠(기준 변형 안).
+  // 모델 물건(o.term 'model', R12): '모델 모름' 칩이면 칸 없음 + 회색 한 줄(앱 CardCore.unknownChipLine, 디자인 G-3) —
+  // 판정하지 않은 매물을 지금 최저가로 올리지 않아요. 기준 모델에 믿을 만한 매물이 없을 때 '· {모델} 최저'에 모름 매물을 쓰지 않아요.
+  const unknownChipLine = (n) => `모델을 모르는 매물 ${n}건이에요 — 판정하지 않아서 지금 최저가로 올리지 않아요`;
   function screenHero(rows, o) {
     o = o || {};
     const all = arr(rows).filter(Boolean);
+    const model = o.term === 'model';
+    if (model && isUnknownModel(str(o.chip))) return { hero: null, doubtful: 0, line: unknownChipLine(all.length), cautionKey: null };
     const split = o.base !== undefined ? !!str(o.base) : all.some((l) => str(l.variant));
     const want = split ? (str(o.chip) || str(o.base) || BASE_VARIANT) : '';
     const isBase = (l) => !want || variantOf(l) === want;
@@ -224,7 +239,7 @@
     const before = hero ? inBase.slice(0, inBase.indexOf(hero)) : inBase;
     const cautions = before.filter((l) => kind(l) === 'caution');
     const doubtful = cautions.length;
-    const other = hero ? null : all.find((l) => !isBase(l) && priced(l) && kind(l) != null && kind(l) !== 'caution') || null;
+    const other = hero ? null : all.find((l) => !isBase(l) && priced(l) && kind(l) != null && kind(l) !== 'caution' && !(model && isUnknownModel(variantOf(l)))) || null;
     const noBase = !hero && split ? other : null;
     let line = null;
     if (noBase) {
@@ -330,6 +345,6 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, variantChips, filterListings, screenHero, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

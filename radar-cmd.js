@@ -126,7 +126,8 @@
       case 'identify': {
         const s = c.set;
         if (!pidOk(c.pid) || !isObj(s)) return 'identify';
-        return CATEGORIES.some((x) => x[0] === s.category) && numOrNull(s.bandMin) && numOrNull(s.bandMax) && wordsArr(s.excludeWords) && wordsArr(s.includeWords) ? '' : 'identify';
+        return CATEGORIES.some((x) => x[0] === s.category) && numOrNull(s.bandMin) && numOrNull(s.bandMax) && wordsArr(s.excludeWords) && wordsArr(s.includeWords) &&
+          (s.models == null || modelsOk(s.models)) ? '' : 'identify';
       }
       case 'remove': case 'unhideAll': return pidOk(c.pid) ? '' : 'pid';
       case 'move': return pidOk(c.pid) && (c.dir === 'up' || c.dir === 'down') ? '' : 'move';
@@ -482,6 +483,209 @@
     return isObj(pv[k]) ? { kind: 'ok', pv: pv[k] } : { kind: 'none' };
   }
 
+  /* ---------- 물건 정하기 '모델' 칸 (앱 data/ModelEdit.kt · Models.assign/hits/userModel 그대로 옮김 — R12 4단계, 비교 시험) ---------- */
+  // 재료 = 묶음 identify.models { src, off, defs, auto, pinned, items:[[제목, 값, 표시]] } — 표시 1 = 같은 글(앱 Dedup.group 이 빼는 것),
+  // 2 = 처음 단어 상태로 빠지는 매물. 판정은 하지 않고 '어느 모델 낱말이 든 제목인가'만 앱과 같은 규칙으로 세요.
+  const UNKNOWN_MODEL = '모델 모름';
+  const M_ALIASES = [
+    ['아이폰', 'iphone'], ['아이패드', 'ipad'], ['맥북', 'macbook'], ['아이맥', 'imac'],
+    ['에어팟', 'airpods', 'airpod'], ['애플워치', 'applewatch'], ['애플', 'apple'],
+    ['갤럭시', 'galaxy'], ['갤탭', '갤럭시탭', 'galaxytab'], ['버즈', 'buds'],
+    ['프로', 'pro'], ['맥스', 'max'], ['플러스', 'plus'], ['미니', 'mini'],
+    ['울트라', 'ultra'], ['에어', 'air'], ['닌텐도', 'nintendo'], ['스위치', 'switch'],
+    ['플레이스테이션', '플스', 'playstation'],
+    ['ps5', '플스5', '플레이스테이션5', 'playstation5'],
+    ['ps4', '플스4', '플레이스테이션4', 'playstation4'],
+    ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'],
+    ['후지필름', '후지', 'fujifilm'], ['라이카', 'leica'], ['로지텍', 'logitech'],
+    ['레노버', 'lenovo'], ['삼성', 'samsung'], ['엘지', 'lg'], ['샤오미', 'xiaomi'],
+    ['나이키', 'nike'], ['아디다스', 'adidas'], ['뉴발란스', 'newbalance'],
+    ['스타벅스', 'starbucks'], ['레고', 'lego'], ['기가', 'gb'], ['테라', 'tb'],
+    ['디오스', 'dios'],
+  ];
+  const M_INDEX = new Map();
+  for (const g of M_ALIASES) { const n = g.map(norm); for (const w of n) M_INDEX.set(w, n); }
+  const aliasesOf = (w) => { const n = norm(w); return M_INDEX.get(n) || [n]; };
+  // 앱 Identify.tokens: 소문자, 한글/영문/숫자 덩어리
+  const tokens = (t) => String(t == null ? '' : t).normalize('NFC').toLowerCase().split(/[^0-9a-z가-힣]+/).flatMap((x) => x.match(/[0-9]+|[a-z]+|[가-힣]+/g) || []);
+  // 앱 Identify.STOP·useful·keywordParts(Matcher.groupsOf)
+  const STOP_WORDS = new Set(['판매', '판매합니다', '판매해요', '판매중', '팝니다', '팔아요', '팔께요', '팔게요', '급처', '급매', '처분', '삽니다',
+    '택포', '택배', '택배비', '직거래', '무료배송', '반값택배', '편의점', '포함', '가능', '불가', '문의', '네고',
+    '정품', '상태', '좋음', '좋아요', '최상', '깨끗', '깨끗합니다', '깔끔', '급', '가격', '원', '만원', '개', '제품', '상품',
+    'gb', 'tb', 'mb', 'cm', 'mm', 'kg', '인치']);
+  function groupsOf(kw) {
+    const out = [];
+    for (const w of String(kw || '').split(/\s+/)) {
+      const n = norm(w);
+      if (!n) continue;
+      const parts = M_INDEX.has(n) ? [n] : (n.match(/[가-힣ㄱ-ㅎㅏ-ㅣ]+|[^가-힣ㄱ-ㅎㅏ-ㅣ]+/g) || []);
+      for (const q of parts) if (q) out.push(M_INDEX.get(q) || [q]);
+    }
+    return out;
+  }
+  const keywordParts = (kw) => alts(kw).flatMap((a) => groupsOf(a).flat()).concat(alts(kw).map(norm));
+  const usefulWord = (w, parts) => !(w.length < 2 || STOP_WORDS.has(w) || (/^[0-9]+$/.test(w) && w.length < 3) || parts.some((q) => q.includes(w)));
+  // 앱 Models.GLUE_PREFIX·unglue(B-2, 10/24): 붙여 쓴 상표 앞말을 떼어 본다 — '맥북프로' = '맥북' '프로'. 나머지가 한글 두 글자 이상일 때만,
+  // 같은 말 묶음에 든 말('갤럭시탭'·'애플워치')은 통째로. 앱과 같은 목록이어야 한다(앱 = 웹).
+  const GLUE_PREFIX = ['아이폰', '아이패드', '맥북', '아이맥', '에어팟', '애플워치', '애플', '갤럭시탭', '갤탭', '갤럭시', '닌텐도', '플레이스테이션',
+    '다이슨', '소니', '캐논', '니콘', '후지필름', '라이카', '로지텍', '레노버', '삼성', '엘지', '샤오미', '나이키', '아디다스', '뉴발란스',
+    '스타벅스', '레고', '디오스', '로보락', '비쎌'].sort((a, b) => b.length - a.length);
+  function unglue(tok) {
+    if (tok.length < 4 || !/^[가-힣]+$/.test(tok) || aliasesOf(tok).length > 1) return [tok];
+    const p = GLUE_PREFIX.find((x) => tok.startsWith(x) && tok.length - x.length >= 2);
+    return p ? [p, tok.slice(p.length)] : [tok];
+  }
+  // 앱 Models.hits: 낱말이 같거나(같은 말 묶음), 한글 세 글자 이상이면 붙여 쓴 제목 안에 있어도
+  // 제목은 한 번만 쪼갠다(앱 Models.Title, 0.7.5 QA B-4 — 모델 줄을 셀 때 낱말마다 제목을 다시 쪼개면 넓은 검색어에서 느렸다). 셈 결과는 같다.
+  const T_CACHE = new Map();
+  function titleParts(title) {
+    const k = String(title == null ? '' : title);
+    let p = T_CACHE.get(k);
+    if (!p) {
+      if (T_CACHE.size > 5000) T_CACHE.clear();
+      const toks = tokens(k).flatMap(unglue);
+      p = { toks: new Set(toks), heads: new Set(toks.map((t) => aliasesOf(t)[0])), glued: norm(k) };
+      T_CACHE.set(k, p);
+    }
+    return p;
+  }
+  function hits(title, w) {
+    const group = aliasesOf(w);
+    const t = titleParts(title);
+    // 예전: toks.some((x) => group.includes(x) || aliasesOf(x)[0] === group[0]) 와 같은 셈
+    if (t.heads.has(group[0]) || group.some((g) => t.toks.has(g))) return true;
+    return group.some((g) => g.length >= 3 && /^[가-힣]+$/.test(g) && t.glued.includes(g));
+  }
+  // 앱 Models.assign: 맞는 모델이 하나면 그 이름, 좁은·넓은 모델이 같이 맞으면 좁은 쪽, 서로 다른 모델 둘 이상이거나 없으면 '모델 모름'(같은 이름 둘 = 합친 모델)
+  function assignModel(defs, title) {
+    const hit = defs.filter((d) => d.need.every((w) => hits(title, w)));
+    if (!hit.length) return UNKNOWN_MODEL;
+    const narrow = [...new Set(hit.filter((h) => !hit.some((x) => x.u === h.n)).map((h) => h.n))];
+    return narrow.length === 1 ? narrow[0] : UNKNOWN_MODEL;
+  }
+  const userModel = (name) => ({ n: String(name == null ? '' : name).trim(), need: [...new Set(tokens(name).map((t) => aliasesOf(t)[0]))] });
+  const cleanDefs = (defs) => arr(defs).filter((d) => isObj(d) && str(d.n) && Array.isArray(d.need) && d.need.length).map((d) => ({ n: d.n, need: d.need.map(String), ...(str(d.u) ? { u: d.u } : {}) }));
+  const modelNames = (defs) => [...new Set(arr(defs).map((d) => d.n))];
+  const canSplitModels = (defs) => modelNames(defs).length >= 2;
+  function renameModel(defs, old, nw) {
+    const n = String(nw == null ? '' : nw).trim();
+    if (!n || n === old || n === UNKNOWN_MODEL || defs.some((d) => d.n === n)) return defs;
+    return defs.map((d) => (d.n === old ? { ...d, n } : d.u === old ? { ...d, u: n } : d));
+  }
+  function mergeModel(defs, from, into) {
+    if (from === into || !defs.some((d) => d.n === into)) return defs;
+    return defs.map((d) => { if (d.n === from) { const { u, ...rest } = d; return { ...rest, n: into }; } return d.u === from ? { ...d, u: into } : d; });
+  }
+  const removeModel = (defs, name) => defs.filter((d) => d.n !== name).map((d) => { if (d.u === name) { const { u, ...rest } = d; return rest; } return d; });
+  function addModel(defs, text) {
+    const d = userModel(text);
+    if (!d.n || !d.need.length || d.n === UNKNOWN_MODEL || defs.some((x) => x.n === d.n)) return defs;
+    return defs.concat([d]);
+  }
+  // 묶음 매물 줄 → { title, price, dup, outWords }
+  const mItems = (m) => arr(m && m.items).filter(Array.isArray).map((x) => ({ title: str(x[0]), price: Number.isFinite(x[1]) ? x[1] : null, dup: !!((x[2] | 0) & 1), outWords: !!((x[2] | 0) & 2) }));
+  // 더하기 창 '지금 매물 n건이 이 말을 가져요'(앱 ModelEdit.matchCount — 같은 글은 한 번)
+  function matchCount(m, text) {
+    const d = userModel(text);
+    if (!d.need.length) return 0;
+    return mItems(m).filter((l) => !l.dup && d.need.every((w) => hits(l.title, w))).length;
+  }
+  const medianOf = (ls) => {
+    const p = ls.map((l) => l.price).filter((v) => v > 0).sort((a, b) => a - b);
+    if (!p.length) return 0;
+    const n = p.length;
+    return n % 2 ? p[(n - 1) / 2] : Math.floor((p[n / 2 - 1] + p[n / 2]) / 2);
+  };
+  // 앱 Noise.dropLowballs(시세 없이 — Stats 4건 이상일 때 중간값의 10% 아래 값)
+  function dropLowballs(ls) {
+    const p = ls.map((l) => l.price).filter((v) => v > 0).sort((a, b) => a - b);
+    if (p.length < 4) return ls;
+    const n = p.length, med = n % 2 ? p[(n - 1) / 2] : Math.trunc((p[n / 2 - 1] + p[n / 2]) / 2);
+    const floor = Math.trunc(med * 0.10);
+    return floor <= 0 ? ls : ls.filter((l) => !(l.price >= 1 && l.price < floor));
+  }
+  // 앱 Models.pickBase: 붙잡은 모델이 목록에 있으면 그대로, 아니면 매물 가장 많은 모델(같으면 싼 순으로 먼저 나온 것)
+  function pickBaseModel(defs, uniq, pinned) {
+    const names = modelNames(defs);
+    if (pinned && names.includes(pinned)) return pinned;
+    const counts = new Map();
+    for (const l of uniq) {
+      if (!(l.price > 0)) continue;
+      const v = assignModel(defs, l.title);
+      if (v !== UNKNOWN_MODEL) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    let best = null, bn = -1;
+    for (const [k, v] of counts) if (v > bn) { best = k; bn = v; }
+    return best || names[0] || null;
+  }
+  function coWords(ls, parts, need, names) {
+    const nameWords = new Set(names.flatMap(tokens).map((t) => aliasesOf(t)[0]));
+    const counts = new Map(), spelled = new Map();
+    for (const l of ls) {
+      const seen = new Set();
+      for (const w of tokens(l.title)) {
+        if (!usefulWord(w, parts)) continue;
+        const head = aliasesOf(w)[0];
+        if (need.has(head) || nameWords.has(head)) continue;
+        if (!spelled.has(head)) spelled.set(head, new Map());
+        spelled.get(head).set(w, (spelled.get(head).get(w) || 0) + 1);
+        if (!seen.has(head)) { seen.add(head); counts.set(head, (counts.get(head) || 0) + 1); }
+      }
+    }
+    return [...counts].filter(([, v]) => v >= 2).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).slice(0, 2)
+      .map(([head]) => { let best = head, bn = -1; for (const [w, v] of spelled.get(head) || []) if (v > bn) { best = w; bn = v; } return best; });
+  }
+  // 모델 줄(앱 ModelEdit.rows): band = { lo, hi } 고른 가격대(없으면 null) — 매물 = 처음 단어 상태 → 가격대 → 허수 저가 → 같은 글 한 번
+  function modelRows(keyword, defs, m, band, pinned) {
+    if (!canSplitModels(defs)) return { rows: [], unknown: 0 };
+    const inBand = (v) => !(v > 0) || ((band.lo == null || v >= band.lo) && (band.hi == null || v <= band.hi));
+    const narrowed = dropLowballs(mItems(m).filter((l) => !l.outWords && (!band || inBand(l.price))));
+    const uniq = narrowed.filter((l) => !l.dup);
+    const by = new Map();
+    for (const l of uniq) { const v = assignModel(defs, l.title); if (!by.has(v)) by.set(v, []); by.get(v).push(l); }
+    const base = pickBaseModel(defs, uniq, pinned);
+    const parts = keywordParts(keyword);
+    const order = modelNames(defs);
+    const rows = order.map((n) => {
+      const ls = by.get(n) || [];
+      const need = new Set(defs.filter((d) => d.n === n).flatMap((d) => d.need));
+      return { n, c: ls.length, mid: medianOf(ls), w: coWords(ls, parts, need, order), base: n === base };
+    });
+    const sorted = rows.map((r, i) => [r, i]).sort((a, b) => b[0].c - a[0].c || a[1] - b[1]).map((x) => x[0]);
+    return { rows: sorted, unknown: (by.get(UNKNOWN_MODEL) || []).length };
+  }
+  // 명령 identify 의 set.models 검사(앱 WebCmd.modelsOk 와 같은 값)
+  const MODELS_MAX = 20, MODEL_TEXT_MAX = 40;
+  const mText = (v) => typeof v === 'string' && v.trim() !== '' && v.length <= MODEL_TEXT_MAX;
+  function modelsOk(v) {
+    if (!isObj(v) || !boolOk(v.off) || !boolOk(v.user) || !Array.isArray(v.defs) || v.defs.length > MODELS_MAX) return false;
+    for (const d of v.defs) {
+      if (!isObj(d) || !mText(d.n) || !Array.isArray(d.need) || d.need.length < 1 || d.need.length > 5 || !d.need.every(mText)) return false;
+      if (d.u != null && !mText(d.u)) return false;
+    }
+    if (v.renamed != null) {
+      if (!isObj(v.renamed) || Object.keys(v.renamed).length > MODELS_MAX) return false;
+      for (const k of Object.keys(v.renamed)) if (!k.trim() || k.length > MODEL_TEXT_MAX || !mText(v.renamed[k])) return false;
+    }
+    return true;
+  }
+  const MODEL_TEXT = {
+    intro: '제목 낱말로 자동으로 나눴어요. 고치면 앱이 다시 바꾸지 않아요.',
+    user: '직접 고친 목록이에요.',
+    revert: '자동으로 되돌리기',
+    off: '한 시세로 판정해요. 값이 다른 모델이 섞이면 싼 모델이 꿀매로 떠요.',
+    two: '모델이 둘 이상이어야 나눠요',
+    unknown: (n) => `${UNKNOWN_MODEL} ${n}건 — 판정하지 않아요`,
+    add: '+ 모델 직접 더하기',
+    remove: '이 모델 지우기(매물은 모델 모름으로)',
+    renameHint: '화면에 보이는 이름만 바꿔요(나누는 낱말은 그대로)',
+    addHint: '제목에 이 말이 있으면 이 모델로 봐요(예: 크로스웨이브)',
+    count: (n) => `지금 매물 ${n}건이 이 말을 가져요`,
+    mergeHint: (from) => `'${from}' 매물을 고른 모델로 봐요`,
+    introModels: '모델이 나뉜 물건은 가장 싼 무리(부품·소모품 같은)만 빼요. 위쪽은 자르지 않아요.',
+    introSplit: '가격이 무리 지어 갈라져요. 찾는 물건의 무리를 고르면 다른 무리는 시세에서도 빠져요.',
+  };
+
   /* ---------- 시세 탭 숫자 (앱 PriceView 그대로 옮김 — 웹 안, 판정 아님) ---------- */
   function quant(sorted, p) {
     if (!sorted.length) return 0;
@@ -530,5 +734,7 @@
     newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
+    UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
+    matchCount, modelRows, modelsOk,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

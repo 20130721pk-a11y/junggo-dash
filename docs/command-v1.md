@@ -73,7 +73,7 @@ GitHub REST(버전 머리 `X-GitHub-Api-Version: 2022-11-28`):
 |---|---|---|---|---|
 | `add` | `q` 검색어(친 글 그대로, 쉼표 3개까지는 앱이 자름), `card`? 물건 카드 id(`gpu:4080`·`console:ps5`) | `SearchViewModel.addProduct(q, card)` — 카드 id 는 `Products.gpu(번호)`·`Products.ps5()` 로 되살림 | — | 같은 검색어가 있으면 `done` '이미 지켜보는 물건이에요'. 만들면 `pid` 를 결과에 |
 | `edit` | `pid`, `set`{칸: 새 값}, `base`{칸: 바꾸기 전 값} | 조건 창 저장과 같은 읽기(`parseWon`·`parseWords`·`Judge.clampPct`·기간 30 규칙) → 칸별 충돌 검사 → `Radar.update(old, new)` **한 번** | — | 6장 '충돌' |
-| `identify` | `pid`, `set`{`category`, `bandMin`, `bandMax`, `excludeWords`[], `includeWords`[]} (숫자·목록 그대로) | 물건 확정 시트 '이대로 정하기'(`applyIdentity` 길 — confirmed=true, 카테고리가 바뀌면 다시 모음) | — | `done` |
+| `identify` | `pid`, `set`{`category`, `bandMin`, `bandMax`, `excludeWords`[], `includeWords`[], `models`?} (숫자·목록 그대로). `models`(R12 4단계, '모델' 칸을 고쳤을 때만) = {`defs`[{`n`,`need`[1~5],`u`?}] 20개까지·글 40자, `off`, `user`, `renamed`{옛 이름: 새 이름}} — 앱 `ModelEdit.Choice`, 없으면 모델 칸 그대로 | 물건 확정 시트 '이대로 정하기'(`applyIdentity` 길 — confirmed=true, 카테고리가 바뀌면 다시 모음, `models` 는 `ModelEdit.apply`) | — | `done` |
 | `remove` | `pid` | 그만 지켜보기(`Store.remove` + `Radar.forget`) | — | 이미 없으면 `done` '이미 지웠어요' |
 | `move` | `pid`, `dir` `"up"`·`"down"` | 카드 ⋯ 위로/아래로(`Store.move`) | — | 맨 끝이면 `done`(그대로) |
 | `focus` | `op` `"start"`: `ids`[pid, 2개까지], `hours` 1~3, `everyMin` 5·10 / `op` `"stop"` | 설정 집중 감시 시작·멈추기(`Prefs.setFocus` + `FocusService`) | start 만 6시간 | 안드로이드 12+ 백그라운드에서 못 켜면 '눌러서 켜기' 알림을 띄우고 `failed` '폰에서 알림을 눌러 주세요'(기획 2-8) |
