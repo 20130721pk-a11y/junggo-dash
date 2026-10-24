@@ -1070,6 +1070,8 @@
        ${add ? `<p class="hint" id="mCount">${esc(cnt)}</p>` : ''}`,
       `<span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button><button class="btn btn-fill" data-act="mOk">${add ? '더하기' : '바꾸기'}</button>`);
   }
+  // 물건 정하기 창의 묶음 '모델' 칸 재료(겹치는 모델 잇기에 씀 — 앱 시트가 후보 매물을 넘기는 것과 같음)
+  const p0m = (dlg) => { const p = dlg && prod(dlg.pid); return p && p.identify && p.identify.models; };
   // 모델 칸 고치기(앱 IdentifySheet edit — 고치면 사람 목록·손댐)
   function mEdit(next) {
     const mm = S.dlg.sel.m;
@@ -1644,7 +1646,7 @@
       case 'mRevert': { const mm = S.dlg.sel.m; mm.defs = mm.auto.slice(); mm.user = false; mm.off = false; mm.renamed = {}; mm.touched = true; renderLayer(); return; }
       case 'mMenu': S.dlg.mMenu = S.dlg.mMenu === t.dataset.n ? null : t.dataset.n; renderLayer(); return;
       case 'mRemove': S.dlg.mMenu = null; mEdit(C.removeModel(S.dlg.sel.m.defs, t.dataset.n)); renderLayer(); return;
-      case 'mChip': S.dlg.mMenu = null; mEdit(C.addModel(S.dlg.sel.m.defs, t.dataset.n)); renderLayer(); return;
+      case 'mChip': S.dlg.mMenu = null; { const p0 = prod(S.dlg.pid); mEdit(C.addModel(S.dlg.sel.m.defs, t.dataset.n, p0 && p0.identify && p0.identify.models)); } renderLayer(); return;
       case 'mRename': case 'mMerge': case 'mAdd': {
         const back = S.dlg; back.mMenu = null;
         const sub = a === 'mRename' ? 'rename' : a === 'mMerge' ? 'merge' : 'add';
@@ -1663,7 +1665,7 @@
             S.dlg = back; mEdit(next);
           }
         } else if (d.sub === 'merge') { S.dlg = back; if (d.into) mEdit(C.mergeModel(mm.defs, d.from, d.into)); }
-        else { S.dlg = back; mEdit(C.addModel(mm.defs, text)); }
+        else { S.dlg = back; mEdit(C.addModel(mm.defs, text, p0m(back))); }
         S.dlg = back; renderLayer(); return;
       }
       case 'idHigher': S.dlg.sel.withHigher = !S.dlg.sel.withHigher; renderLayer(); return;

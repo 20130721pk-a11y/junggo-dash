@@ -589,11 +589,21 @@
     if (group.some((g) => g.length >= 3 && /^[가-힣]+$/.test(g) && t.glued.includes(g))) return true;
     return group.some((g) => isGlued(g) && gluedHit(t, g.match(/[0-9]+|[a-z]+|[가-힣]+/g)));
   }
+  // 앱 Models.implies: 낱말 a 가 있는 제목이면 늘 b 도 있나(같은 말 묶음, 또는 붙은 말 갈래 's24fe' → 's24')
+  function implies(a, b) {
+    if (a === b || aliasesOf(a)[0] === aliasesOf(b)[0]) return true;
+    if (!isGlued(a) || !isGlued(b)) return false;
+    const ra = a.match(/[0-9]+|[a-z]+|[가-힣]+/g), rb = b.match(/[0-9]+|[a-z]+|[가-힣]+/g);
+    if (ra.length <= rb.length || rb.some((r, i) => ra[i] !== r)) return false;
+    return !/^[0-9]+$/.test(rb[rb.length - 1]) || !/^[0-9]+$/.test(ra[rb.length]);
+  }
+  const moreSpecific = (x, h) => h.need.every((b) => x.need.some((a) => implies(a, b))) && !x.need.every((a) => h.need.some((b) => implies(b, a)));
   // 앱 Models.assign: 맞는 모델이 하나면 그 이름, 좁은·넓은 모델이 같이 맞으면 좁은 쪽, 서로 다른 모델 둘 이상이거나 없으면 '모델 모름'(같은 이름 둘 = 합친 모델)
   function assignModel(defs, title) {
     const hit = defs.filter((d) => d.need.every((w) => hits(title, w)));
     if (!hit.length) return UNKNOWN_MODEL;
-    const narrow = [...new Set(hit.filter((h) => !hit.some((x) => x.u === h.n)).map((h) => h.n))];
+    // 좁은 쪽: u 로 이어진 모델, 또는 낱말을 더 품은 모델('에어랩 코안다' ⊃ '에어랩', 's24fe' ⊃ 's24' — 앱 Models.moreSpecific, B-7)
+    const narrow = [...new Set(hit.filter((h) => !hit.some((x) => x.u === h.n || (x.n !== h.n && moreSpecific(x, h)))).map((h) => h.n))];
     return narrow.length === 1 ? narrow[0] : UNKNOWN_MODEL;
   }
   // 앱 Models.userWords(B-6): 붙은 덩어리('v12')는 need 하나, 영문 두 글자 이하 + 띄우고 숫자('v 12'·'m-1')도 붙은 말, 나머지는 낱말마다
@@ -626,10 +636,35 @@
     return defs.map((d) => { if (d.n === from) { const { u, ...rest } = d; return { ...rest, n: into }; } return d.u === from ? { ...d, u: into } : d; });
   }
   const removeModel = (defs, name) => defs.filter((d) => d.n !== name).map((d) => { if (d.u === name) { const { u, ...rest } = d; return rest; } return d; });
-  function addModel(defs, text) {
+  // m = 묶음 identify.models(있으면 겹치는 모델을 좁은·넓은 모델로 잇기 — 앱 ModelEdit.add(…, items) · nest, B-7)
+  function addModel(defs, text, m) {
     const d = userModel(text);
     if (!d.n || !d.need.length || d.n === UNKNOWN_MODEL || defs.some((x) => x.n === d.n)) return defs;
-    return defs.concat([d]);
+    const out = defs.concat([d]);
+    return m && mItems(m).length ? nestModel(out, d.n, m) : out;
+  }
+  const NEST_PCT = 80;
+  // 앱 ModelEdit.nest: 매물 = 후보 매물 같은 글 한 번(앱 Dedup.group)
+  function nestModel(defs, name, m) {
+    const uniq = mItems(m).filter((l) => !l.dup);
+    const ids = (n) => { const ds = defs.filter((d) => d.n === n); const s = new Set(); uniq.forEach((l, i) => { if (ds.some((d) => d.need.every((w) => hits(l.title, w)))) s.add(i); }); return s; };
+    const top = modelNames(defs).filter((n) => !defs.some((d) => d.n === n && d.u != null));
+    if (!top.includes(name)) return defs;
+    const mine = ids(name);
+    if (!mine.size) return defs;
+    let parent = null, parentBoth = 0;
+    const kids = [];
+    for (const o of top) {
+      if (o === name) continue;
+      const other = ids(o);
+      let both = 0; for (const i of other) if (mine.has(i)) both++;
+      if (!both) continue;
+      if (both * 100 >= mine.size * NEST_PCT && other.size > mine.size && both > parentBoth) { parent = o; parentBoth = both; }
+      else if (both * 100 >= other.size * NEST_PCT && mine.size > other.size && !defs.some((d) => d.u === o)) kids.push(o);
+    }
+    if (parent != null && !defs.some((d) => d.u === name)) return defs.map((d) => (d.n === name ? { ...d, u: parent } : d));
+    if (kids.length) return defs.map((d) => (kids.includes(d.n) ? { ...d, u: name } : d));
+    return defs;
   }
   // 묶음 매물 줄 → { title, price, dup, outWords }
   const mItems = (m) => arr(m && m.items).filter(Array.isArray).map((x) => ({ title: str(x[0]), price: Number.isFinite(x[1]) ? x[1] : null, dup: !!((x[2] | 0) & 1), outWords: !!((x[2] | 0) & 2) }));

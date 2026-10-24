@@ -115,3 +115,11 @@ test('앱 = 웹: 붙은 영문·숫자 모델 맞추기·모델 글 → need·�
   // 앱이 묶음에 실은 칩 재료(Models.suggest)
   assert.ok(Array.isArray(m.cands) && m.cands.every((c) => typeof c.n === 'string' && Number.isFinite(c.c) && Number.isFinite(c.mid)));
 });
+
+test('앱 = 웹: 겹치는 모델 잇기(nest)·낱말을 더 품은 모델이 좁은 쪽(B-7)', () => {
+  const d0 = C.cleanDefs(m.defs);
+  for (const [t, want] of Object.entries(app.nest)) assert.deepEqual(C.addModel(d0, t, m), C.cleanDefs(want), t);
+  assert.ok(Object.values(app.nest).some((ds) => ds.some((d) => d.u)), '이어진 경우가 하나는 있어야');
+  const sd = C.cleanDefs(app.specDefs);
+  for (const [t, want] of app.assignCases) assert.equal(C.assignModel(sd, t), want, t);
+});
