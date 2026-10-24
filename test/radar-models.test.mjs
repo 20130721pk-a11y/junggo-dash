@@ -62,3 +62,18 @@ test('고치기 거절·명령 검사(앱 WebCmd.modelsOk 와 같은 값)', () =
   assert.ok(!C.modelsOk({ ...ok, defs: Array.from({ length: 21 }, (_, i) => ({ n: 'm' + i, need: ['m' + i] })) }));
   assert.equal(chk({ set: { category: '', bandMin: null, bandMax: null, excludeWords: [], includeWords: [], models: { defs: 'x' } } }), 'identify');
 });
+
+test('붙여 쓴 상표 앞말 떼기(B-2) — 앱 ModelsB1Test.gluedBrandPrefixIsSplit 와 같은 답', () => {
+  assert.deepEqual(C.unglue('맥북프로'), ['맥북', '프로']);
+  assert.deepEqual(C.unglue('에어팟맥스'), ['에어팟', '맥스']);
+  assert.deepEqual(C.unglue('다이슨무선청소기'), ['다이슨', '무선청소기']);
+  assert.deepEqual(C.unglue('갤럭시탭'), ['갤럭시탭']);
+  assert.deepEqual(C.unglue('애플워치'), ['애플워치']);
+  assert.deepEqual(C.unglue('빔프로젝터'), ['빔프로젝터']);
+  assert.equal(C.hits('맥북프로 m1 16gb', '프로'), true);
+  assert.equal(C.hits('에어팟맥스 실버', 'max'), true);
+  assert.equal(C.hits('빔프로젝터', '프로'), false);
+  const defs = [{ n: '프로', need: ['프로'] }, { n: '에어', need: ['에어'] }];
+  assert.equal(C.assignModel(defs, '맥북프로 14인치'), '프로');
+  assert.equal(C.assignModel(defs, '맥북 프로 14인치'), '프로');
+});

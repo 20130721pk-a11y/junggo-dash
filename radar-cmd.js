@@ -525,6 +525,16 @@
   }
   const keywordParts = (kw) => alts(kw).flatMap((a) => groupsOf(a).flat()).concat(alts(kw).map(norm));
   const usefulWord = (w, parts) => !(w.length < 2 || STOP_WORDS.has(w) || (/^[0-9]+$/.test(w) && w.length < 3) || parts.some((q) => q.includes(w)));
+  // 앱 Models.GLUE_PREFIX·unglue(B-2, 10/24): 붙여 쓴 상표 앞말을 떼어 본다 — '맥북프로' = '맥북' '프로'. 나머지가 한글 두 글자 이상일 때만,
+  // 같은 말 묶음에 든 말('갤럭시탭'·'애플워치')은 통째로. 앱과 같은 목록이어야 한다(앱 = 웹).
+  const GLUE_PREFIX = ['아이폰', '아이패드', '맥북', '아이맥', '에어팟', '애플워치', '애플', '갤럭시탭', '갤탭', '갤럭시', '닌텐도', '플레이스테이션',
+    '다이슨', '소니', '캐논', '니콘', '후지필름', '라이카', '로지텍', '레노버', '삼성', '엘지', '샤오미', '나이키', '아디다스', '뉴발란스',
+    '스타벅스', '레고', '디오스', '로보락', '비쎌'].sort((a, b) => b.length - a.length);
+  function unglue(tok) {
+    if (tok.length < 4 || !/^[가-힣]+$/.test(tok) || aliasesOf(tok).length > 1) return [tok];
+    const p = GLUE_PREFIX.find((x) => tok.startsWith(x) && tok.length - x.length >= 2);
+    return p ? [p, tok.slice(p.length)] : [tok];
+  }
   // 앱 Models.hits: 낱말이 같거나(같은 말 묶음), 한글 세 글자 이상이면 붙여 쓴 제목 안에 있어도
   // 제목은 한 번만 쪼갠다(앱 Models.Title, 0.7.5 QA B-4 — 모델 줄을 셀 때 낱말마다 제목을 다시 쪼개면 넓은 검색어에서 느렸다). 셈 결과는 같다.
   const T_CACHE = new Map();
@@ -533,7 +543,7 @@
     let p = T_CACHE.get(k);
     if (!p) {
       if (T_CACHE.size > 5000) T_CACHE.clear();
-      const toks = tokens(k);
+      const toks = tokens(k).flatMap(unglue);
       p = { toks: new Set(toks), heads: new Set(toks.map((t) => aliasesOf(t)[0])), glued: norm(k) };
       T_CACHE.set(k, p);
     }
@@ -724,7 +734,7 @@
     newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
-    UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
+    UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
     matchCount, modelRows, modelsOk,
   };
 })(typeof self !== 'undefined' ? self : globalThis);
