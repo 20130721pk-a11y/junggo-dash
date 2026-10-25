@@ -23,7 +23,7 @@
   const STALE_MS = 6 * H; // 대표 결정(10/20): 늦은 그냥 검색·지금 확인·집중 감시 켜기
 
   const TYPES = ['add', 'edit', 'identify', 'remove', 'move', 'focus', 'check', 'adhoc', 'saveAdhoc', 'star', 'hide', 'unhide', 'unhideAll',
-    'excludeWord', 'watch', 'share', 'opened', 'inboxRead', 'recent', 'prefs', 'home'];
+    'excludeWord', 'watch', 'share', 'opened', 'inboxRead', 'recent', 'prefs', 'home', 'pause'];
   // 화면에 상태 줄을 안 그리는 작은 명령(머리 알약에도 안 셈)
   const QUIET = ['opened', 'inboxRead'];
   // 다시 모으는 명령 — '앱이 하는 중 · 세 마켓에서 모으는 중'
@@ -130,6 +130,8 @@
           (s.models == null || modelsOk(s.models)) ? '' : 'identify';
       }
       case 'remove': case 'unhideAll': return pidOk(c.pid) ? '' : 'pid';
+      // 잠시 끄기(R7, 앱 0.8.0): on = true 끄기 · false 다시 켜기
+      case 'pause': return pidOk(c.pid) && boolOk(c.on) ? '' : 'pause';
       case 'move': return pidOk(c.pid) && (c.dir === 'up' || c.dir === 'down') ? '' : 'move';
       case 'focus':
         if (c.op === 'stop') return '';
@@ -310,6 +312,7 @@
       case 'edit': return `${P} 조건 바꾸기`;
       case 'identify': return `${P} 물건 정하기`;
       case 'remove': return `${P} 그만 지켜보기`;
+      case 'pause': return `${P} ${c.on === false ? PAUSE.resume : PAUSE.pause}`;
       case 'move': return `${P} ${c.dir === 'up' ? '위로' : '아래로'}`;
       case 'focus': return c.op === 'stop' ? '집중 감시 멈추기' : '집중 감시 시작';
       case 'check': return c.pid ? `${P} 지금 확인` : '지금 모두 확인';
@@ -403,6 +406,39 @@
     cardLine: '지켜보는 중 · 누르면 그만',
     cardSpeech: (title) => `${title}, 지켜보는 중, 누르면 그만 지켜보기`,
   };
+  // 잠시 끄기(R7) 글 — 앱 data/Pause.kt 와 같은 글(디자인 080-pause-design 7장). 웹 시험이 앱 글과 견줘요
+  const PAUSE = {
+    pause: '잠시 끄기', resume: '다시 켜기', undo: '되돌리기',
+    toast: (name) => `'${name}' 잠시 끌게요`,
+    pausing: '끄는 중', resuming: '켜는 중', editOff: '다시 켠 뒤에 바꿀 수 있어요',
+    sectionTitle: (n) => `잠시 끈 물건 ${n}`,
+    sectionSub: '확인·알림을 멈췄어요 · 기록은 그대로예요',
+    noneOn: '켜 둔 물건이 없어요. 아래에서 다시 켤 수 있어요.',
+    cardLine: (day) => `잠시 꺼 둠 · ${day}부터 · 기록은 그대로`,
+    cardLabel: (name, day) => `${name}, 잠시 꺼 둠, ${day}부터`,
+    bannerTitle: '잠시 끈 물건이에요',
+    bannerSub: (day) => `${day}부터 확인·알림을 멈췄어요 · 아래는 끌 때 결과예요`,
+    bannerAction: '다시 켜기 ›',
+    rebase: '다시 켰어요 · 세 마켓을 다시 모아 기준을 잡는 중이에요',
+    rebaseSub: '이번 확인은 알림 없이 기준만 잡아요',
+    listValue: '잠시 꺼 둠',
+    addCard: '잠시 꺼 둠 · 누르면 그만',
+    addCardSpeech: (name) => `${name}, 잠시 꺼 둠, 누르면 그만 지켜보기`,
+    stopRow: (kw) => `${kw} · 잠시 꺼 둠`,
+    stopHint: '지우지 않고 알림만 멈추려면 ⋯ 의 잠시 끄기를 써요.',
+    headAll: '모두 잠시 꺼 둠',
+    whyPaused: '이미 잠시 꺼 뒀어요', whyOn: '이미 켜 둔 물건이에요',
+  };
+  // 끈 날 말(앱 Pause.dayOf): 오늘 · 어제 · 10월 25일 · 2025년 10월 25일 — 한국 시각(앱은 폰 시각, 대표 폰 = 한국)
+  function pauseDay(at, now) {
+    const K = 9 * H;
+    const d = new Date(at + K), t = new Date(now + K);
+    const dd = Math.floor((at + K) / D), td = Math.floor((now + K) / D);
+    if (dd === td) return '오늘';
+    if (dd === td - 1) return '어제';
+    const md = `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+    return d.getUTCFullYear() === t.getUTCFullYear() ? md : `${d.getUTCFullYear()}년 ${md}`;
+  }
   // 앱 Products.QUICK — 묶음 cards 가 없을 때만 씀(옛 앱)
   const QUICK = [gpuCard('4080'), gpuCard('5070'), gpuCard('5080'), gpuCard('9070'), ps5Card()];
   const familyOf = (c) => (str(c && c.category) === 'game' ? '게임기' : str(c && c.category) === 'pc' ? '그래픽카드' : str(c && c.family));
@@ -911,7 +947,7 @@
     LABEL, KIND, TITLE, V, TYPES, QUIET, GATHER, EDIT_FIELDS, TEXT_FIELDS, REFETCH_FIELDS, PREF_FIELDS, HOME_FIELDS, FIELD_LABEL,
     CATEGORIES, PCT_PRESETS, PCT_MIN, PCT_MAX, KM_CHOICES, PERIODS, QUIET_CHOICES, FOCUS_HOURS, FOCUS_EVERY, FOCUS_MAX, HOME_MAX, SHARE_HOSTS,
     OPEN_MAX, ADHOC_PER_HOUR, ADHOC_CACHE_MS, CHECK_ALL_MS, POLL_MS, POLL_FOR_MS, TOAST_MS, DONE_FOLD_MS, KEEP_MS, STALE_MS, ID_RE, QUICK,
-    newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
+    PAUSE, pauseDay, newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
     UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,

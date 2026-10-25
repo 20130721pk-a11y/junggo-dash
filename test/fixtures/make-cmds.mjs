@@ -58,6 +58,8 @@ export function plains() {
     mk('prefs', { set: { defaultPct: 18, autoWatchN: 3, intensity: 'save', quiet: { on: true, start: 23, end: 7 }, digestOn: false },
       base: { defaultPct: 15, autoWatchN: 2, intensity: 'normal', quiet: { on: true, start: 1, end: 7 }, digestOn: true } }, 28),
     mk('home', { set: { daangnHome: '정왕동, 배곧동, 은행동', distanceBase: '정왕동' }, base: { daangnHome: '정왕동', distanceBase: '' } }, 29),
+    mk('pause', { pid: 's_5080', on: true }, 30),
+    mk('pause', { pid: 's_5080', on: false }, 31),
   ];
 }
 
