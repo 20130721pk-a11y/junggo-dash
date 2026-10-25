@@ -733,6 +733,72 @@
   }
   // 값이 섞여 판정 보류인 모델인가(앱 Models.mixed — 값 있는 매물 5건 이상인데 고르지 않음)
   const mixedModel = (ls) => { const ps = ls.map((l) => Number(l.price)).filter((v) => v > 0); return ps.length >= MIN_COUNT && !tightOk(ps); };
+  // R12 마무리(10/25): 보류 모델을 좁힐 예시 말(앱 Models.narrowWord) — 그 모델 매물 제목에 함께 나오는 모델 같은 말(앱 modelHead:
+  // 상태·구성·색·용량 말 빼고 · 검색어·모델 낱말·다른 모델 이름·상표·물건 이름 빼고) 가운데 5건 이상 · 그 모델 매물의 90% 이하 · 그 말이 든 매물 값이 고른 것.
+  // 많은 순(같으면 말 순), 보이는 표기는 가장 많이 쓴 꼴 → '{모델} {말}'. 없으면 null. 목록은 앱 Models.NOT_MODEL·NOT_MODEL_PART·NARROW_SKIP 과 같아야 한다.
+  const NOT_MODEL = new Set([
+    '미개봉', '개봉', '단순개봉', '새상품', '새제품', '신품', '밀봉', '새것', '거의', '실사용', '사용', '사용감', '몇번', '한번', '미사용', '새상품급', '상태짱', '깨끗하게', '세척', '세척한',
+    '세척완료', '작동', '정상작동', '생활기스', '기스', '스크래치', '찍힘', '파손', '풀박스', '풀박', '박스', '풀구성', '구성', '구성품', '본품', '본체', '본체만', '단품', '단독', '세트',
+    '풀세트', '일괄', '부품', '부품용', '고장', '하자', '방전', '수리', '교체', '액정', '리퍼', '리퍼비시', '중고', '급매', '처분', '정리', '이사', '무료', '나눔', '교환', '구매', '구입',
+    '영수증', '보증', '개월', 'as', '국내', '정발', '해외', '직구', '병행', '정식', '새거', '새', '특가', '최저가', '할인', '가격내림', '내림', '인하', '합니다', '드립니다', '팝니다',
+    '판매', '본체팝니다', '정품', '한글', '영문', '자판', '무선', '유선', '증정', '사은품', '선물', '번장인증', '인증', '가성비', '싸게', '저렴', '저렴하게', '하시면', '구매원하시면', '원하시면',
+    '연락', '연결', '쿨거래', '노이즈캔슬링', '노캔', '노캔가능', '모델', '모델명', '제품명', '호환', '공용', '전용', '블랙', '화이트', '그레이', '실버', '골드', '핑크', '블루', '레드',
+    '그린', '퍼플', '네이비', '베이지', '아이보리', '크림', '민트', '라벤더', '옐로우', '오렌지', '브라운', '차콜', '그라파이트', '그래파이트', '로즈', '로즈골드', '코랄', '니켈', '코퍼',
+    '재스퍼', '플럼', '토파즈', '빈카', '프러시안', '스카이', '스카이블루', '샴페인', '스페이스', '스페이스그레이', '스페이스블랙', '스그', '스블', '미드나이트', '미드나잇', '스타라이트', '색상', '컬러',
+    '색', 'black', 'white', 'gray', 'grey', 'silver', 'gold', 'pink', 'blue', 'red', 'green', 'purple', 'midnight', 'starlight', 'graphite',
+    'rose', '세대', '64', '128', '256', '512', '1tb', '2tb', '기가', '테라', 'gb', 'tb', '기가램', '램', 'ram', 'ssd', 'hdd', '용량', '메모리', 'cpu',
+    'gpu', '코어', 'wifi', 'wi', 'fi', 'lte', '셀룰러', 'cellular', '5g', '자급제', '인치', 'inch', '년형', '년식', '연식', '년도', '구형', '신형', '최신형', '최신',
+    '출시', '충전기', '충전', '거치대', '케이스', '커버', '북커버', '키보드', '필름', '보호필름', '강화유리', '파우치', '가방', '펜슬', '펜', '케이블', '어댑터', '아답터', '배터리', '헤드',
+    '브러쉬', '브러시', '노즐', '필터', '먼지통', '부속', '부속품', '액세서리', '악세서리', '악세사리', '소모품', '스탠드', '도킹', '도킹스테이션', '키트', '마우스', '이어팁', '스트랩', '보관함',
+    '보관', '롤러', '오수통', '물통', '해드', '툴', '청소툴', '카페트', '카펫', '소프트', '스테이션', '연결봉', '완드', '모터', '유튜브', '넷플', '넷플릭스', '영상', '영상용', '인강',
+    '동영상', '공부', '업무', '학생', '뇌새김', '라이센스', '라이선스', '소프트웨어', '프로그램', 'pen', 'pc', '컴퓨터', '데스크탑', '그래픽카드', '노트북', '태블릿', '모니터', '헤어',
+    'with', 'for', 'in', 'new', 'the', 'and', 'of', 'edition', 'early', 'late', 'mid', 'type', 'ver', 'version', 'set', 'kit', 'case',
+    'cover', 'box', 'full', 'used', 'sale', 'usb', 'model', 'sm', '연속동작', '동작', '서울', '경기', '부산', '인천', '대구', '대전', '광주', '울산', '수원', '성남',
+    '분당', '강남'
+  ]);
+  const NOT_MODEL_PART = [
+    '블루', '블랙', '화이트', '그레이', '실버', '골드', '핑크', '레드', '그린', '퍼플', '코퍼', '니켈', '케이스', '커버', '충전', '거치대', '필름', '파우치', '케이블', '어댑터', '아답터',
+    '배터리', '브러쉬', '브러시', '노즐', '필터', '먼지통', '부속', '액세서리', '악세서리', '악세사리', '소모품', '스탠드', '보관', '키트', '헤드', '롤러', '이어팁', '스트랩', '키보드', '펜슬',
+    '새상품', '새제품', '미개봉', '미사용', '정품', '사용감', '세척', '작동', '인증', '사은품', '증정', '풀세트', '일괄', '택포', '포함', '하시면', '주세요'
+  ];
+
+  const NARROW_SKIP = ['청소기', '무선청소기', '진공청소기', '진공', '드라이기', '드라이어', '스타일러', '고데기'];
+  const VERB_END = /(니다|해요|아요|어요|세요|드려요|할게요|합니당)$/;
+  const NARROW_MAX_PCT = 90;
+  function modelHead(w, parts) {
+    if (!usefulWord(w, parts) || NOT_MODEL.has(w) || VERB_END.test(w)) return null;
+    if (/^[0-9]+$/.test(w)) return null;
+    const hangul = /^[가-힣]+$/.test(w);
+    if (hangul && w.length >= 2 && w.endsWith('용')) return null;
+    if (hangul && w.length >= 3 && NOT_MODEL_PART.some((x) => w.includes(x))) return null;
+    const group = aliasesOf(w);
+    if (group.some((x) => NOT_MODEL.has(x))) return null;
+    return group[0];
+  }
+  const cmpKey = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  function narrowWord(model, ls, keyword, need, names) {
+    const priced = arr(ls).filter((l) => Number(l.price) > 0);
+    if (priced.length < MIN_COUNT) return null;
+    const parts = keywordParts(keyword);
+    const skip = new Set([...arr(need).map((t) => aliasesOf(t)[0]), ...arr(names).flatMap(tokens).map((t) => aliasesOf(t)[0]),
+      ...GLUE_PREFIX.concat(NARROW_SKIP).map((t) => aliasesOf(t)[0])]);
+    const prices = new Map(), spelled = new Map();
+    for (const l of priced) {
+      const seen = new Set();
+      for (const w of tokens(l.title).flatMap(unglue)) {
+        const head = modelHead(w, parts);
+        if (head == null || skip.has(head)) continue;
+        if (!spelled.has(head)) spelled.set(head, new Map());
+        spelled.get(head).set(w, (spelled.get(head).get(w) || 0) + 1);
+        if (!seen.has(head)) { seen.add(head); if (!prices.has(head)) prices.set(head, []); prices.get(head).push(Number(l.price)); }
+      }
+    }
+    const best = [...prices].filter(([, ps]) => ps.length >= MIN_COUNT && ps.length * 100 <= priced.length * NARROW_MAX_PCT && tightOk(ps))
+      .sort((a, b) => b[1].length - a[1].length || cmpKey(a[0], b[0]))[0];
+    if (!best) return null;
+    const shown = [...(spelled.get(best[0]) || [])].sort((a, b) => b[1] - a[1] || cmpKey(a[0], b[0]))[0];
+    return `${model} ${shown ? shown[0] : best[0]}`;
+  }
   // 모델 줄(앱 ModelEdit.rows): band = { lo, hi } 고른 가격대(없으면 null) — 매물 = 처음 단어 상태 → 가격대 → 허수 저가 → 같은 글 한 번
   function modelRows(keyword, defs, m, band, pinned) {
     if (!canSplitModels(defs)) return { rows: [], unknown: 0 };
@@ -747,7 +813,9 @@
     const rows = order.map((n) => {
       const ls = by.get(n) || [];
       const need = new Set(defs.filter((d) => d.n === n).flatMap((d) => d.need));
-      return { n, c: ls.length, mid: medianOf(ls), w: coWords(ls, parts, need, order), base: n === base, held: mixedModel(ls) };
+      const held = mixedModel(ls);
+      // ex = 보류 모델을 좁힐 예시(앱 ModelEdit.Row.hint 의 '(예: …)' — 글 꼴은 앱 묶음 identify.models.hintEx)
+      return { n, c: ls.length, mid: medianOf(ls), w: coWords(ls, parts, need, order), base: n === base, held, ex: held ? narrowWord(n, ls, keyword, [...need], order) : null };
     });
     const sorted = rows.map((r, i) => [r, i]).sort((a, b) => b[0].c - a[0].c || a[1] - b[1]).map((x) => x[0]);
     return { rows: sorted, unknown: (by.get(UNKNOWN_MODEL) || []).length };
@@ -847,6 +915,6 @@
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
     UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
-    matchCount, modelRows, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued, tightOk,
+    matchCount, modelRows, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued, tightOk, narrowWord, NOT_MODEL, NOT_MODEL_PART, NARROW_SKIP,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

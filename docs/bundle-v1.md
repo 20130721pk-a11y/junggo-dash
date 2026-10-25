@@ -209,8 +209,9 @@
 | 물건 | `state`·`stateCard`·`statePage` | | 기준 모델이 보류면 `state` `'unknown'`, `lowKey` null, 상태 글 = `held.lines` 의 그 모델 줄('지금 최저가 · v8 · 값이 섞여 판정 보류') |
 | 물건 `cut.rows[]` | `text`·`hold` | | 보류 모델 줄은 `text` '값이 섞여 판정 보류', `hold` 참('매물이 적어 판정 보류' 자리) |
 | 매물 | `grade` | | 보류 모델 매물은 `k` `'unknown'`, `why` '{모델} 값이 섞여 판정 보류' |
-| 물건 `identify.models` | `hint` | 글 | 값이 섞인 모델 줄 아래 한 줄(앱 `Models.MIXED_HINT` '값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 에어)', 글은 디자인 확인 전) |
+| 물건 `identify.models` | `hint` | 글 | 값이 섞인 모델 줄 아래 한 줄(앱 `Models.MIXED_HINT` '값이 섞여 판정 보류 — 더 좁혀 주세요' — 예시가 없을 때, 글은 디자인 확인 전) |
+| 물건 `identify.models` | `hintEx` | 글 | 예시가 있을 때의 꼴(R12 마무리 10/25, 앱 `Models.mixedHint("{예시}")` '값이 섞여 판정 보류 — 더 좁혀 주세요(예: {예시})') — 웹 `narrowWord` 답을 `{예시}` 자리에 |
 
-`held` = { `names` 보류 모델 이름[](모델 목록 차례), `chip` 결과 화면 모델 칩 아래 한 줄('v8·v15 값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 에어)' — 이름 있는 모델 칩이 둘 이상 보일 때만), `lines` 그 모델이 기준(모델 칩·기준 모델)일 때 지금 최저가 칸 자리 한 줄[](`names` 와 같은 차례) }.
+`held` = { `names` 보류 모델 이름[](모델 목록 차례), `chip` 결과 화면 모델 칩 아래 한 줄('m1·m3 값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 프로·m3 프로)' — 예시는 앱이 그 모델 매물 제목에서 찾은 것(스냅숏 `heldHints`, 둘까지), 없으면 '… 더 좁혀 주세요' · 이름 있는 모델 칩이 둘 이상 보일 때만), `lines` 그 모델이 기준(모델 칩·기준 모델)일 때 지금 최저가 칸 자리 한 줄[](`names` 와 같은 차례) }.
 웹은 판정하지 않고 이 글을 그대로 그려요: 칩으로 좁힌 지금 최저가(`radar-view.js` `screenHero`, 앱 `CardCore.heldBase`)는 고른 칩·기준 모델이 `held.names` 에 있으면 칸 없이 `held.lines` 줄, 다른 모델 최저에 보류 모델 매물을 쓰지 않아요.
-물건 정하기 '모델' 줄은 웹이 줄을 다시 세므로 `radar-cmd.js` `tightOk`·`mixedModel`(= 앱 `Models.tight`·`Models.mixed`)로 줄마다 `held` 를 내고 `hint` 를 그 줄 아래에 그려요 — 앱이 만든 `test/fixtures/app-models.json` 의 `mixed`·`tightCases`·`heldBundle`·줄 `held` 와 같은 답(`test/radar-models.test.mjs`).
+물건 정하기 '모델' 줄은 웹이 줄을 다시 세므로 `radar-cmd.js` `tightOk`·`mixedModel`(= 앱 `Models.tight`·`Models.mixed`)로 줄마다 `held` 를 내고 `hint` 를 그 줄 아래에 그려요(R12 마무리: 보류 줄은 `narrowWord`(= 앱 `Models.narrowWord`)로 예시 `ex` 를 내고, 있으면 `hintEx` 의 `{예시}` 자리에 — `app-models.json` `narrow` 와 같은 답, 거르는 낱말 목록 `NOT_MODEL`·`NOT_MODEL_PART`·`NARROW_SKIP` 도 앱과 견줌) — 앱이 만든 `test/fixtures/app-models.json` 의 `mixed`·`tightCases`·`heldBundle`·줄 `held` 와 같은 답(`test/radar-models.test.mjs`).
