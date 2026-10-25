@@ -198,3 +198,19 @@
 **R10(10/22)**: 그래픽카드 번호 검색어('4080' 등 물건 카드 검색어)는 계열 이름(rtx·gtx·rx·지포스·geforce·라데온·radeon)을 검색어 낱말로 봐서 `identify.words`(자주 나오는 말)·`sheet.words`(이 말 빼기)에 나오지 않아요(앱 `Identify.keywordParts`). 웹은 앱이 준 낱말을 그대로 그려서 따로 고칠 곳이 없어요.
 
 - (B-6, 10/25) 사람이 더한 모델의 `need` 에는 붙은 영문·숫자 덩어리('v12'·'m1')가 한 낱말로 들어올 수 있어요. 맞추기는 덩어리가 제목에 차례대로(사이는 없거나 띄어쓰기·'-'), 숫자로 끝나면 소수점·단위가 바로 붙지 않을 때만 — `radar-cmd.js` `gluedHit` = 앱 `Models.gluedHit`.
+
+## R-1 후속 더함 (앱 0.7.5 dev-r12, 10/25 — 값이 섞인 사람 모델은 판정 보류)
+
+대표 결정 10/25 안 b. 사람이 더한 모델 중 값이 고르지 않은 모델(자동 나눔과 같은 값 고르기 — 그 모델 시세 절반 아래를 뺀 뒤 아래 1/4 값이 위 1/4 값의 55% 미만, 값 있는 매물 5건 이상일 때만)은 그 모델만 판정 보류예요. 그 모델 매물은 목록·건수엔 남고 꿀매·지금 최저가·최저가 갱신·목표가·꿀매 알림에서 빠져요('모델 모름'과 같은 결). 자동 나눔·다섯 갈래에는 없어요. 꼴 번호는 그대로 1.
+
+| 자리 | 칸 | 꼴 | 뜻 |
+|---|---|---|---|
+| 물건 | `held` | 아래 또는 null | 값이 섞여 판정 보류인 사람 모델(앱 `Snapshot.heldModels`) — 없으면 null |
+| 물건 | `state`·`stateCard`·`statePage` | | 기준 모델이 보류면 `state` `'unknown'`, `lowKey` null, 상태 글 = `held.lines` 의 그 모델 줄('지금 최저가 · v8 · 값이 섞여 판정 보류') |
+| 물건 `cut.rows[]` | `text`·`hold` | | 보류 모델 줄은 `text` '값이 섞여 판정 보류', `hold` 참('매물이 적어 판정 보류' 자리) |
+| 매물 | `grade` | | 보류 모델 매물은 `k` `'unknown'`, `why` '{모델} 값이 섞여 판정 보류' |
+| 물건 `identify.models` | `hint` | 글 | 값이 섞인 모델 줄 아래 한 줄(앱 `Models.MIXED_HINT` '값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 에어)', 글은 디자인 확인 전) |
+
+`held` = { `names` 보류 모델 이름[](모델 목록 차례), `chip` 결과 화면 모델 칩 아래 한 줄('v8·v15 값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 에어)' — 이름 있는 모델 칩이 둘 이상 보일 때만), `lines` 그 모델이 기준(모델 칩·기준 모델)일 때 지금 최저가 칸 자리 한 줄[](`names` 와 같은 차례) }.
+웹은 판정하지 않고 이 글을 그대로 그려요: 칩으로 좁힌 지금 최저가(`radar-view.js` `screenHero`, 앱 `CardCore.heldBase`)는 고른 칩·기준 모델이 `held.names` 에 있으면 칸 없이 `held.lines` 줄, 다른 모델 최저에 보류 모델 매물을 쓰지 않아요.
+물건 정하기 '모델' 줄은 웹이 줄을 다시 세므로 `radar-cmd.js` `tightOk`·`mixedModel`(= 앱 `Models.tight`·`Models.mixed`)로 줄마다 `held` 를 내고 `hint` 를 그 줄 아래에 그려요 — 앱이 만든 `test/fixtures/app-models.json` 의 `mixed`·`tightCases`·`heldBundle`·줄 `held` 와 같은 답(`test/radar-models.test.mjs`).
