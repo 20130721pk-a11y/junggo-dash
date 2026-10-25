@@ -562,7 +562,7 @@ with sync_playwright() as p:
     page.wait_for_selector('.pv-head')
     bjrow = page.locator('.row:has-text("이엠텍 미라클")')
     check(bjrow.count() == 1 and '배곧동 · ≈2.5km' in bjrow.inner_text(), "번개장터 줄 지역 글 = 앱 place.text('배곧동 · ≈2.5km')")
-    check("중고나라·번개장터는 판매 동네 가운데까지 어림(≈)이에요. 동네를 안 적은 매물은 '지역 모름'이에요." in page.inner_text('#page'), '바닥 글: 번개장터도 동네 가운데까지 어림')
+    check("거리: 당근은 거래 위치까지, 중고나라·번개장터는 판매 동네 가운데까지 어림(≈)이에요. 동네를 모르는 매물은 '지역 모름'이에요." in page.inner_text('#page'), '바닥 글: 앱 Nearby.FOOT_LINE 과 같은 글(디자인 확정 — 동네를 모르는 매물)')
     page.click('[data-act="area"][data-a="5"]')
     page.click('[data-act="withUnknown"]')
     page.wait_for_timeout(50)
@@ -578,7 +578,10 @@ with sync_playwright() as p:
     gh8b = FakeGitHub()
     gh8b.bundle['base'] = None
     gh8b.bundle['bunjangDetail'] = {'hour': 0, 'day': 200, 'hourMax': 200, 'dayMax': 1500, 'restUntil': MADE + 3600000,
-                                    'text': '번개장터 동네 요청 최근 1시간 0번 · 오늘 200번 (1시간 200번 · 하루 1,500번까지)\n번개장터가 동네 요청을 잠시 막아 15:32까지 쉬어요(검색은 계속해요)'}
+                                    'text': '번개장터 동네 요청 최근 1시간 0번 · 오늘 200번 (1시간 200번 · 하루 1,500번까지)\n번개장터가 동네 요청을 잠시 막아 내일 15:32까지 쉬어요(검색은 계속해요)'}
+    # 앱 0.7.6 묶음 daangn.text(앱 설정 천천히 줄) — 예전엔 칸이 없어 웹 당근 쉼 줄이 안 나왔다
+    gh8b.bundle['daangn'] = {'hour': 3, 'day': 40, 'hourMax': 150, 'dayMax': 3000, 'restUntil': MADE + 3600000,
+                             'text': '당근이 잠시 요청을 막아 내일 09:10까지는 고른 동네만 찾아요(더 넓게는 안 찾아요)'}
     for pr in gh8b.bundle['products']:
         if pr['id'] == 's_4080':
             pr['listings'] = [l for l in pr['listings'] if l['m'] in ('b', 'd')]
@@ -594,7 +597,16 @@ with sync_playwright() as p:
     page.click('.tab[data-go="settings"]')
     page.wait_for_selector('#s-status')
     st8 = page.inner_text('#s-status')
-    check('번개장터가 동네 요청을 잠시 막아 15:32까지 쉬어요(검색은 계속해요)' in st8 and '오늘 200번' in st8, '쉬는 중: 둘째 줄 쉼 글(앱 설정과 같은 글)')
+    check('번개장터가 동네 요청을 잠시 막아 내일 15:32까지 쉬어요(검색은 계속해요)' in st8 and '오늘 200번' in st8, '쉬는 중: 둘째 줄 쉼 글(앱 설정과 같은 글, 다음 날이면 내일)')
+    bads = page.locator('#s-status .hint .bad')
+    bad_txt = [bads.nth(i).inner_text() for i in range(bads.count())]
+    coral = page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--coral').trim()")
+    check(any('번개장터가 동네 요청을 잠시 막아' in x for x in bad_txt) and not any('번개장터 동네 요청 최근' in x for x in bad_txt),
+          '쉬는 중: 쉼 줄만 코랄 칸(.bad), 셈 줄은 회색 그대로(디자인 확정 5-4)')
+    bj_bad = page.locator('#s-status .hint .bad:has-text("번개장터가 동네 요청을")')
+    check(bj_bad.count() == 1 and page.evaluate("(e) => getComputedStyle(e).color", bj_bad.element_handle()) == page.evaluate("(c) => { const d = document.createElement('span'); d.style.color = c; document.body.appendChild(d); const v = getComputedStyle(d).color; d.remove(); return v }", coral),
+          '쉬는 중: 쉼 줄 글자색 = --coral')
+    check(any(x == '당근이 잠시 요청을 막아 내일 09:10까지는 고른 동네만 찾아요(더 넓게는 안 찾아요)' for x in bad_txt), '당근 쉼 줄: 묶음 daangn.text 를 코랄로(앱 설정과 같은 글)')
     page.close()
     ctx8b.close()
 

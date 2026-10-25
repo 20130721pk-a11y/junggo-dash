@@ -849,8 +849,8 @@
   const modelIntro = (user, defs) => (user ? MODEL_TEXT.user : canSplitModels(defs) ? MODEL_TEXT.intro : MODEL_TEXT.introNone);
   const MODEL_TEXT = {
     intro: '제목 낱말로 자동으로 나눴어요. 고치면 앱이 다시 바꾸지 않아요.',
-    introNone: '자동으로 나누지 않았어요. 추천을 누르거나 직접 더하면 모델마다 따로 판정해요.',
-    chipLabel: '추천',
+    introNone: '자동으로 나누지 않았어요. 모델을 직접 더하면 모델마다 따로 판정해요.',
+    chipLabel: '추천 · 누르면 모델로 더해요',
     user: '직접 고친 목록이에요.',
     revert: '자동으로 되돌리기',
     off: '한 시세로 판정해요. 값이 다른 모델이 섞이면 싼 모델이 꿀매로 떠요.',

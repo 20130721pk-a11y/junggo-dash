@@ -122,8 +122,8 @@
 | `focusPlan` | {`ids`, `until`, `everyMin`} 또는 null | 집중 감시 계획(띠·설정 칸) | 집중 감시 없음 |
 | `notifLine` | 글 | 알림 상태 한 줄(앱 `NotifCheck.line` 그대로) | '폰에서 확인해 주세요' |
 | `battery` | {`exempt` 참/거짓, `lastBgAt` ms, `text` 글} | 확인이 끊기지 않게 칸(보기만) | 칸에 상태 없음 |
-| `daangn` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`?} | 수집 상태 '당근 요청 최근 1시간 n번 · 오늘 n번' | 줄 없음 |
-| `bunjangDetail` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`} (R8, 0.7.6) | 수집 상태 '번개장터 동네 요청 최근 1시간 n번 · 오늘 n번 (1시간 200번 · 하루 1,500번까지)' — `text` = 앱 설정 줄 그대로(쉬는 중이면 둘째 줄 '번개장터가 동네 요청을 잠시 막아 HH:MM까지 쉬어요(검색은 계속해요)'). 숫자만, 번호·제목·동네 이름 없음 | 줄 없음 |
+| `daangn` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text` 글/null} | 수집 상태 '당근 요청 최근 1시간 n번 · 오늘 n번' — `text` = 앱 설정 천천히 줄 그대로('당근이 잠시 요청을 막아 {내일 }HH:MM까지는 고른 동네만 찾아요(더 넓게는 안 찾아요)', 앱 `WebBundle.daangn`·`DaangnRules.slowLine`, 0.7.6 부터 — 그 전 앱은 칸이 없었음), 웹은 코랄로 | 줄 없음 |
+| `bunjangDetail` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`} (R8, 0.7.6) | 수집 상태 '번개장터 동네 요청 최근 1시간 n번 · 오늘 n번 (1시간 200번 · 하루 1,500번까지)' — `text` = 앱 설정 줄 그대로(쉬는 중이면 둘째 줄 '번개장터가 동네 요청을 잠시 막아 {내일 }HH:MM까지 쉬어요(검색은 계속해요)' — 쉼 끝이 한국 날짜로 다음 날이면 '내일 ', 앱 `Time.untilHhmm`; 웹은 둘째 줄부터 코랄). 숫자만, 번호·제목·동네 이름 없음 | 줄 없음 |
 | `quota` | {`adhoc`:{`used`, `limit`, `times`[ms]}, `checkAllAt` ms/null, `daangn`:{`used`, `limit`}} | 앱이 센 웹 그냥 검색 1시간 횟수(보관 결과 빼고)·마지막 '지금 모두 확인' — 웹 셈과 다르면 앱 값. `daangn` = 웹발 당근 몫(L-5, 그냥 검색·지금 확인·추가·조건·동네 다시 모으기를 합친 1시간 요청 수 / 60 초안) — **웹은 그리지 않음**(앱 화면에 같은 글이 없어 앱 = 웹 기준으로 안 보임, 넘으면 결과 줄 `why` 로 알 수 있음) | 웹 셈만 |
 | `adhoc` | [그냥 검색 결과] 최대 3개, 새것 먼저 | 아래 '그냥 검색 결과' | 그냥 검색 결과 화면은 진행 칸만 |
 | `homeQueue` | {`done`, `total`, `ids`[pid]} 또는 null | 내 동네를 바꾼 뒤 다시 모으는 줄('새 동네로 다시 모으는 중 · 2/5') | 표시 없음 |
@@ -210,9 +210,9 @@
 | 물건 | `state`·`stateCard`·`statePage` | | 기준 모델이 보류면 `state` `'unknown'`, `lowKey` null, 상태 글 = `held.lines` 의 그 모델 줄('지금 최저가 · v8 · 값이 섞여 판정 보류') |
 | 물건 `cut.rows[]` | `text`·`hold` | | 보류 모델 줄은 `text` '값이 섞여 판정 보류', `hold` 참('매물이 적어 판정 보류' 자리) |
 | 매물 | `grade` | | 보류 모델 매물은 `k` `'unknown'`, `why` '{모델} 값이 섞여 판정 보류' |
-| 물건 `identify.models` | `hint` | 글 | 값이 섞인 모델 줄 아래 한 줄(앱 `Models.MIXED_HINT` '값이 섞여 판정 보류 — 더 좁혀 주세요' — 예시가 없을 때, 글은 디자인 확인 전) |
-| 물건 `identify.models` | `hintEx` | 글 | 예시가 있을 때의 꼴(R12 마무리 10/25, 앱 `Models.mixedHint("{예시}")` '값이 섞여 판정 보류 — 더 좁혀 주세요(예: {예시})') — 웹 `narrowWord` 답을 `{예시}` 자리에 |
+| 물건 `identify.models` | `hint` | 글 | 값이 섞인 모델 줄 아래 한 줄(앱 `Models.MIXED_HINT` '값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요' — 예시가 없을 때, 글은 디자인 확정 10/25) |
+| 물건 `identify.models` | `hintEx` | 글 | 예시가 있을 때의 꼴(R12 마무리 10/25, 앱 `Models.mixedHint("{예시}")` '값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요(예: {예시})') — 웹 `narrowWord` 답을 `{예시}` 자리에 |
 
-`held` = { `names` 보류 모델 이름[](모델 목록 차례), `chip` 결과 화면 모델 칩 아래 한 줄('m1·m3 값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 프로·m3 프로)' — 예시는 앱이 그 모델 매물 제목에서 찾은 것(스냅숏 `heldHints`, 둘까지), 없으면 '… 더 좁혀 주세요' · 이름 있는 모델 칩이 둘 이상 보일 때만), `lines` 그 모델이 기준(모델 칩·기준 모델)일 때 지금 최저가 칸 자리 한 줄[](`names` 와 같은 차례) }.
+`held` = { `names` 보류 모델 이름[](모델 목록 차례), `chip` 결과 화면 모델 칩 아래 한 줄('m1·m3 값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요(예: m1 프로·m3 프로)' — 예시는 앱이 그 모델 매물 제목에서 찾은 것(스냅숏 `heldHints`, 둘까지), 없으면 '… 더 좁은 모델로 나눠 주세요' · 이름 있는 모델 칩이 둘 이상 보일 때만), `lines` 그 모델이 기준(모델 칩·기준 모델)일 때 지금 최저가 칸 자리 한 줄[](`names` 와 같은 차례) }.
 웹은 판정하지 않고 이 글을 그대로 그려요: 칩으로 좁힌 지금 최저가(`radar-view.js` `screenHero`, 앱 `CardCore.heldBase`)는 고른 칩·기준 모델이 `held.names` 에 있으면 칸 없이 `held.lines` 줄, 다른 모델 최저에 보류 모델 매물을 쓰지 않아요.
 물건 정하기 '모델' 줄은 웹이 줄을 다시 세므로 `radar-cmd.js` `tightOk`·`mixedModel`(= 앱 `Models.tight`·`Models.mixed`)로 줄마다 `held` 를 내고 `hint` 를 그 줄 아래에 그려요(R12 마무리: 보류 줄은 `narrowWord`(= 앱 `Models.narrowWord`)로 예시 `ex` 를 내고, 있으면 `hintEx` 의 `{예시}` 자리에 — `app-models.json` `narrow` 와 같은 답, 거르는 낱말 목록 `NOT_MODEL`·`NOT_MODEL_PART`·`NARROW_SKIP` 도 앱과 견줌) — 앱이 만든 `test/fixtures/app-models.json` 의 `mixed`·`tightCases`·`heldBundle`·줄 `held` 와 같은 답(`test/radar-models.test.mjs`).

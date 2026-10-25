@@ -130,7 +130,7 @@ test('앱 = 웹: 값이 섞인 사람 모델은 판정 보류(R-1 후속) — �
   const rows = C.modelRows('다이슨', C.cleanDefs(mx.defs), { items: mx.items }, null, null).rows;
   assert.deepEqual(rows.filter((r) => r.held).map((r) => r.n), mx.held);
   assert.deepEqual(mx.held, ['v8']);
-  assert.equal(mx.hint, '값이 섞여 판정 보류 — 더 좁혀 주세요');
+  assert.equal(mx.hint, '값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요');
   // v8 매물 제목엔 좁힐 말이 없어 예시 없이(앱 hint 그대로)
   assert.deepEqual(rows.map((r) => (r.held ? (r.ex ? mx.hint + r.ex : mx.hint) : null)), mx.hints);
   await import(`${REPO}/radar-view.js`);
@@ -162,8 +162,8 @@ test('앱 = 웹: 보류 모델을 좁힐 예시(R12 마무리) — narrowWord·�
   }
   assert.ok(nw.cases.some((c) => c.want === 'm1 에어') && nw.cases.some((c) => c.want === 'm1 프로') && nw.cases.some((c) => c.want === null));
   const rows = C.modelRows('맥북', C.cleanDefs(nw.defs), { items: nw.items }, null, null).rows;
-  const text = (r) => (r.held ? (r.ex ? nw.hintEx.replace('{예시}', () => r.ex) : '값이 섞여 판정 보류 — 더 좁혀 주세요') : null);
+  const text = (r) => (r.held ? (r.ex ? nw.hintEx.replace('{예시}', () => r.ex) : '값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요') : null);
   for (const r of rows) assert.equal(text(r), nw.hints[r.n], r.n);
-  assert.equal(nw.hints.m1, '값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 에어)');
+  assert.equal(nw.hints.m1, '값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요(예: m1 에어)');
   assert.equal(nw.hints.m2, null);
 });
