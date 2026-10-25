@@ -174,6 +174,16 @@
   const removingPid = (pid) => S.sent.some((r) => r.type === 'remove' && r.pid === pid && ['sent', 'running', 'done'].includes(stOf(r).st));
   const pendingPid = (pid, types) => S.sent.some((r) => r.pid === pid && (!types || types.includes(r.type)) && C.isOpen(stOf(r).st));
   const chgPill = '<span class="chg-pill">바꾸는 중</span>';
+  // 잠시 끄기(R7): 앱이 끈 물건은 묶음 state 'paused'(+ pausedAt). 웹은 회색 카드만 그리고 판정·가격은 그리지 않아요
+  const isPaused = (p) => !!p && p.state === 'paused';
+  const allPaused = () => { const ps = prods(); return ps.length > 0 && ps.every(isPaused); };
+  // 보내기 전 6초(되돌리기를 기다림) 또는 앱이 아직 처리하지 않은 pause 명령 — 카드 머리 '끄는 중'/'켜는 중'
+  function pauseRec(pid) {
+    for (let i = S.sent.length - 1; i >= 0; i--) { const r = S.sent[i]; if (r.type === 'pause' && r.pid === pid && C.isOpen(stOf(r).st)) return r; }
+    return null;
+  }
+  const pausePending = (pid) => !!(S.pauseWait && S.pauseWait[pid]) || !!pauseRec(pid);
+  const pausePill = (p) => (pausePending(p.id) ? `<span class="pill line" role="status">${esc(isPaused(p) ? C.PAUSE.resuming : C.PAUSE.pausing)}</span>` : '');
 
   // 탭마다 한 번 비밀번호(L-1) → 열쇠는 메모리에만
   async function ensureKey() {
@@ -271,6 +281,8 @@
       const dev = esc(str(b.device) || '내 안드로이드');
       if (b.stall) { dot = 'coral'; long = `확인 멈춤 · ${when} · ${dev}`; short = '멈춤'; }
       else if (st.late) { long = `${when} · ${dev}`; short = esc(ago(b.made, t)); }
+      // 모두 잠시 꺼 뒀으면 민트 '감시 중' 대신 회색 '모두 잠시 꺼 둠'(R7 — 앱 홈 머리와 같은 글)
+      else if (allPaused()) { long = `${esc(C.PAUSE.headAll)} · ${when} · ${dev}`; short = esc(C.PAUSE.headAll); }
       else { dot = ''; long = `감시 중 · ${when} · ${dev}`; short = `감시 중 · ${esc(ago(b.made, t))}`; }
     }
     // 명령 알약(디자인 5-1 ①): 상한 > 못 함 > 하는 중 > 기다림
@@ -285,7 +297,7 @@
       else if (wait) pill = `<button class="cmdpill" data-act="cmds">${ico('clock')}명령 ${wait}개 기다리는 중</button>`;
     }
     $('#cmdPill').innerHTML = pill;
-    el.innerHTML = `<span class="dot ${dot}" aria-hidden="true"></span><span class="sr">${dot === '' ? '감시 중' : dot === 'coral' ? '확인 멈춤' : '늦음'}</span><span class="live-long">${long}</span><span class="live-short">${short}</span>`;
+    el.innerHTML = `<span class="dot ${dot}" aria-hidden="true"></span><span class="sr">${dot === '' ? '감시 중' : dot === 'coral' ? '확인 멈춤' : S.phase === 'ready' && !live().late && allPaused() ? '' : '늦음'}</span><span class="live-long">${long}</span><span class="live-short">${short}</span>`;
     const ready = S.phase === 'ready';
     $('#tabs').hidden = !ready;
     const cur = S.tab === 'product' || S.tab === 'adhoc' ? 'home' : S.tab;
@@ -360,21 +372,23 @@
     if (removing) {
       return `<article class="card ghost" aria-label="${esc(p.name)} 지우는 중"><div class="card-head"><span class="chip-name">${esc(p.name)}</span><span class="pill line">지우는 중</span></div>${cmdLine(removing) || '<div class="cmd" role="status">' + ico('clock') + '<span>지우는 중 · 보냈어요</span></div>'}</article>`;
     }
+    if (isPaused(p)) return pausedCardHTML(p, i, n);
     const when = !(p.checkedAt > 0) ? '아직 확인 전' : late() ? `${clock(p.checkedAt, t)} 확인` : ago(p.checkedAt, t);
     const pend = pendingPid(p.id, ['edit', 'identify', 'unhideAll', 'excludeWord']);
     const head = `<div class="card-head">
       <span class="chip-name">${esc(p.name)}</span>
-      ${Number.isFinite(p.pct) ? `<span class="pill">꿀매 -${esc(p.pct)}%</span>` : ''}${pend ? chgPill : ''}
+      ${Number.isFinite(p.pct) ? `<span class="pill">꿀매 -${esc(p.pct)}%</span>` : ''}${pend ? chgPill : ''}${pausePill(p)}
       ${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}
       ${p.focus ? `<span class="pill brand" title="집중 감시 중">${ico('target')}<span class="sr">집중 감시 중</span></span>` : ''}
       ${isModel(p) && str(p.baseVariant) ? `<span class="pill">${esc(p.baseVariant)} 기준</span>` : ''}
       <span class="when">${esc(when)} · ${esc(p.count || 0)}건</span>
       <button class="iconbtn" aria-haspopup="menu" aria-label="${esc(p.name)} 메뉴" data-act="menu" data-pid="${esc(p.id)}" data-i="${i}" data-n="${n}" id="menu-${esc(p.id)}">${ico('more')}</button></div>`;
-    const rec = lastRec((r) => r.pid === p.id && ['edit', 'identify', 'check', 'move', 'unhideAll', 'excludeWord'].includes(r.type));
+    const rec = lastRec((r) => r.pid === p.id && ['edit', 'identify', 'check', 'move', 'unhideAll', 'excludeWord', 'pause'].includes(r.type));
     let body = '';
     const low = (p.state === 'ok' || p.state === 'unknown') ? findL(p, p.lowKey) : null;
     if (p.state === 'allCaution') body = `<p class="state-text ink2">${esc(p.stateCard)}</p>`;
-    else if (p.state === 'rebase') body = `<p class="state-text" style="color:var(--brand-bright)">${esc(p.stateCard)}</p>`;
+    // 다시 내는 중(물건 정한 직후) · 다시 켠 뒤 기준을 잡는 중(R7 — stateSub '이번 확인은 알림 없이 기준만 잡아요')
+    else if (p.state === 'rebase') body = `<div role="status"><p class="state-text" style="color:var(--brand-bright)">${esc(p.stateCard)}</p>${p.stateSub ? `<p class="facts">${esc(p.stateSub)}</p>` : ''}</div>`;
     else if (!low) body = `<p class="state-text muted">${esc(p.stateCard || '조건에 맞는 매물이 없어요')}</p>`;
     else {
       body = `<div class="low" data-act="sheet" data-pid="${esc(p.id)}" data-key="${esc(low.key)}" tabindex="0" role="button" aria-label="지금 최저가 ${esc(low.title)} 판단 보기">${thumb(low)}<div style="min-width:0">
@@ -393,6 +407,20 @@
     const idPill = !confirmedOf(p) ? `<button class="pill brand" data-act="identify" data-pid="${esc(p.id)}"${lk()}>물건 정하기</button>` : '<span></span>';
     return `<article class="card ${p.honey > 0 ? 'has-honey' : ''}" aria-label="${esc(p.name)}">${head}${cmdLine(rec, { label: true })}${homeQueueText(p)}${body}${note}
       <div class="card-foot">${idPill}<button class="btn btn-text btn-sm" data-open="${esc(p.id)}">결과 전체 보기 ›</button></div></article>`;
+  }
+  // 잠시 끈 물건 카드(R7, 디자인 4-3) — 바탕 없음 · 실선 테두리 · 회색 이름표 · '잠시 꺼 둠 · {날짜}부터 · 기록은 그대로' · 다시 켜기 · ⋯.
+  // 가격·등급·꿀골드·민트는 없어요(끈 뒤 값은 낡아서 '지금 최저가'가 아님). 몸 '결과 전체 보기'는 끌 때 결과
+  function pausedCardHTML(p, i, n) {
+    const day = C.pauseDay(Number(p.pausedAt) || now(), now());
+    const rec = lastRec((r) => r.pid === p.id && r.type === 'pause');
+    const busy = pausePending(p.id);
+    return `<article class="card paused" aria-label="${esc(C.PAUSE.cardLabel(p.name, day))}"><div class="card-head">
+      <span class="chip-name">${esc(p.name)}</span>${pausePill(p)}
+      <button class="btn btn-text btn-sm" style="margin-left:auto" data-act="resume" data-pid="${esc(p.id)}" aria-label="${esc(p.name)} ${esc(C.PAUSE.resume)}"${lk() || dis(busy)}>${esc(C.PAUSE.resume)}</button>
+      <button class="iconbtn" aria-haspopup="menu" aria-label="${esc(p.name)} 메뉴" data-act="menu" data-pid="${esc(p.id)}" data-i="${i}" data-n="${n}" id="menu-${esc(p.id)}">${ico('more')}</button></div>
+      ${cmdLine(rec, { label: true })}
+      <p class="facts">${esc(C.PAUSE.cardLine(day))}</p>
+      <div class="card-foot"><span></span><button class="btn btn-text btn-sm" data-open="${esc(p.id)}">결과 전체 보기 ›</button></div></article>`;
   }
   // 웹에서 추가했는데 앱이 아직 만들지 않은 물건 — 자리 카드(점선)
   function ghostCards() {
@@ -424,7 +452,12 @@
     const ghosts = ghostCards();
     const wait = C.checkAllWait(b, S.sent, t);
     const allRec = lastRec((r) => r.type === 'check' && r.all);
-    const cards = ps.length || ghosts ? `<div class="cards">${ps.map((p, i) => cardHTML(p, i, ps.length)).join('')}${ghosts}</div>`
+    // 잠시 끈 물건(R7)은 켜 둔 카드 아래 '잠시 끈 물건 n' 묶음(같은 section 안 — 디자인 4-3)
+    const onPs = ps.filter((p) => !isPaused(p)), offPs = ps.filter(isPaused);
+    const offBlock = offPs.length ? `<h2 class="sec-title" style="margin-top:20px">${esc(C.PAUSE.sectionTitle(offPs.length))}</h2><p class="sec-sub" style="margin-bottom:12px">${esc(C.PAUSE.sectionSub)}</p>
+        <div class="cards">${offPs.map((p) => cardHTML(p, ps.indexOf(p), ps.length)).join('')}</div>` : '';
+    const noneOn = !onPs.length && offPs.length && !ghosts ? `<p class="muted">${esc(C.PAUSE.noneOn)}</p>` : '';
+    const cards = ps.length || ghosts ? `${noneOn}${onPs.length || ghosts ? `<div class="cards">${onPs.map((p) => cardHTML(p, ps.indexOf(p), ps.length)).join('')}${ghosts}</div>` : ''}${offBlock}`
       : `<div class="empty-home"><h2 class="sec-title">지켜볼 물건이 아직 없어요</h2><p class="sec-sub">물건을 추가하면 레이더가 세 마켓의 최저가를 계속 지켜보다가 진짜 꿀매가 뜨면 알려 드려요.</p>
          <button class="btn btn-fill" data-act="add"${lk()}>${ico('plus')}물건 추가하기</button></div>`;
     return `${searchBlock('')}
@@ -515,7 +548,7 @@
     const starPend = S.sent.some((r) => r.type === 'star' && r.key === l.key && C.isOpen(stOf(r).st));
     const actions = ctx.noActs ? '' : `<span class="ra">
         <button class="iconbtn ${starPend ? 'pending' : starOn ? 'on' : ''}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-pressed="${starOn}" aria-label="${esc(l.title)} ${starOn ? '지켜보는 중' : '지켜보기'}"${lk()}>${ico('star', starOn && !starPend ? 'fill' : '')}</button>
-        ${p ? `<button class="notbtn" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}" aria-label="${esc(l.title)} 이 매물 아님"${lk()}>${ico('eyeoff')}아님</button>` : ''}
+        ${p && !isPaused(p) ? `<button class="notbtn" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}" aria-label="${esc(l.title)} 이 매물 아님"${lk()}>${ico('eyeoff')}아님</button>` : ''}
         <a class="iconbtn" ${ext(l)} aria-label="${esc(l.title)} 원 매물 새 창에서 열기" data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${ico('ext')}</a></span>`;
     return `<li class="row" id="r-${esc(l.key)}" tabindex="0" data-act="sheet" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-adhoc="${ctx.adhoc ? 1 : ''}">
       ${thumb(l, 'sm')}
@@ -571,7 +604,9 @@
     const f = visibleRows(all, x.id);
     const label = late() ? '그때 최저가' : '지금 최저가';
     const chipped = !!S.mkSel || !!f.variant || f.area !== 'all' || !!f.cond;
-    const picked = chipped && src.state !== 'rebase' && src.state !== 'pending'
+    // 잠시 끈 물건(R7)은 지금 최저가 칸을 그리지 않아요 — 맨 위 띠가 '끌 때 결과'임을 알림(앱 결과 화면과 같음)
+    const off = src.state === 'paused';
+    const picked = chipped && src.state !== 'rebase' && src.state !== 'pending' && !off
       ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term, held: src.held })
       : null;
     const low = picked ? picked.hero : (src.state === 'ok' || src.state === 'unknown') ? findL(src, src.lowKey) : null;
@@ -584,10 +619,12 @@
     if (low) hero = heroBox(x, low, heroModel ? `${label} · ${heroModel}` : label, cautionLine, cautionKey, heroModel);
     else if (picked) hero = `<section class="box"><p class="box-label">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</section>`;
     else if (src.state === 'allCaution') hero = `<section class="box"><p class="box-label">${label}</p><p class="note" style="font-size:.9375rem">${esc(src.statePage)}</p></section>`;
-    else if (src.state === 'rebase') hero = `<p class="info brand">${esc(src.statePage)}</p>`;
+    else if (src.state === 'rebase') hero = `<p class="info brand">${esc(src.statePage)}</p>${src.stateSub ? `<p class="info">${esc(src.stateSub)}</p>` : ''}`;
+    else if (off) hero = '';
     else hero = `<section class="box"><p class="box-label">${label}</p><p class="muted" style="margin:0">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p></section>`;
 
-    const p = x.p, cfg = p && p.cfg;
+    // 끈 물건은 조건을 바꾸는 단추(고치기·내용까지 보기·보이기·물건 정하기)를 그리지 않아요 — 다시 켠 뒤에
+    const p = off ? null : x.p, cfg = x.p && x.p.cfg;
     const dropped = (x.p || x.a || {}).dropped || {};
     const areaOn = b.base && f.area !== 'all';
     const lines = [];
@@ -607,6 +644,7 @@
     if (f.hiddenUnknown) lines.push(`<p class="info">지역 모름 ${esc(f.hiddenUnknown)}건은 숨겼어요 — '지역 모르는 매물도 함께 보기'를 켜면 보여요</p>`);
     let right;
     if (x.a) right = `<button class="btn btn-text btn-sm" data-act="saveAdhoc"${lk()}>+ 지켜보기</button>`;
+    else if (off) right = '';
     else if (p && confirmedOf(p)) right = `<button class="btn btn-text btn-sm" data-act="identify" data-pid="${esc(p.id)}"${lk()}>물건 다시 정하기</button>`;
     else right = '<span class="muted" style="font-size:.75rem">레이더가 지켜보는 중</span>';
     const sumN = `${f.variant ? esc(f.variant) + ' ' : ''}매물 ${f.rows.length}건 · ${SORT_LABEL[S.sort] || '싼 순'}${areaOn ? ` <span class="muted">· ${AREA_LABEL[f.area]}${S.withUnknown && f.unknown ? `(지역 모름 ${f.unknown}건 포함)` : ''} · 기준 ${esc(b.base)}</span>` : ''}`;
@@ -667,7 +705,13 @@
     if (!p) return renderHome();
     S.pid = p.id;
     const t = now();
-    const side = prods().map((q) => {
+    // 잠시 끈 물건은 맨 아래로, 값 칸 '잠시 꺼 둠' · 'n분 전' 대신 '{날짜}부터'(R7 디자인 4-3)
+    const side = prods().filter((q) => !isPaused(q)).concat(prods().filter(isPaused)).map((q) => {
+      if (isPaused(q)) {
+        return `<button data-pick="${esc(q.id)}" aria-current="${q.id === p.id}">
+        <span class="pn">${esc(q.name)}</span><span class="ph"></span>
+        <span class="ps">${esc(C.PAUSE.listValue)}<span class="pm"> · ${esc(C.pauseDay(Number(q.pausedAt) || t, t))}부터</span></span></button>`;
+      }
       let s = '';
       const lq = findL(q, q.lowKey);
       if ((q.state === 'ok' || q.state === 'unknown') && lq) s = man(lq.price) || '가격문의';
@@ -681,7 +725,8 @@
         <span class="ps">${esc(s)}<span class="pm"> · ${esc(q.checkedAt > 0 ? ago(q.checkedAt, t) : '아직 확인 전')}${confirmedOf(q) ? '' : ' · 미확정'}</span></span></button>`;
     }).join('');
     const x = { id: p.id, p, a: null, name: p.name, src: p };
-    const rec = lastRec((r) => r.pid === p.id && ['edit', 'identify', 'check', 'unhideAll', 'excludeWord', 'move'].includes(r.type));
+    const rec = lastRec((r) => r.pid === p.id && ['edit', 'identify', 'check', 'unhideAll', 'excludeWord', 'move', 'pause'].includes(r.type));
+    const off = isPaused(p);
     let conflictBox = '';
     if (rec && stOf(rec).st === 'conflict') {
       const row = stOf(rec).row || {};
@@ -694,13 +739,21 @@
       <nav class="plist" aria-label="물건 목록">${side}</nav>
       <section style="min-width:0">
         ${cmdLine(rec, { boxed: true, label: true })}${conflictBox}
-        <div class="pv-head"><h1>${esc(p.name)}</h1>${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}
-          <div class="acts"><button class="btn btn-sm" data-act="edit" data-pid="${esc(p.id)}"${lk() || (p.cfg ? '' : ' disabled title="앱이 조건 값을 올린 뒤에 바꿀 수 있어요"')}>조건</button>
-            <button class="btn btn-sm" data-act="check" data-pid="${esc(p.id)}"${lk()}>${ico('refresh')}지금 확인</button>
+        <div class="pv-head"><h1>${esc(p.name)}</h1>${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}${pausePill(p)}
+          <div class="acts"><button class="btn btn-sm" data-act="edit" data-pid="${esc(p.id)}"${off ? ` disabled title="${esc(C.PAUSE.editOff)}"` : lk() || (p.cfg ? '' : ' disabled title="앱이 조건 값을 올린 뒤에 바꿀 수 있어요"')}>조건</button>
+            ${off ? `<button class="btn btn-sm" data-act="resume" data-pid="${esc(p.id)}"${lk() || dis(pausePending(p.id))}>${esc(C.PAUSE.resume)}</button>`
+    : `<button class="btn btn-sm" data-act="check" data-pid="${esc(p.id)}"${lk()}>${ico('refresh')}지금 확인</button>`}
             <button class="iconbtn" aria-haspopup="menu" aria-label="${esc(p.name)} 메뉴" data-act="menu" data-pid="${esc(p.id)}" id="menu-p-${esc(p.id)}">${ico('more')}</button></div></div>
+        ${off ? pausedBanner(p) : ''}
         <div class="subtabs" role="tablist"><button role="tab" aria-selected="${ptab === 'list'}" data-act="ptab" data-t="list">목록</button><button role="tab" aria-selected="${ptab === 'price'}" data-act="ptab" data-t="price">시세</button></div>
         ${ptab === 'price' ? priceTab(x) : listTab(x)}
       </section></div>`;
+  }
+  // 잠시 끈 물건의 물건 화면 띠(R7, 디자인 4-4) — 있는 .banner 꼴, 회색 바탕 · 글 Ink·Ink2 · '다시 켜기 ›'
+  function pausedBanner(p) {
+    const day = C.pauseDay(Number(p.pausedAt) || now(), now());
+    return `<div class="banner" role="status" style="background:var(--surface2);margin-bottom:12px"><div><b style="color:var(--ink);font-weight:600">${esc(C.PAUSE.bannerTitle)}</b><span>${esc(C.PAUSE.bannerSub(day))}</span></div>
+      <button class="btn btn-text btn-sm" data-act="resume" data-pid="${esc(p.id)}"${lk() || dis(pausePending(p.id))}>${esc(C.PAUSE.bannerAction)}</button></div>`;
   }
   const cfVal = (k, v) => {
     if (v == null || v === '') return ' 없음';
@@ -867,7 +920,7 @@
       <p class="hint">${esc(iHint)}</p>${cmdLine(prefRec('intensity'))}
       ${fp ? `<div class="focusbox">${ico('target')}<div style="flex:1"><b style="font-size:.8125rem">${esc(arr(fp.ids).map((id) => (prod(id) || {}).name).filter(Boolean).join(' · '))}</b><div class="meta" style="font-size:.75rem">${esc(fp.everyMin)}분마다 · ${esc(clock(fp.until, t))}까지</div></div><button class="btn btn-text coral btn-sm" data-act="focusStop"${lk()}>멈추기</button></div>` : ''}
       ${fpick ? `<div class="fpick"><p class="flabel" style="margin-top:0">물건 (${C.FOCUS_MAX}개까지)</p>
-          ${prods().length ? `<div class="chiprow">${prods().map((p) => `<button class="cchip" aria-pressed="${fpick.ids.includes(p.id)}" data-act="focusId" data-pid="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>` : '<p class="hint">먼저 홈에서 물건을 추가해 주세요.</p>'}
+          ${prods().some((p) => !isPaused(p)) ? `<div class="chiprow">${prods().filter((p) => !isPaused(p)).map((p) => `<button class="cchip" aria-pressed="${fpick.ids.includes(p.id)}" data-act="focusId" data-pid="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>` : `<p class="hint">${esc(allPaused() ? C.PAUSE.focusNone : '먼저 홈에서 물건을 추가해 주세요.')}</p>`}
           <p class="flabel">얼마 동안</p><div class="chiprow" role="radiogroup">${C.FOCUS_HOURS.map((h) => `<button class="cchip" role="radio" aria-checked="${fpick.hours === h}" data-act="focusH" data-v="${h}">${h}시간</button>`).join('')}</div>
           <p class="flabel">얼마나 자주</p><div class="chiprow" role="radiogroup">${C.FOCUS_EVERY.map((m) => `<button class="cchip" role="radio" aria-checked="${fpick.every === m}" data-act="focusE" data-v="${m}">${m}분마다</button>`).join('')}</div>
           <p class="hint">화면이 꺼져도 정한 시간 동안 이 물건만 자주 확인해요(알림 표시줄에 '집중 감시 중'). 꿀매·최저가 갱신은 조용한 시간에도 바로 알려요. 배터리를 조금 더 써요.</p>
@@ -963,8 +1016,11 @@
     const tooMany = (d.text || '').split(/[,，]/).filter((x) => x.trim()).length > 3;
     return dlgShell('', 'dA', `<div style="flex:1"><h2 id="dA">어떤 물건을 지켜볼까요?</h2><p class="desc">세 마켓에서 같은 물건의 최저가를 계속 지켜보다가, 진짜 꿀매가 뜨면 바로 알려 드려요.</p></div>${xBtn}`,
       `<p class="flabel">물건 카드</p><p class="desc" style="margin:-2px 0 10px">같은 말(4080 = RTX4080 = 지포스 4080)·카테고리·빼기 단어(완본체·노트북)가 들어간 채로 시작해요</p>
-        <div class="qcards">${cards.map((c) => { const on = C.watchingCard(c.id, live).length > 0; return on
-          ? `<button class="qcard on" id="qc-${esc(c.id)}" data-act="stopCard" data-card="${esc(c.id)}" aria-label="${esc(C.STOP.cardSpeech(c.title))}"${lk()}><b>${esc(c.title)}</b><span><span class="dot" aria-hidden="true"></span>${esc(C.STOP.cardLine)}</span></button>`
+        <div class="qcards">${cards.map((c) => { const w = C.watchingCard(c.id, live), on = w.length > 0;
+          // 그 카드로 지켜보는 물건이 모두 잠시 꺼졌으면 회색 점 · '잠시 꺼 둠 · 누르면 그만'(R7 디자인 4-7)
+          const off = on && w.every(isPaused);
+          return on
+          ? `<button class="qcard on" id="qc-${esc(c.id)}" data-act="stopCard" data-card="${esc(c.id)}" aria-label="${esc(off ? C.PAUSE.addCardSpeech(c.title) : C.STOP.cardSpeech(c.title))}"${lk()}><b${off ? ' style="color:var(--ink2)"' : ''}>${esc(c.title)}</b><span><span class="dot${off ? ' gray' : ''}" aria-hidden="true"></span>${esc(off ? C.PAUSE.addCard : C.STOP.cardLine)}</span></button>`
           : `<button class="qcard" id="qc-${esc(c.id)}" data-act="addCard" data-card="${esc(c.id)}"${lk()}><b>${esc(c.title)}</b><span>${esc(C.familyOf(c))}</span></button>`; }).join('')}</div>
         <p class="flabel" style="margin-top:20px">직접 쓰기</p><p class="desc" style="margin:-2px 0 8px">모델명이나 물건 이름(예: 4070 ti super, 에어팟 프로2). 쉼표로 여러 표기를 함께 찾아요(3개까지).</p>
         <form id="addForm"><label class="sr" for="addText">지켜볼 물건</label><input class="field" id="addText" autocomplete="off" placeholder="지켜볼 물건" value="${esc(d.text || '')}"></form>
@@ -1105,9 +1161,9 @@
     const many = list.length > 1;
     const fp = B().focusPlan;
     const focusing = !!(d.sel && fp && arr(fp.ids).includes(d.sel) && fp.until > now());
-    const pick = many ? `<div role="radiogroup" aria-label="그만 지켜볼 물건" style="margin:8px 0 4px">${list.map((p) => `<button class="band" role="radio" aria-checked="${d.sel === p.id}" data-act="delPick" data-pid="${esc(p.id)}"><span><b>${esc(p.name)}</b><span>${esc(p.cfg ? str(p.cfg.keyword) : '')}</span></span><span class="pick">${d.sel === p.id ? '고름' : ''}</span></button>`).join('')}</div>` : '';
+    const pick = many ? `<div role="radiogroup" aria-label="그만 지켜볼 물건" style="margin:8px 0 4px">${list.map((p) => `<button class="band" role="radio" aria-checked="${d.sel === p.id}" data-act="delPick" data-pid="${esc(p.id)}"><span><b>${esc(p.name)}</b><span>${esc(isPaused(p) ? C.PAUSE.stopRow(p.cfg ? str(p.cfg.keyword) : '') : (p.cfg ? str(p.cfg.keyword) : ''))}</span></span><span class="pick">${d.sel === p.id ? '고름' : ''}</span></button>`).join('')}</div>` : '';
     return dlgShell('sm', 'dD', `<h2 id="dD">${esc(many ? C.STOP.pickTitle(d.card || list[0].name, list.length) : C.STOP.title(list[0].name))}</h2>`,
-      `${pick}<p id="dDd" class="ink2" style="margin:4px 0 0">${esc(C.STOP.body)}</p>${focusing ? `<p class="ink2" style="margin:6px 0 0">${esc(C.STOP.focus)}</p>` : ''}`,
+      `${pick}<p id="dDd" class="ink2" style="margin:4px 0 0">${esc(C.STOP.body)}</p>${focusing ? `<p class="ink2" style="margin:6px 0 0">${esc(C.STOP.focus)}</p>` : ''}${d.sel && prod(d.sel) && !isPaused(prod(d.sel)) ? `<p class="muted" style="margin:6px 0 0">${esc(C.PAUSE.stopHint)}</p>` : ''}`,
       `<span class="grow"></span><button class="btn btn-text gray" data-act="close" id="delCancel">${esc(C.STOP.cancel)}</button><button class="btn btn-text coral" data-act="delGo"${locked() ? lk() : dis(!d.sel)}>${esc(C.STOP.ok)}</button>`, 'alertdialog');
   }
   const chipsRadio = (name, list, cur, act) => `<div class="chiprow" role="radiogroup" aria-label="${esc(name)}">${list.map(([v, l]) => `<button class="cchip" role="radio" aria-checked="${cur === v}" data-act="${act}" data-v="${esc(v === null ? 'null' : v)}">${esc(l)}</button>`).join('')}</div>`;
@@ -1205,8 +1261,8 @@
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a>
           <button class="btn" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-pressed="${starOn}"${lk()}>${starPend ? `<span class="iconbtn pending" style="width:20px;height:20px">${ico('star')}</span> 보내는 중` : starOn ? `${ico('star', 'fill')} 지켜보는 중` : `${ico('star')} 지켜보기`}</button>
-          ${p ? (hidden ? `<span class="chg-pill">이 매물은 빼고 볼게요</span>` : `<button class="btn" style="color:var(--ink2)" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}"${lk()}>${ico('eyeoff')} 이 매물 아님</button>`) : ''}</div>
-        ${p ? '<p class="hint">이 매물 아님 = 이 물건의 최저가·시세·알림에서 빼요(오판 사례로 남겨 규칙을 고쳐요)</p>' : ''}
+          ${p && !isPaused(p) ? (hidden ? `<span class="chg-pill">이 매물은 빼고 볼게요</span>` : `<button class="btn" style="color:var(--ink2)" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}"${lk()}>${ico('eyeoff')} 이 매물 아님</button>`) : ''}</div>
+        ${p && !isPaused(p) ? '<p class="hint">이 매물 아님 = 이 물건의 최저가·시세·알림에서 빼요(오판 사례로 남겨 규칙을 고쳐요)</p>' : ''}
         ${p && words.length ? `<p class="flabel" style="margin-top:20px">이 말이 든 매물은 모두 빼기</p><p class="desc" style="margin:0">찾는 물건이 아닌 걸 가르는 말을 누르세요 · '빼고 볼 단어'에 들어가요</p>
           <div class="wchips">${words.map((w) => exPend(w) ? `<span class="cchip ex">− ${esc(w)} ${chgPill}</span>` : `<button class="cchip" data-act="exWord" data-w="${esc(w)}" data-pid="${esc(p.id)}" data-key="${esc(l.key)}"${lk()}>${esc(w)}</button>`).join('')}</div>` : ''}
         ${isAdhoc ? '<p class="hint" style="margin-top:16px">저장한 물건에서 연 매물이 아니라 시세 판정은 참고용이에요</p>' : ''}
@@ -1251,12 +1307,19 @@
     const fp = B().focusPlan;
     const focused = fp && arr(fp.ids).includes(p.id) && fp.until > now();
     const L = lk();
+    // 잠시 끈 물건(R7) 메뉴는 두 줄 — 다시 켜기 · 그만 지켜보기(앱 끈 카드 ⋯ 와 같음)
+    if (isPaused(p)) {
+      return `<div class="menu-scrim" data-act="menuClose"></div><div class="menu" role="menu" aria-label="${esc(p.name)} 메뉴" style="top:${m.top}px;left:${m.left}px">
+      <button role="menuitem" data-act="resume" data-pid="${esc(p.id)}"${L || dis(pausePending(p.id))}>${esc(C.PAUSE.resume)}</button>
+      <button role="menuitem" class="coral" data-act="delete" data-pid="${esc(p.id)}"${L}>그만 지켜보기</button></div>`;
+    }
     return `<div class="menu-scrim" data-act="menuClose"></div><div class="menu" role="menu" aria-label="${esc(p.name)} 메뉴" style="top:${m.top}px;left:${m.left}px">
       <button role="menuitem" data-act="edit" data-pid="${esc(p.id)}"${L || (p.cfg ? '' : ' disabled')}>조건 · 꿀매 기준 · 목표가</button>
       <button role="menuitem" data-act="identify" data-pid="${esc(p.id)}"${L}>물건 다시 정하기</button>
       <button role="menuitem" data-act="${focused ? 'focusStop' : 'focusOne'}" data-pid="${esc(p.id)}"${L}>${focused ? '집중 감시 끄기' : '집중 감시 1시간 (5분마다)'}</button>
       <button role="menuitem" data-act="move" data-pid="${esc(p.id)}" data-dir="up"${L || dis(i <= 0)}>위로</button>
       <button role="menuitem" data-act="move" data-pid="${esc(p.id)}" data-dir="down"${L || dis(i >= n - 1)}>아래로</button>
+      <button role="menuitem" data-act="pause" data-pid="${esc(p.id)}"${L || dis(pausePending(p.id))}>${esc(C.PAUSE.pause)}</button>
       <button role="menuitem" class="coral" data-act="delete" data-pid="${esc(p.id)}"${L}>그만 지켜보기</button></div>`;
   }
   function renderLayer(focusFirst) {
@@ -1553,6 +1616,15 @@
     const h = setTimeout(() => { if (S.recentHidden.has(q)) send('recent', q === '*' ? { op: 'clear' } : { op: 'del', q }, { quiet: true }); }, C.TOAST_MS);
     toast(q === '*' ? '최근 검색을 지웠어요' : `'${q}' 검색 기록을 지웠어요`, { label: '되돌리기', run: () => { clearTimeout(h); S.recentHidden.delete(q); render(); } });
   }
+  function pauseLater(pid) {
+    const p = prod(pid);
+    if (!p || isPaused(p) || pausePending(pid)) return;
+    S.pauseWait = S.pauseWait || {};
+    S.pauseWait[pid] = true;
+    render();
+    const h = setTimeout(() => { if (S.pauseWait[pid]) { delete S.pauseWait[pid]; send('pause', { pid, on: true }); } }, C.TOAST_MS);
+    toast(C.PAUSE.toast(p.name), { label: C.PAUSE.undo, run: () => { clearTimeout(h); delete S.pauseWait[pid]; render(); } });
+  }
   function setPref(field, value) {
     const pr = B().prefs || {};
     send('prefs', { set: { [field]: value }, base: { [field]: pr[field] === undefined ? null : pr[field] } });
@@ -1720,6 +1792,9 @@
         return;
       }
       case 'move': S.menu = null; renderLayer(); send('move', { pid, dir: t.dataset.dir }); return;
+      // 잠시 끄기(R7): 확인 창 없이 — 6초 '되돌리기' 토스트 뒤에 보냄(최근 검색 지우기와 같은 꼴). 다시 켜기는 바로 보냄
+      case 'pause': S.menu = null; renderLayer(); pauseLater(pid); return;
+      case 'resume': S.menu = null; renderLayer(); send('pause', { pid, on: false }); return;
       case 'focusOne': S.menu = null; renderLayer(); send('focus', { op: 'start', ids: [pid], hours: 1, everyMin: 5 }); return;
       case 'focusStop': S.menu = null; renderLayer(); send('focus', { op: 'stop' }); return;
       case 'check': S.dlg = null; send('check', { pid }); return;

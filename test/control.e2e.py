@@ -269,7 +269,7 @@ with sync_playwright() as p:
     page.click('#menu-s_4080')
     page.wait_for_selector('.menu')
     items = page.locator('.menu button').all_inner_texts()
-    check(items == ['조건 · 꿀매 기준 · 목표가', '물건 다시 정하기', '집중 감시 끄기', '위로', '아래로', '그만 지켜보기'], '⋯ 메뉴 6줄 = 앱과 같은 글·순서(집중 감시 중이라 끄기)')
+    check(items == ['조건 · 꿀매 기준 · 목표가', '물건 다시 정하기', '집중 감시 끄기', '위로', '아래로', '잠시 끄기', '그만 지켜보기'], '⋯ 메뉴 7줄 = 앱과 같은 글·순서(집중 감시 중이라 끄기 · 0.8.0 잠시 끄기는 그만 지켜보기 바로 위)')
     check(page.locator('.menu button:has-text("위로")[disabled]').count() == 1, '맨 위 카드는 위로 못 누름(웹만)')
     page.click('.menu button:has-text("조건 · 꿀매 기준 · 목표가")')
     page.wait_for_selector('#dE')

@@ -252,7 +252,7 @@
     const r = { id: c.id, n, type: c.type, at: c.at };
     if (c.pid) r.pid = c.pid;
     if (c.key) r.key = c.key;
-    if (c.type === 'star') r.on = c.on;
+    if (c.type === 'star' || c.type === 'pause') r.on = c.on;
     if (c.type === 'focus') r.op = c.op;
     if (c.type === 'move') r.dir = c.dir;
     if (c.type === 'watch') r.op = c.op;
@@ -427,6 +427,7 @@
     stopRow: (kw) => `${kw} · 잠시 꺼 둠`,
     stopHint: '지우지 않고 알림만 멈추려면 ⋯ 의 잠시 끄기를 써요.',
     headAll: '모두 잠시 꺼 둠',
+    focusNone: '켜 둔 물건이 없어요 · 홈에서 다시 켜 주세요',
     whyPaused: '이미 잠시 꺼 뒀어요', whyOn: '이미 켜 둔 물건이에요',
   };
   // 끈 날 말(앱 Pause.dayOf): 오늘 · 어제 · 10월 25일 · 2025년 10월 25일 — 한국 시각(앱은 폰 시각, 대표 폰 = 한국)
