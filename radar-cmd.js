@@ -883,7 +883,7 @@
     return Math.trunc(10 * mag);
   }
   const sample = (a, n) => (a.length <= n ? a : Array.from({ length: n }, (_, i) => a[Math.trunc(i * a.length / n)]));
-  // rows = 보이는 매물 줄(칩으로 거른 뒤, 앱 s.results 와 같은 줄)
+  // rows = 보이는 매물 줄(칩으로 거른 뒤 — 앱 0.8.0 시세 탭 ResultsScreen rememberVisible().shown 과 같은 줄, T9)
   function priceStats(rows) {
     const priced = arr(rows).filter((l) => l && Number(l.price) > 0);
     const all = priced.map((l) => l.price).sort((a, b) => a - b);

@@ -149,7 +149,7 @@
 `identify` = {
 `cats`?: 쓰지 않음(카테고리 표는 웹이 앱 `Categories.ALL` 과 같은 표를 가짐 — 키·이름은 바뀌면 같이 고침),
 `bands`: [{`lo`, `hi`, `from`, `to`, `n`, `mid`, `tags`}] — 가격대 묶음(앱 `Identify.priceBands`). 정하기 값은 `lo`·`hi`(명령 `identify` 의 `bandMin`·`bandMax`), 줄 글은 앱 시트와 같게 **`from ~ to`**(매물 대부분 가격, 앱 `Sheets.kt` '${manWon(from)} ~ ${manWon(to)}' — 10/20 앱 맞춤, 없으면 `lo ~ hi`) / '31건 · 중간 98만 · 본체 · 미개봉'(`tags` = 뒤쪽 글),
-`pick`: {`index`, `withHigher`} 또는 null — 앱 시트가 처음 골라 두는 값(정해 둔 값 → 본체 추천 순),
+`pick`: {`index`, `withHigher`} 또는 null — 앱 시트가 처음 골라 두는 값(정해 둔 값 → 본체 추천 순). **앱 0.8.0(S-4)**: 물건 카드에 바닥 하한이 있는 검색어(플스5 35만, 앱 `Products.floorOf`)는 새로 정할 때 본체 추천이 바닥 아래면 앱이 바닥에서도 갈라 `bands` 에 바닥에서 시작하는 묶음을 넣고 `pick` 이 그 묶음 — 웹은 계산 없이 그대로 그려요(이미 정해 둔 가격대는 앱이 바꾸지 않음),
 `intro`: 글 — 가격대 위 안내 글(앱 시트 그대로),
 `words`: [{`w`, `n`, `s` 0 그대로·1 빼기·2 꼭}] — 자주 나오는 말 칩과 처음 상태,
 `keptEx` · `keptIn`: 글[] — 칩에 없는 예전 빼기·꼭 단어(정하기 때 그대로 붙임 — 앱 시트와 같게),
