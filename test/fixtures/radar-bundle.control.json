@@ -965,12 +965,13 @@
      "news": "끌올 3번",
      "star": false,
      "place": {
-      "name": null,
-      "near": null,
-      "km": null,
-      "rough": false,
-      "level": null,
-      "unknown": true
+      "name": "배곧동",
+      "near": true,
+      "km": 2.5,
+      "rough": true,
+      "level": "dong",
+      "unknown": false,
+      "text": "배곧동 · ≈2.5km"
      }
     },
     {
@@ -2417,6 +2418,14 @@
   "hourMax": 150,
   "dayMax": 3000,
   "restUntil": null
+ },
+ "bunjangDetail": {
+  "hour": 7,
+  "day": 120,
+  "hourMax": 200,
+  "dayMax": 1500,
+  "restUntil": null,
+  "text": "번개장터 동네 요청 최근 1시간 7번 · 오늘 120번 (1시간 200번 · 하루 1,500번까지)"
  },
  "quota": {
   "adhoc": {

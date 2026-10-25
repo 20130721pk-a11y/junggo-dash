@@ -475,8 +475,9 @@
     if (B().base) {
       out += `<div class="chiprow" role="radiogroup" aria-label="지역">${RV.AREAS.map((a) => `<button class="cchip" role="radio" aria-checked="${S.area === a}" data-act="area" data-a="${a}">${AREA_LABEL[a]}</button>`).join('')}
         ${S.area !== 'all' ? `<span class="gap"></span><button class="cchip" aria-pressed="${S.withUnknown}" data-act="withUnknown">지역 모르는 매물도 함께 보기</button>` : ''}</div>`;
-    } else if (all.some((l) => l && l.m === 'j')) {
-      out += '<p class="info">설정에서 내 동네를 정하면 가까운 중고나라 매물을 볼 수 있어요</p>';
+    } else if (all.some((l) => l && (l.m === 'j' || l.m === 'b'))) {
+      // 앱 Nearby.BLANK_LINE 과 같은 글(R8 — 번개장터도 동네를 앎)
+      out += '<p class="info">설정에서 내 동네를 정하면 가까운 중고나라·번개장터 매물을 볼 수 있어요</p>';
     }
     return out;
   }
@@ -631,7 +632,7 @@
       : (all.length ? `<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" data-act="clearF">거르기 풀기</button></p>` : `<p class="empty">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
     return `${marketChips()}${chipRows(all, f)}${lines.join('')}${sum}${band}${info2.join('')}${conds}${merged}${ledger}${hero}${rows}
       <p class="foot-hint">줄 끝 ☆ 로 지켜보기 · '아님'으로 이 매물 빼기</p>
-      <p class="foot">거리: 당근은 거래 위치까지, 중고나라는 판매 동네 가운데까지 어림(≈)이에요. 번개장터는 지금 동네를 몰라 '지역 모름'이에요.</p>`;
+      <p class="foot">거리: 당근은 거래 위치까지, 중고나라·번개장터는 판매 동네 가운데까지 어림(≈)이에요. 동네를 안 적은 매물은 '지역 모름'이에요.</p>`;
   }
   function priceTab(x) {
     const src = x.src;
@@ -891,11 +892,14 @@
     const st = live();
     const mk = arr(b.markets).filter((m) => MARKET[m.m]).map((m) => `<div class="mlow">${mkMark(m.m)}${esc(MARKET[m.m])} <span class="${m.bad ? 'bad' : 'ink2'}" style="font-weight:400">${m.okAt > 0 ? `성공 ${esc(ago(m.okAt, t))}` : '아직 기록 없음'}${m.text ? ' · ' + esc(m.text) : ''}</span></div>`).join('');
     const dq = b.daangn;
+    // 번개장터 동네 요청 수(R8, 묶음 bunjangDetail) — 글은 앱 설정 줄 그대로(text), 없으면 숫자로 같은 꼴
+    const bd = b.bunjangDetail;
+    const bdLine = bd ? (str(bd.text) || `번개장터 동네 요청 최근 1시간 ${Number(bd.hour) || 0}번 · 오늘 ${Number(bd.day) || 0}번 (1시간 ${(bd.hourMax || 200).toLocaleString('ko-KR')}번 · 하루 ${(bd.dayMax || 1500).toLocaleString('ko-KR')}번까지)`) : '';
     const u = C.adhocUse(b, S.sent, t);
     const gaps = RV.gaps(b, t).slice(0, 5).map((g) => `<div class="gap-row"><span>${esc(clock(g.from, t))} ~ ${g.open ? '지금' : esc(clock(g.to, t))} · ${esc(RV.dur(g.ms))}</span><span class="mark">PC를 껐던 때?</span></div>`).join('');
     const s10 = `<section class="sbox" id="s-status"><h3>수집 상태</h3><p class="d">마켓마다 마지막으로 잘 받은 때예요. 막히면 알림으로 알려요.</p>
       <div style="display:grid;gap:4px;font-size:.8125rem">${mk || '<p class="muted">마켓 상태가 묶음에 없어요</p>'}</div>
-      <p class="hint">당근은 이 폰에서만 모아요(다른 곳에서 대신 모으지 않아요).${dq ? `\n당근 요청 최근 1시간 ${dq.hour}번 · 오늘 ${dq.day}번 (1시간 ${(dq.hourMax || 150).toLocaleString('ko-KR')}번 · 하루 ${(dq.dayMax || 3000).toLocaleString('ko-KR')}번까지, 이 폰 전체)${dq.text ? '\n' + dq.text : ''}` : ''}\n이번 1시간 웹 그냥 검색 ${u.used}/${u.limit}번 <span class="webonly">웹만</span></p>
+      <p class="hint">당근은 이 폰에서만 모아요(다른 곳에서 대신 모으지 않아요).${dq ? `\n당근 요청 최근 1시간 ${dq.hour}번 · 오늘 ${dq.day}번 (1시간 ${(dq.hourMax || 150).toLocaleString('ko-KR')}번 · 하루 ${(dq.dayMax || 3000).toLocaleString('ko-KR')}번까지, 이 폰 전체)${dq.text ? '\n' + dq.text : ''}` : ''}${bdLine ? '\n' + esc(bdLine) : ''}\n이번 1시간 웹 그냥 검색 ${u.used}/${u.limit}번 <span class="webonly">웹만</span></p>
       <ul class="kv" style="margin-top:8px"><li>기기 <b>${esc(str(b.device) || '내 안드로이드')}</b></li><li>앱 <b>${esc(str(b.app) || '—')}</b></li>${b.watchLabel ? `<li>감시 강도 <b>${esc(b.watchLabel)}</b></li>` : ''}<li>늦음 기준 <b>${st.line}분</b></li><li>마지막 올림 <b>${esc(clock(b.made, t))}</b></li></ul>
       ${gaps ? `<p class="flabel">최근 7일 올림 공백 <span class="muted" style="font-weight:400">(7일 나란히 보는 동안만)</span></p>${gaps}` : ''}</section>`;
     // S11

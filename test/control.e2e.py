@@ -553,6 +553,51 @@ with sync_playwright() as p:
     page.close()
     ctx3.close()
 
+    # ---------- 14b. 번개장터 '내 주변'(R8, 0.7.6): 앱 place 그대로 · 바닥 글 · 수집 상태 줄 · 기준 없음 안내 ----------
+    gh8 = FakeGitHub()
+    ctx8 = browser.new_context(viewport={'width': 1280, 'height': 900}, locale='ko-KR', timezone_id='Asia/Seoul')
+    page = new_page(ctx8, gh8)
+    connect(page)
+    page.goto(BASE + '#p=s_4080')
+    page.wait_for_selector('.pv-head')
+    bjrow = page.locator('.row:has-text("이엠텍 미라클")')
+    check(bjrow.count() == 1 and '배곧동 · ≈2.5km' in bjrow.inner_text(), "번개장터 줄 지역 글 = 앱 place.text('배곧동 · ≈2.5km')")
+    check("중고나라·번개장터는 판매 동네 가운데까지 어림(≈)이에요. 동네를 안 적은 매물은 '지역 모름'이에요." in page.inner_text('#page'), '바닥 글: 번개장터도 동네 가운데까지 어림')
+    page.click('[data-act="area"][data-a="5"]')
+    page.click('[data-act="withUnknown"]')
+    page.wait_for_timeout(50)
+    check(page.locator('.row:has-text("이엠텍 미라클")').count() == 1 and page.locator('.row:has-text("갤럭시 RTX 4080 SUPER EX")').count() == 0, '5km · 함께 보기 끔: 동네 아는 번개장터는 남고 지역 모름 번개장터는 숨음')
+    page.click('[data-act="area"][data-a="near"]')
+    page.wait_for_timeout(50)
+    check(page.locator('.row:has-text("이엠텍 미라클")').count() == 1, "가까운 동네만: 가까운 번개장터가 나옴")
+    page.click('.tab[data-go="settings"]')
+    page.wait_for_selector('#s-status')
+    check('번개장터 동네 요청 최근 1시간 7번 · 오늘 120번 (1시간 200번 · 하루 1,500번까지)' in page.inner_text('#s-status'), '수집 상태: 번개장터 동네 요청 줄(앱 글 그대로)')
+    page.close()
+    ctx8.close()
+    gh8b = FakeGitHub()
+    gh8b.bundle['base'] = None
+    gh8b.bundle['bunjangDetail'] = {'hour': 0, 'day': 200, 'hourMax': 200, 'dayMax': 1500, 'restUntil': MADE + 3600000,
+                                    'text': '번개장터 동네 요청 최근 1시간 0번 · 오늘 200번 (1시간 200번 · 하루 1,500번까지)\n번개장터가 동네 요청을 잠시 막아 15:32까지 쉬어요(검색은 계속해요)'}
+    for pr in gh8b.bundle['products']:
+        if pr['id'] == 's_4080':
+            pr['listings'] = [l for l in pr['listings'] if l['m'] in ('b', 'd')]
+            pr['count'] = len(pr['listings'])
+            pr['lowKey'] = next((l['key'] for l in pr['listings'] if l.get('grade') and l['grade'].get('k') != 'caution'), None)
+    gh8b.reseal()
+    ctx8b = browser.new_context(viewport={'width': 1280, 'height': 900}, locale='ko-KR', timezone_id='Asia/Seoul')
+    page = new_page(ctx8b, gh8b)
+    connect(page)
+    page.goto(BASE + '#p=s_4080')
+    page.wait_for_selector('.pv-head')
+    check('설정에서 내 동네를 정하면 가까운 중고나라·번개장터 매물을 볼 수 있어요' in page.inner_text('#page') and page.locator('[data-act="area"]').count() == 0, '기준 없음: 중고나라가 없어도 번개장터가 있으면 안내 한 줄(앱 Nearby.BLANK_LINE)')
+    page.click('.tab[data-go="settings"]')
+    page.wait_for_selector('#s-status')
+    st8 = page.inner_text('#s-status')
+    check('번개장터가 동네 요청을 잠시 막아 15:32까지 쉬어요(검색은 계속해요)' in st8 and '오늘 200번' in st8, '쉬는 중: 둘째 줄 쉼 글(앱 설정과 같은 글)')
+    page.close()
+    ctx8b.close()
+
     # ---------- 15. 읽기만 토큰(403) ----------
     gh3 = FakeGitHub()
     ctx4 = browser.new_context(viewport={'width': 1280, 'height': 900}, locale='ko-KR', timezone_id='Asia/Seoul')

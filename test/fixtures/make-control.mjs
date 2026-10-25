@@ -29,6 +29,8 @@ export function control() {
   b.notifLine = '알림이 켜져 있어요';
   b.battery = { exempt: true, lastBgAt: at(12 * M), text: '와이파이 15분·데이터 30분마다' };
   b.daangn = { hour: 23, day: 410, hourMax: 150, dayMax: 3000, restUntil: null };
+  // R8(0.7.6): 번개장터 동네 요청 수 — text 는 앱 BunjangDetailText.line 그대로
+  b.bunjangDetail = { hour: 7, day: 120, hourMax: 200, dayMax: 1500, restUntil: null, text: '번개장터 동네 요청 최근 1시간 7번 · 오늘 120번 (1시간 200번 · 하루 1,500번까지)' };
   b.quota = { adhoc: { used: 2, limit: 6, times: [at(40 * M), at(20 * M)] }, checkAllAt: null, daangn: { used: 12, limit: 60 } };
   b.homeQueue = null;
   b.misfits = 12;
@@ -86,6 +88,10 @@ export function control() {
   Object.assign(w0, { src: 'star', days: 3, bumps: 2, checkedAt: at(5 * M), last: { text: '가격 인하', t: at(2 * H) }, events: [{ t: at(3 * 24 * H), text: '지켜보기 시작 · 125만' }, { t: at(2 * H), text: '가격 인하 · 125만 → 121만' }] });
   Object.assign(b.watches[1], { src: 'share', days: 7, bumps: 0, checkedAt: at(1 * H), last: null, events: [] });
   b.watches.push({ pid: 's_4080', listing: { ...p4080.listings[5], star: false }, since: '그대로', sinceDir: null, diff: '지금 같은 물건 최저가보다 17만 비쌈', ended: false, src: 'auto', days: 1, bumps: 0, checkedAt: at(12 * M), last: null, events: [] });
+
+  // R8(0.7.6): 번개장터 매물에도 동네(앱 Nearby.bunjang 이 낸 place 그대로) — 이엠텍 미라클 = 배곧동 ≈2.5km(가까움)
+  const bj = p4080.listings.find((l) => l.m === 'b' && l.title.includes('이엠텍'));
+  bj.place = { name: '배곧동', near: true, km: 2.5, rough: true, level: 'dong', unknown: false, text: '배곧동 · ≈2.5km' };
 
   // 그냥 검색 결과 하나('4080 super', 14:12 에 모음 = 묶음 20분 전 — 시험 시계 +5분이면 25분 전이라 30분 안)
   const sup = p4080.listings.filter((l) => l.variant === 'SUPER' || l.m === 'd').map((l) => ({ ...l, star: false }));

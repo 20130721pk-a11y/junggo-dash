@@ -84,7 +84,7 @@
 | `star` | 참/거짓 | 앱에서 ★ |
 | `place` | 아래 | 지역 |
 
-`place` `{ name, near, km, rough, level, sgg, unknown, text }` — `name` 짧은 동네 이름(`Listing.region`), `near` 물건 동네와 겹침(참/거짓/null), `km` 기준점에서 거리(소수 첫째, **거르기·표시에 같이 씀**, 시·군·구 수준이면 null), `rough` 동 가운데 어림 '≈'(앱 `Loc.approx`: 중고나라 참, 당근 거짓), `level` 앱 `Loc.level`(`dong`·`sgg`·`city`·null), `sgg` 시·군·구 수준일 때 이름(앱 `Loc.place`), `unknown` = 지역 모름(앱 `Loc.unknown`), **`text` = 앱이 만든 지역 글(`Nearby.placeText`) — 있으면 웹은 이것만 그대로 씀(W2-16, 추천)**.
+`place` `{ name, near, km, rough, level, sgg, unknown, text }` — `name` 짧은 동네 이름(`Listing.region`), `near` 물건 동네와 겹침(참/거짓/null), `km` 기준점에서 거리(소수 첫째, **거르기·표시에 같이 씀**, 시·군·구 수준이면 null), `rough` 동 가운데 어림 '≈'(앱 `Loc.approx`: 중고나라·번개장터 참, 당근 거짓 — 번개장터는 0.7.6(R8)부터 상세의 동네 이름으로 채움, 못 부른 매물은 지역 모름), `level` 앱 `Loc.level`(`dong`·`sgg`·`city`·null), `sgg` 시·군·구 수준일 때 이름(앱 `Loc.place`), `unknown` = 지역 모름(앱 `Loc.unknown`), **`text` = 앱이 만든 지역 글(`Nearby.placeText`) — 있으면 웹은 이것만 그대로 씀(W2-16, 추천)**.
 `text`가 없을 때 웹 글(앱 `Nearby.placeText`와 같은 규칙): `unknown` → '지역 모름' · 시·군·구 수준 → '정왕동 · 시흥시 쯤'(이름이 같으면 '시흥시 쯤') · km 있음 → '정왕동 · ≈2.3km'(10km 넘으면 정수, 앱 `Geo.label`) · km 없음 → '정왕동'.
 거르기(앱 `Nearby.passes`와 같게): 전체면 다 · 지역 모름은 '함께 보기'일 때만 · 가까운 동네만 = `near` 참 · n km 안 = `km` 있으면 `km ≤ n`, 없으면 `near` 참.
 거르기 칩(마켓·변형·지역)은 앱 결과 화면처럼 **묶인 매물마다 거른 뒤 다시 묶어요**(앱 `Pipeline.chipRows`) — 남은 매물 중 첫째가 줄. 그래서 같은 글이 여러 마켓에 있으면 마켓 단추마다 한 줄로 세요(QA-1). 변형 칩은 변형이 둘 이상일 때만, 묶기 전 매물이 많은 변형부터(앱 `Pipeline.variantChips`) — **'모델 모름' 칩은 건수와 상관없이 늘 맨 뒤**(R12, 디자인 G-2). 칩 글 건수는 같은 셈(앱 `Pipeline.chipCounts`, 디자인 G-1). `dupRows` 가 없는 옛 묶음은 대표 줄만 봐요.
@@ -123,6 +123,7 @@
 | `notifLine` | 글 | 알림 상태 한 줄(앱 `NotifCheck.line` 그대로) | '폰에서 확인해 주세요' |
 | `battery` | {`exempt` 참/거짓, `lastBgAt` ms, `text` 글} | 확인이 끊기지 않게 칸(보기만) | 칸에 상태 없음 |
 | `daangn` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`?} | 수집 상태 '당근 요청 최근 1시간 n번 · 오늘 n번' | 줄 없음 |
+| `bunjangDetail` | {`hour`, `day`, `hourMax`, `dayMax`, `restUntil` ms/null, `text`} (R8, 0.7.6) | 수집 상태 '번개장터 동네 요청 최근 1시간 n번 · 오늘 n번 (1시간 200번 · 하루 1,500번까지)' — `text` = 앱 설정 줄 그대로(쉬는 중이면 둘째 줄 '번개장터가 동네 요청을 잠시 막아 HH:MM까지 쉬어요(검색은 계속해요)'). 숫자만, 번호·제목·동네 이름 없음 | 줄 없음 |
 | `quota` | {`adhoc`:{`used`, `limit`, `times`[ms]}, `checkAllAt` ms/null, `daangn`:{`used`, `limit`}} | 앱이 센 웹 그냥 검색 1시간 횟수(보관 결과 빼고)·마지막 '지금 모두 확인' — 웹 셈과 다르면 앱 값. `daangn` = 웹발 당근 몫(L-5, 그냥 검색·지금 확인·추가·조건·동네 다시 모으기를 합친 1시간 요청 수 / 60 초안) — **웹은 그리지 않음**(앱 화면에 같은 글이 없어 앱 = 웹 기준으로 안 보임, 넘으면 결과 줄 `why` 로 알 수 있음) | 웹 셈만 |
 | `adhoc` | [그냥 검색 결과] 최대 3개, 새것 먼저 | 아래 '그냥 검색 결과' | 그냥 검색 결과 화면은 진행 칸만 |
 | `homeQueue` | {`done`, `total`, `ids`[pid]} 또는 null | 내 동네를 바꾼 뒤 다시 모으는 줄('새 동네로 다시 모으는 중 · 2/5') | 표시 없음 |
