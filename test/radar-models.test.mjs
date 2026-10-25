@@ -20,9 +20,9 @@ const bandOf = (k) => {
   const set = C.identifySet(p, { category: p.cfg.category, band: i, withHigher: !!h, words: {} });
   return { lo: set.bandMin, hi: set.bandMax };
 };
-const strip = (r) => ({ unknown: r.unknown, rows: r.rows.map((x) => ({ n: x.n, c: x.c, mid: x.mid, w: x.w, base: x.base })) });
+const strip = (r) => ({ unknown: r.unknown, rows: r.rows.map((x) => ({ n: x.n, c: x.c, mid: x.mid, w: x.w, base: x.base, held: x.held })) });
 
-test('앱 = 웹: 고치기 차례마다 모델 줄(이름·건수·중간값·함께 낱말·기준)·모름 수', () => {
+test('앱 = 웹: 고치기 차례마다 모델 줄(이름·건수·중간값·함께 낱말·기준·보류)·모름 수', () => {
   const d0 = C.cleanDefs(m.defs);
   const ops = { rename: C.renameModel, merge: C.mergeModel, remove: C.removeModel, add: C.addModel };
   let n = 0;
@@ -122,4 +122,29 @@ test('앱 = 웹: 겹치는 모델 잇기(nest)·낱말을 더 품은 모델이 �
   assert.ok(Object.values(app.nest).some((ds) => ds.some((d) => d.u)), '이어진 경우가 하나는 있어야');
   const sd = C.cleanDefs(app.specDefs);
   for (const [t, want] of app.assignCases) assert.equal(C.assignModel(sd, t), want, t);
+});
+
+test('앱 = 웹: 값이 섞인 사람 모델은 판정 보류(R-1 후속) — 값 고르기·모델 줄 held·화면 묶음 held 한 줄', async () => {
+  for (const [ps, want] of app.tightCases) assert.equal(C.tightOk(ps), want, JSON.stringify(ps));
+  const mx = app.mixed;
+  const rows = C.modelRows('다이슨', C.cleanDefs(mx.defs), { items: mx.items }, null, null).rows;
+  assert.deepEqual(rows.filter((r) => r.held).map((r) => r.n), mx.held);
+  assert.deepEqual(mx.held, ['v8']);
+  assert.equal(mx.hint, '값이 섞여 판정 보류 — 더 좁혀 주세요(예: m1 에어)');
+  await import(`${REPO}/radar-view.js`);
+  const RV = globalThis.RadarView;
+  const hp = app.heldBundle.products[0];
+  assert.deepEqual(hp.held.names, ['v8']);
+  const ls = RV.filterListings(hp.listings, {}).heroRows;
+  const o = { name: hp.name, base: hp.baseVariant, term: hp.term, held: hp.held };
+  // 기준 모델(v8)이 보류 → 칸 없음 + 앱이 준 한 줄(앱 statePage 와 같은 글)
+  const h = RV.screenHero(ls, o);
+  assert.equal(h.hero, null);
+  assert.equal(h.line, hp.statePage);
+  assert.equal(h.line, '지금 최저가 · v8 · 값이 섞여 판정 보류');
+  // v10 칩 → v10 안의 지금 최저가(앱 결과 화면과 같은 매물)
+  const h10 = RV.screenHero(RV.filterListings(hp.listings, { variant: 'v10' }).heroRows, { ...o, chip: 'v10' });
+  assert.equal(h10.hero && h10.hero.price, 150000);
+  // 보류 모델 매물의 판정 이유는 앱 글 그대로
+  assert.ok(hp.listings.filter((l) => l.variant === 'v8' && l.price > 0).every((l) => l.grade.k === 'unknown' && l.grade.why === 'v8 값이 섞여 판정 보류'));
 });

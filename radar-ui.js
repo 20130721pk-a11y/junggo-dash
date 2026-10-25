@@ -571,7 +571,7 @@
     const label = late() ? '그때 최저가' : '지금 최저가';
     const chipped = !!S.mkSel || !!f.variant || f.area !== 'all' || !!f.cond;
     const picked = chipped && src.state !== 'rebase' && src.state !== 'pending'
-      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term })
+      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term, held: src.held })
       : null;
     const low = picked ? picked.hero : (src.state === 'ok' || src.state === 'unknown') ? findL(src, src.lowKey) : null;
     const cautionLine = picked ? picked.line : src.cautionPage;
@@ -601,6 +601,8 @@
       lines.push(x.a ? `<p class="info">${esc(AUTO_SPLIT_TEXT)} · 지켜보기에 넣으면 고칠 수 있어요</p>`
         : `<p class="info">${esc(AUTO_SPLIT_TEXT)}${p ? `<button class="btn btn-text" data-act="identifyModels" data-pid="${esc(p.id)}"${lk()}>고치기</button>` : ''}</p>`);
     }
+    // R-1 후속: 값이 섞여 판정 보류인 사람 모델 — 모델 칩 아래 회색 한 줄(앱 Models.mixedChipLine, 칩이 보일 때만)
+    if (model && src.held && src.held.chip && RV.variantChips(all).filter((v) => !RV.isUnknownModel(v)).length >= 2) lines.push(`<p class="info">${esc(src.held.chip)}</p>`);
     if (f.hiddenUnknown) lines.push(`<p class="info">지역 모름 ${esc(f.hiddenUnknown)}건은 숨겼어요 — '지역 모르는 매물도 함께 보기'를 켜면 보여요</p>`);
     let right;
     if (x.a) right = `<button class="btn btn-text btn-sm" data-act="saveAdhoc"${lk()}>+ 지켜보기</button>`;
@@ -1040,7 +1042,7 @@
     const rows = can ? C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned) : { rows: C.modelNames(mm.defs).map((n) => ({ n, c: 0, mid: 0, w: [], base: false })), unknown: 0 };
     const canMerge = C.modelNames(mm.defs).length >= 2;
     const menuOpen = S.dlg && S.dlg.mMenu;
-    const rowHtml = rows.rows.map((r) => `<div class="mrow"><span class="mt"><b>${esc(r.n)}</b><span>${esc([`${r.c}건`, r.mid > 0 ? `중간 ${man(r.mid)}` : '', r.w.join('·')].filter(Boolean).join(' · '))}</span></span>
+    const rowHtml = rows.rows.map((r) => `<div class="mrow"><span class="mt"><b>${esc(r.n)}</b><span>${esc([`${r.c}건`, r.mid > 0 ? `중간 ${man(r.mid)}` : '', r.w.join('·')].filter(Boolean).join(' · '))}</span>${r.held && id.models && id.models.hint ? `<span class="mh">${esc(id.models.hint)}</span>` : ''}</span>
         ${r.base ? '<span class="mbase">기준</span>' : ''}<button class="iconbtn" data-act="mMenu" data-n="${esc(r.n)}" aria-haspopup="menu" aria-expanded="${menuOpen === r.n}" aria-label="${esc(r.n)} 메뉴">${ico('more')}</button>
         ${menuOpen === r.n ? `<div class="mmenu" role="menu"><button role="menuitem" data-act="mRename" data-n="${esc(r.n)}">이름 바꾸기</button>${canMerge ? `<button role="menuitem" data-act="mMerge" data-n="${esc(r.n)}">다른 모델과 합치기</button>` : ''}<button role="menuitem" data-act="mRemove" data-n="${esc(r.n)}">${esc(T.remove)}</button></div>` : ''}</div>`).join('');
     // 추천 칩(B-5, 앱 시트 '추천' 줄): '자주 나오는 말' 칩과 같은 .cchip 꼴(고르지 않은 상태) — 누르면 바로 더함

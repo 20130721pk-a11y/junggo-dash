@@ -719,6 +719,20 @@
     return [...counts].filter(([, v]) => v >= 2).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).slice(0, 2)
       .map(([head]) => { let best = head, bn = -1; for (const [w, v] of spelled.get(head) || []) if (v > bn) { best = w; bn = v; } return best; });
   }
+  // 값 고르기(앱 Models.tight — B-1 자동 나눔·R-1 후속 사람 모델 보류): 시세(중간값 = 정렬 가운데 값) 절반 아래를 뺀 나머지에서
+  // 아래 1/4 값이 위 1/4 값의 55% 이상이면 고름
+  const SPREAD_PCT = 55, MIN_COUNT = 5;
+  function tightOk(prices) {
+    const all = arr(prices).map(Number).filter((v) => v > 0).sort((a, b) => a - b);
+    if (!all.length) return false;
+    const mid = all[Math.floor(all.length / 2)];
+    const p = all.filter((v) => v * 2 >= mid);
+    const q25 = p[Math.min(p.length - 1, Math.floor(p.length / 4))];
+    const q75 = p[Math.min(p.length - 1, Math.floor(p.length * 3 / 4))];
+    return q25 * 100 >= q75 * SPREAD_PCT;
+  }
+  // 값이 섞여 판정 보류인 모델인가(앱 Models.mixed — 값 있는 매물 5건 이상인데 고르지 않음)
+  const mixedModel = (ls) => { const ps = ls.map((l) => Number(l.price)).filter((v) => v > 0); return ps.length >= MIN_COUNT && !tightOk(ps); };
   // 모델 줄(앱 ModelEdit.rows): band = { lo, hi } 고른 가격대(없으면 null) — 매물 = 처음 단어 상태 → 가격대 → 허수 저가 → 같은 글 한 번
   function modelRows(keyword, defs, m, band, pinned) {
     if (!canSplitModels(defs)) return { rows: [], unknown: 0 };
@@ -733,7 +747,7 @@
     const rows = order.map((n) => {
       const ls = by.get(n) || [];
       const need = new Set(defs.filter((d) => d.n === n).flatMap((d) => d.need));
-      return { n, c: ls.length, mid: medianOf(ls), w: coWords(ls, parts, need, order), base: n === base };
+      return { n, c: ls.length, mid: medianOf(ls), w: coWords(ls, parts, need, order), base: n === base, held: mixedModel(ls) };
     });
     const sorted = rows.map((r, i) => [r, i]).sort((a, b) => b[0].c - a[0].c || a[1] - b[1]).map((x) => x[0]);
     return { rows: sorted, unknown: (by.get(UNKNOWN_MODEL) || []).length };
@@ -833,6 +847,6 @@
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
     UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
-    matchCount, modelRows, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued,
+    matchCount, modelRows, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued, tightOk,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

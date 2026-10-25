@@ -224,6 +224,7 @@
   // 모델 물건(o.term 'model', R12): '모델 모름' 칩이면 칸 없음 + 회색 한 줄(앱 CardCore.unknownChipLine, 디자인 G-3) —
   // 판정하지 않은 매물을 지금 최저가로 올리지 않아요. 기준 모델에 믿을 만한 매물이 없을 때 '· {모델} 최저'에 모름 매물을 쓰지 않아요.
   const unknownChipLine = (n) => `모델을 모르는 매물 ${n}건이에요 — 판정하지 않아서 지금 최저가로 올리지 않아요`;
+  // R-1 후속: o.held = 묶음 held({ names, lines }) — 값이 섞여 판정 보류인 모델 칩·기준 모델이면 칸 없음 + 앱이 준 한 줄(앱 CardCore.heldBase)
   function screenHero(rows, o) {
     o = o || {};
     const all = arr(rows).filter(Boolean);
@@ -231,6 +232,9 @@
     if (model && isUnknownModel(str(o.chip))) return { hero: null, doubtful: 0, line: unknownChipLine(all.length), cautionKey: null };
     const split = o.base !== undefined ? !!str(o.base) : all.some((l) => str(l.variant));
     const want = split ? (str(o.chip) || str(o.base) || BASE_VARIANT) : '';
+    const heldNames = model && o.held ? arr(o.held.names).map(str) : [];
+    const hi = heldNames.indexOf(want);
+    if (want && hi >= 0) return { hero: null, doubtful: 0, line: str(arr(o.held.lines)[hi]) || null, cautionKey: null };
     const isBase = (l) => !want || variantOf(l) === want;
     const kind = (l) => (l.grade && typeof l.grade === 'object' ? l.grade.k : null);
     const priced = (l) => Number(l.price) > 0;
@@ -239,7 +243,7 @@
     const before = hero ? inBase.slice(0, inBase.indexOf(hero)) : inBase;
     const cautions = before.filter((l) => kind(l) === 'caution');
     const doubtful = cautions.length;
-    const other = hero ? null : all.find((l) => !isBase(l) && priced(l) && kind(l) != null && kind(l) !== 'caution' && !(model && isUnknownModel(variantOf(l)))) || null;
+    const other = hero ? null : all.find((l) => !isBase(l) && priced(l) && kind(l) != null && kind(l) !== 'caution' && !(model && (isUnknownModel(variantOf(l)) || heldNames.includes(variantOf(l))))) || null;
     const noBase = !hero && split ? other : null;
     let line = null;
     if (noBase) {
