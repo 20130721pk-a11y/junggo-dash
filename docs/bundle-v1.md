@@ -41,7 +41,7 @@
 | 칸 | 꼴 | 뜻 (앱 원본) |
 |---|---|---|
 | `id` · `name` | 글 | 저장검색 id, 보이는 이름(`keywordLabel`) |
-| `state` | 글 | `ok` 정상 · `allCaution` 모두 ⚠ · `rebase` 다시 내는 중 · `unknown` 판정 보류 · `empty` 빈 결과 · `pending` 확인 전 |
+| `state` | 글 | `ok` 정상 · `allCaution` 모두 ⚠ · `rebase` 다시 내는 중(물건 정한 직후 · 0.8.0 다시 켠 뒤 첫 전체 확인 전) · `unknown` 판정 보류 · `empty` 빈 결과 · `pending` 확인 전 · `paused` 잠시 끔(0.8.0 R7 — 회색 카드, 가격·등급·꿀매 안 그림) |
 | `pct` | 수 | 꿀매 기준 % (카드 '꿀매 -15%') |
 | `honey` · `caution` | 수 | 꿀매 수, 지금 최저가에서 뺀 ⚠ 수 |
 | `focus` | 참/거짓 | 집중 감시 중 |
@@ -54,6 +54,8 @@
 | `change` | {`dir`:`down`/`up`, `text`:'▼ 3만'} 또는 null | 지금 최저가 바뀜(하루 지나면 앱이 null) |
 | `facts` | [{`t`, `icon`?}] | 판단 재료 줄 조각('시세 120만 · 판매완료 기준 18건', '9일 만에 최저', {t:'목표가 이하', icon:'target'}). **그림 이모지 없이** |
 | `stateCard` · `statePage` | 글 | 상태 글(카드용·물건 화면용). 모두 ⚠ '믿을 만한 매물이 아직 없어요 · ⚠ 3건' / '… · ⚠ 확인 필요 3건(아래 목록에 있어요)', 다시 내는 중, 빈 결과, 확인 전 글 |
+| `stateSub` | 글 또는 null | 0.8.0 R7: 다시 켠 뒤 `rebase` 일 때 둘째 줄 '이번 확인은 알림 없이 기준만 잡아요'(앱 `Pause.REBASE_SUB`) |
+| `pausedAt` | ms 또는 null | 0.8.0 R7: 잠시 끈 때. 웹은 앱 `Pause.dayOf` 와 같은 규칙(한국 시각 오늘·어제·n월 n일·해가 다르면 해)으로 '{날짜}부터'. 끈 물건은 `honey` 0 · `lowKey`·`change` null · `facts`·`ledger` 빔 · 매물 `grade` null·`sheet` 없음(매물은 끌 때 것 그대로), 다시 켠 뒤 `rebase` 동안도 등급 null · `cut` `{ rebase }` |
 | `cautionCard` · `cautionPage` · `cautionKey` | 글 · 글 · 키 | ⚠ 뺀 줄(카드 `HomeScreen.kt:549`, 물건 화면 `ResultsScreen.kt:252`)과 첫 ⚠ 매물 키 |
 | `spark` | (원 또는 null)[30] | 30일 하루 최저(오래된 → 오늘) |
 | `min30` | 글 | '30일 최저 95만' |
