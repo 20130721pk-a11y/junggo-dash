@@ -836,8 +836,24 @@
     const shown = [...(spelled.get(best[0]) || [])].sort((a, b) => b[1] - a[1] || cmpKey(a[0], b[0]))[0];
     return `${model} ${shown ? shown[0] : best[0]}`;
   }
+  // 0.8.1 B2(앱 ModelEdit.judgedHeld): 시트 조건(모델 목록·나누지 않기·가격대·단어)이 판정 때(묶음 product 의 modelSource·models·cfg)와 같으면
+  // 판정 때 보류 모델(product held.names — 결과 화면 칩 아래 줄과 같은 무리) · 하나라도 바꿨으면 null(modelRows 가 시트 매물로 다시 셈)
+  function judgedHeld(p, mm, sel) {
+    if (!isObj(p) || !mm || mm.off) return null;
+    if (p.modelSource !== 'user' && p.modelSource !== 'auto') return null;
+    const jd = cleanDefs(p.models);
+    if (!jd.length || JSON.stringify(cleanDefs(mm.defs)) !== JSON.stringify(jd)) return null;
+    const c = isObj(p.cfg) ? p.cfg : {};
+    const set = identifySet(p, isObj(sel) ? sel : {});
+    const num = (v) => (v == null ? null : Number(v));
+    if (num(set.bandMin) !== num(c.bandMin) || num(set.bandMax) !== num(c.bandMax)) return null;
+    const same = (a, b) => { const x = new Set(arr(a).map(String)); const y = new Set(arr(b).map(String)); return x.size === y.size && [...x].every((v) => y.has(v)); };
+    if (!same(set.excludeWords, c.excludeWords) || !same(set.includeWords, c.includeWords)) return null;
+    return isObj(p.held) ? arr(p.held.names).map(str) : [];
+  }
   // 모델 줄(앱 ModelEdit.rows): band = { lo, hi } 고른 가격대(없으면 null) — 매물 = 처음 단어 상태 → 가격대 → 허수 저가 → 같은 글 한 번
-  function modelRows(keyword, defs, m, band, pinned) {
+  // judged = judgedHeld 답(판정 때 보류 모델) — 있으면 보류 표시를 이것으로(건수·중간값·예시는 그대로 이 매물로), 없으면 이 매물로 셈
+  function modelRows(keyword, defs, m, band, pinned, judged) {
     if (!canSplitModels(defs)) return { rows: [], unknown: 0 };
     const inBand = (v) => !(v > 0) || ((band.lo == null || v >= band.lo) && (band.hi == null || v <= band.hi));
     const narrowed = dropLowballs(mItems(m).filter((l) => !l.outWords && (!band || inBand(l.price))));
@@ -850,7 +866,7 @@
     const rows = order.map((n) => {
       const ls = by.get(n) || [];
       const need = new Set(defs.filter((d) => d.n === n).flatMap((d) => d.need));
-      const held = mixedModel(ls);
+      const held = Array.isArray(judged) ? judged.includes(n) : mixedModel(ls);
       // ex = 보류 모델을 좁힐 예시(앱 ModelEdit.Row.hint 의 '(예: …)' — 글 꼴은 앱 묶음 identify.models.hintEx)
       return { n, c: ls.length, mid: medianOf(ls), w: coWords(ls, parts, need, order), base: n === base, held, ex: held ? narrowWord(n, ls, keyword, [...need], order) : null };
     });
@@ -952,6 +968,6 @@
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
     UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,
-    matchCount, modelRows, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued, tightOk, narrowWord, NOT_MODEL, NOT_MODEL_PART, NARROW_SKIP,
+    matchCount, modelRows, judgedHeld, modelsOk, modelChips, modelIntro, CHIP_MAX, isGlued, tightOk, narrowWord, NOT_MODEL, NOT_MODEL_PART, NARROW_SKIP,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

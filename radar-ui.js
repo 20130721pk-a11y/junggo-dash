@@ -1066,7 +1066,7 @@
     else prev = '<div class="meta">미리보기는 앱이 정한 뒤에 다시 세요(웹은 판정하지 않아요)</div>';
     // 모델 칸을 고친 목록이면 한 줄 더(앱 '모델 2개 · 모델 모름 3건') — 지금 최저 앞 모델은 앱이 센 미리보기 매물에서
     if (modelOn && mm.user) {
-      const r = C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned);
+      const r = C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned, C.judgedHeld(p, mm, sel));
       const line = [`모델 ${C.modelNames(mm.defs).length}개`, r.unknown > 0 ? `${C.UNKNOWN_MODEL} ${r.unknown}건` : ''].filter(Boolean).join(' · ');
       prev = `<div class="meta" style="color:var(--ink2)">${esc(line)}</div>` + prev;
       if (pv.kind === 'ok' && pv.pv.low) {
@@ -1106,7 +1106,7 @@
     const head = `<div id="idModels"></div><p class="flabel">모델</p><p class="desc" style="margin:-2px 0 8px">${esc(C.modelIntro(mm.user, mm.defs))}${mm.user ? ` <button class="btn btn-text" data-act="mRevert">${esc(T.revert)}</button>` : ''}</p>
       <div class="chiprow" role="radiogroup" aria-label="모델 나누기"><button class="cchip${can ? '' : ' dim'}" role="radio" aria-checked="${!mm.off && can}" data-act="mOff" data-v="0">모델마다 따로</button><button class="cchip" role="radio" aria-checked="${mm.off || !can}" data-act="mOff" data-v="1">나누지 않기</button></div>`;
     if (mm.off) return `${head}<p class="hint">${esc(T.off)}</p>`;
-    const rows = can ? C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned) : { rows: C.modelNames(mm.defs).map((n) => ({ n, c: 0, mid: 0, w: [], base: false })), unknown: 0 };
+    const rows = can ? C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned, C.judgedHeld(p, mm, sel)) : { rows: C.modelNames(mm.defs).map((n) => ({ n, c: 0, mid: 0, w: [], base: false })), unknown: 0 };
     const canMerge = C.modelNames(mm.defs).length >= 2;
     const menuOpen = S.dlg && S.dlg.mMenu;
     const rowHtml = rows.rows.map((r) => `<div class="mrow"><span class="mt"><b>${esc(r.n)}</b><span>${esc([`${r.c}건`, r.mid > 0 ? `중간 ${man(r.mid)}` : '', r.w.join('·')].filter(Boolean).join(' · '))}</span>${r.held && id.models && id.models.hint ? `<span class="mh">${esc(r.ex && id.models.hintEx ? id.models.hintEx.replace('{예시}', () => r.ex) : id.models.hint)}</span>` : ''}</span>

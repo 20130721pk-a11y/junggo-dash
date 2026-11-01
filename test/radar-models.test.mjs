@@ -167,3 +167,38 @@ test('앱 = 웹: 보류 모델을 좁힐 예시(R12 마무리) — narrowWord·�
   assert.equal(nw.hints.m1, '값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요(예: m1 에어)');
   assert.equal(nw.hints.m2, null);
 });
+
+test('0.8.1 B2: 시트 조건이 판정 때와 같으면 보류 표시는 판정 때 것(product held) — 앱 ModelEditB2Test 와 같은 숫자', () => {
+  const t = (tag, ps, title) => ps.map((v, i) => [title(v, i), v * 1000, 0]);
+  // 판정 때 v8 섞임·v10 고름, 시트 풀에는 빠른 확인이 가져온 v10 싼 매물 4개가 더 있음 → 시트 매물만으로 세면 v10 도 섞여 보임
+  const items = [
+    ...t('e', [30, 40, 50, 60, 80, 100, 150, 200, 230, 250], (v) => `다이슨 v8 ${v}`),
+    ...t('t', [200, 205, 210, 215, 220, 225], (v) => `다이슨 v10 본체 ${v}`),
+    ...t('x', [100, 105, 110, 115], (v) => `다이슨 v10 ${v} 급처`),
+  ].sort((a, b) => a[1] - b[1]);
+  const defs = [{ n: 'v8', need: ['v8'] }, { n: 'v10', need: ['v10'] }];
+  const p = {
+    modelSource: 'user', models: defs, held: { names: ['v8'] },
+    cfg: { keyword: '다이슨', category: '', bandMin: null, bandMax: null, excludeWords: [], includeWords: [] },
+    identify: { bands: [], pick: null, keptEx: [], keptIn: [], words: [], models: { items } },
+  };
+  const mm = { defs: C.cleanDefs(defs), off: false };
+  const sel = { band: null, withHigher: false, words: {} };
+  const heldOf = (r) => r.rows.filter((x) => x.held).map((x) => x.n).sort();
+  assert.deepEqual(heldOf(C.modelRows('다이슨', mm.defs, p.identify.models, null, null)), ['v10', 'v8'], '옛 셈(시트 매물만)');
+  const j = C.judgedHeld(p, mm, sel);
+  assert.deepEqual(j, ['v8']);
+  const r = C.modelRows('다이슨', mm.defs, p.identify.models, null, null, j);
+  assert.deepEqual(heldOf(r), ['v8']);
+  assert.equal(r.rows.find((x) => x.n === 'v10').c, 10, '건수는 시트 매물로');
+  // 조건을 바꾸면 시트 매물로 다시(앱과 같음)
+  assert.equal(C.judgedHeld(p, { defs: C.addModel(mm.defs, 'v12'), off: false }, sel), null);
+  assert.equal(C.judgedHeld(p, { ...mm, off: true }, sel), null);
+  assert.equal(C.judgedHeld(p, mm, { ...sel, words: { 급처: 1 } }), null);
+  const pb = { ...p, identify: { ...p.identify, bands: [{ lo: 150000, hi: 300000 }, { lo: 300001, hi: null }] } };
+  assert.equal(C.judgedHeld(pb, mm, { ...sel, band: 0 }), null, '가격대를 고르면');
+  assert.deepEqual(C.judgedHeld({ ...p, cfg: { ...p.cfg, bandMin: 150000 } }, mm, sel), ['v8'], '안 고르면 정해 둔 가격대 그대로(앱 picked keepOld 와 같음)');
+  assert.equal(C.judgedHeld({ ...p, modelSource: 'off' }, mm, sel), null);
+  // 판정 때 보류가 없으면(묶음 held 없음) 빈 목록 — 보류 줄 없음
+  assert.deepEqual(C.judgedHeld({ ...p, held: undefined }, mm, sel), []);
+});
