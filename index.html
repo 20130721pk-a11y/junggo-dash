@@ -579,7 +579,7 @@ button.pill { cursor: pointer; border: 0; }
 .toast { position: fixed; z-index: 70; left: 24px; bottom: 24px; display: flex; align-items: center; gap: 12px; max-width: 420px; padding: 12px 12px 12px 16px; background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; font-size: var(--fs-body-sm); color: var(--ink); }
 /* 설정 */
 .settings { display: grid; gap: 12px; }
-.sbox { padding: 16px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.sbox { min-width: 0; padding: 16px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
 .sbox h3 { margin: 0; font-size: var(--fs-body); font-weight: 600; }
 .sbox .d { margin: 4px 0 12px; color: var(--ink3); font-size: var(--fs-label); }
 .sbox .bad { color: var(--coral); }
@@ -625,9 +625,13 @@ button.pill { cursor: pointer; border: 0; }
   .dialog { max-width: none !important; max-height: none; border-radius: 0; }
   .dfoot { position: sticky; bottom: 0; background: var(--surface); }
   .drawer, .drawer.sm { width: 100%; }
-  .rchip .rq, .cchip, .mchip, .iconbtn, .notbtn, .btn { min-height: 48px; } /* v2 touch-min 48 */
+  .iconbtn, .notbtn, .btn { min-height: 48px; } /* v2 touch-min 48 */
+  /* 칩: 보이는 높이 36(chip-h), 누름 칸만 위아래로 늘려 48(Chip README) */
+  .cchip, .mchip, .rchip .rq { position: relative; }
+  .cchip::after, .mchip::after, .rchip .rq::after { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+  .mchip::after { top: -7px; bottom: -7px; } /* 테두리 1px 바깥에서 재므로 */
   .iconbtn { width: 48px; }
-  .rchip { height: 48px; }
+  .rchip { height: 36px; }
   .rchip .x { opacity: 1; width: 32px; height: 32px; }
   .searchrow .btn { display: none; }
   .toast { left: 16px; right: 16px; bottom: 76px; max-width: none; }
@@ -637,7 +641,7 @@ button.pill { cursor: pointer; border: 0; }
   .quota { margin-left: 0; flex-basis: 100%; }
   .pv-head .acts { margin-left: 0; }
   /* 칩 줄(Chip README): 한 줄 + 가로로 밀기 — 두세 줄로 쌓여 목록을 밀어내지 않게. 스크롤바는 숨기고 누름 칸 48 은 그대로 */
-  .chiprow { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .chiprow { flex-wrap: nowrap; overflow-x: auto; padding-top: 6px; padding-bottom: 6px; margin-top: -6px; margin-bottom: 6px; /* 늘린 누름 칸이 스크롤 칸 안에 들게 */ overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .chiprow::-webkit-scrollbar { display: none; }
   .chiprow > * { flex: none; }
   .page .chiprow { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; scroll-padding-inline: 16px; }

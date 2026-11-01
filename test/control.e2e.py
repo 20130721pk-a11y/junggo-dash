@@ -633,15 +633,21 @@ with sync_playwright() as p:
     connect(page)
     shot(page, '16-mobile-home')
     check(page.evaluate('() => document.documentElement.scrollWidth') <= 390, '휴대폰 폭 가로 밀림 없음(홈)')
+    page.goto(BASE + '#settings')
+    page.wait_for_selector('.sbox')
+    check(page.evaluate('() => document.documentElement.scrollWidth') <= 390, '휴대폰 폭 가로 밀림 없음(설정 — 한 줄 칩 줄이 상자를 넓히지 않음)')
     page.goto(BASE + '#p=s_4080')
     page.wait_for_selector('.pv-head')
     check(page.evaluate('() => document.documentElement.scrollWidth') <= 390, '휴대폰 폭 가로 밀림 없음(결과 화면)')
     rows = page.evaluate('''() => [...document.querySelectorAll('.page .chiprow')].filter((r) => r.offsetParent && !r.parentElement.closest('.chiprow')).map((r) => {
       const ys = new Set([...r.children].filter((c) => c.getBoundingClientRect().height > 0).map((c) => Math.round(c.getBoundingClientRect().top)));
-      return { lines: ys.size, x: getComputedStyle(r).overflowX, h: Math.min(...[...r.querySelectorAll('button')].map((c) => c.getBoundingClientRect().height)) };
+      const bs = [...r.querySelectorAll('button')].filter((c) => { const q = c.getBoundingClientRect(); return q.width > 0 && q.right <= innerWidth && q.left >= 0; });
+      // 누름 칸: 보이는 칩(36) 위아래 6px 바깥을 눌러도 그 칩(48)
+      const hit = bs.every((c) => { const q = c.getBoundingClientRect(), x = q.left + q.width / 2; return [q.top - 5, q.bottom + 5].every((y) => c.contains(document.elementFromPoint(x, y))); });
+      return { lines: ys.size, x: getComputedStyle(r).overflowX, h: Math.round(Math.max(...bs.map((c) => c.getBoundingClientRect().height))), hit };
     })''')
     check(len(rows) >= 2 and all(r['lines'] == 1 and r['x'] == 'auto' for r in rows), f'좁은 폭 칩 줄 = 한 줄 + 가로로 밀기(디자인 v2 Chip) — {rows}')
-    check(all(r['h'] >= 48 for r in rows), '좁은 폭 칩 누름 칸 48 이상(touch-min)')
+    check(all(r['h'] == 36 and r['hit'] for r in rows), '좁은 폭 칩: 보이는 높이 36 · 누름 칸은 위아래로 늘려 48(touch-min)')
     shot(page, '17-mobile-product')
     page.click('[data-act="edit"][data-pid="s_4080"]')
     page.wait_for_selector('#dE')
