@@ -377,3 +377,27 @@ test('새 화면 글에 중앙값·평균·서두르세요·실시간·앱 판�
     assert.equal(view.includes(w), false, w);
   }
 });
+
+// ---------- 디자인 v2 (0.8.1) ----------
+test('v2: 알림함 아이콘은 종류 값으로(꿀매 honey · 목표가 target · 최저가 trend-down · 요약 list · 시스템 settings), 모르는 종류는 list', () => {
+  assert.equal(RV.inboxIcon('honey'), 'drop');
+  assert.equal(RV.inboxIcon('target'), 'target');
+  assert.equal(RV.inboxIcon('lowest'), 'trend');
+  assert.equal(RV.inboxIcon('nday'), 'trend');
+  assert.equal(RV.inboxIcon('digest'), 'list');
+  assert.equal(RV.inboxIcon('system'), 'gear');
+  assert.equal(RV.inboxIcon('zzz'), 'list');
+  assert.equal(RV.inboxIcon(undefined), 'list');
+});
+test('v2: 이모지 빼기 = 앱 WebBundle.noEmoji 규칙(⚠·★·▼ 글자는 그대로)', () => {
+  assert.equal(RV.noEmoji('🍯 꿀매 · RTX 4080 · 98만'), '꿀매 · RTX 4080 · 98만');
+  assert.equal(RV.noEmoji('🎯 목표가 이하 · RTX 4080'), '목표가 이하 · RTX 4080');
+  assert.equal(RV.noEmoji('⚙️ 옛 물건 조건을 바꿨어요'), '옛 물건 조건을 바꿨어요');
+  assert.equal(RV.noEmoji('📉 최저가 갱신 · 📋 요약'), '최저가 갱신 · 요약');
+  assert.equal(RV.noEmoji('⚠ 확인 필요 · ★ 관심 · ▼ 3만'), '⚠ 확인 필요 · ★ 관심 · ▼ 3만');
+  assert.equal(RV.noEmoji(null), '');
+});
+test('v2: 매물 쪽 관심 글(11/1 대표 결정 2)', () => {
+  assert.equal(RV.STAR.add, '관심 매물에 넣기');
+  assert.equal(RV.STAR.remove, '관심 매물에서 빼기');
+});

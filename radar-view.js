@@ -267,6 +267,31 @@
     return t;
   }
 
+  /* ---------- 디자인 v2 (0.8.1): 선 아이콘 · 관심 매물 글 · 이모지 빼기 ---------- */
+  // 알림함 줄 머리 아이콘(디자인 v2 README 7장): 종류 값으로 고름. 값은 index.html 아이콘 id(i-…) — v2 이름은 옆 주석
+  const INBOX_ICON = {
+    honey: 'drop', // honey(꿀골드)
+    target: 'target', // target(brand-bright — signals '목표가 도달')
+    lowest: 'trend', nday: 'trend', // trend-down
+    drop: 'down', // arrow-down
+    new: 'plus', caution: 'alert', watch: 'star',
+    digest: 'list', system: 'gear', // list · settings
+    web: 'up',
+  };
+  const inboxIcon = (kind) => INBOX_ICON[kind] || 'list';
+  // 매물 쪽 ☆ 글(11/1 대표 결정 2 — 앱도 0.8.1 2단계에서 같은 글). 물건 쪽 '지켜보기 시작'·'그만 지켜보기'는 그대로
+  const STAR = { add: '관심 매물에 넣기', remove: '관심 매물에서 빼기', sending: '보내는 중' };
+  // 앱 WebBundle.noEmoji 와 같은 규칙: 그림 이모지(U+1F000 이상)·⚙(U+2699)·글꼴 바꿈표(U+FE0F)를 빼고 겹친 띄어쓰기를 하나로.
+  // ⚠·★·▼ 글자는 그대로(디자인 v2 README 3장). 앱이 이미 빼서 보내니 웹은 옛 묶음 대비로만 써요(종류 값이 있을 때)
+  function noEmoji(text) {
+    let out = '';
+    for (const ch of String(text == null ? '' : text)) {
+      const cp = ch.codePointAt(0);
+      if (!(cp >= 0x1F000 || cp === 0x2699 || cp === 0xFE0F)) out += ch;
+    }
+    return out.replace(/ {2,}/g, ' ').trim();
+  }
+
   /* ---------- 최근 7일 올림 공백 (계획서 6-5 ①) ---------- */
   function gaps(b, now) {
     const line = lateLineMin(b) * 60e3;
@@ -349,6 +374,6 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

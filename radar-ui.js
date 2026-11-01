@@ -85,12 +85,13 @@
     const d = pts.map((p, k) => (k ? 'L' : 'M') + X(p[0]) + ' ' + Y(p[1])).join(' ');
     const last = pts[pts.length - 1];
     return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="최근 30일 최저가 추이, 가장 낮은 값 ${esc(man(lo))}, 오늘 ${esc(man(last[1]))}">
-      <path d="${d}" fill="none" stroke="#A98BF7" stroke-opacity=".85" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
-      <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3" fill="#F2F3F6"/></svg>`;
+      <path d="${d}" fill="none" style="stroke:var(--brand-bright)" stroke-opacity=".85" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3" style="fill:var(--brand-bright)"/></svg>`;
   }
   const mlows = (o, big) => ['j', 'd', 'b'].filter((m) => o && Number.isFinite(o[m])).map((m) => `<span class="mlow"${big ? ' style="font-size:.9375rem"' : ''}>${mkMark(m, !big)}${esc(man(o[m]))}</span>`).join('');
   const vlows = (a) => arr(a).filter((x) => Array.isArray(x) && Number.isFinite(x[1])).map(([v, n]) => `<span class="pill">${esc(v)} ${esc(man(n))}</span>`).join('');
-  const facts = (a) => arr(a).map((f) => (f && f.icon ? `${ico(f.icon === 'target' ? 'target' : 'trend')} ${esc(f.t)}` : esc(f && f.t))).join(' · ');
+  const factHi = (f) => !!f && (!!f.icon || /^\d+일 만에 최저/.test(str(f.t)));
+  const facts = (a) => arr(a).map((f) => (factHi(f) ? `<span class="fact-hi">${f.icon ? ico(f.icon === 'target' ? 'target' : 'trend', f.icon === 'target' ? 't' : '') : ''}${esc(f.t)}</span>` : esc(f && f.t))).join(' · ');
   const soldMaybe = (txt) => (day() ? ` · <span class="sold-maybe">${txt || '팔렸을 수 있어요'}</span>` : '');
   const dis = (on) => (on ? ' disabled' : '');
 
@@ -443,7 +444,7 @@
       if (!p || !l) return '';
       const fresh = f.fresh && !late();
       return `<div class="feed-row ${fresh ? 'fresh' : ''}" data-act="sheet" data-pid="${esc(p.id)}" data-key="${esc(l.key)}" tabindex="0" role="button">${thumb(l)}
-        <div style="min-width:0"><div class="top-line"><span class="chip-name">${esc(p.name)}</span>${fresh ? '<span class="pill">새로</span>' : ''}<span class="meta">${esc(ago(f.at, t))}</span></div>
+        <div style="min-width:0"><div class="top-line"><span class="chip-name">${esc(p.name)}</span>${fresh ? '<span class="pill brand">새로</span>' : ''}<span class="meta">${esc(ago(f.at, t))}</span></div>
         <p class="ltitle" style="margin-top:6px;font-weight:600">${esc(l.title)}</p>
         <div class="price-row" style="margin-top:4px"><span class="price" style="font-size:1rem">${esc(won(l.price))}</span>${badge(l.grade, true)}</div>
         <p class="meta" style="margin:3px 0 0">${esc(l.grade ? l.grade.why : '')} · ${esc(MARKET[l.m])}</p></div></div>`;
@@ -547,7 +548,7 @@
     const starOn = !!(l.star || ctx.star);
     const starPend = S.sent.some((r) => r.type === 'star' && r.key === l.key && C.isOpen(stOf(r).st));
     const actions = ctx.noActs ? '' : `<span class="ra">
-        <button class="iconbtn ${starPend ? 'pending' : starOn ? 'on' : ''}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-pressed="${starOn}" aria-label="${esc(l.title)} ${starOn ? '지켜보는 중' : '지켜보기'}"${lk()}>${ico('star', starOn && !starPend ? 'fill' : '')}</button>
+        <button class="iconbtn ${starPend ? 'pending' : starOn ? 'on' : ''}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-label="${esc(l.title)} ${starOn ? RV.STAR.remove : RV.STAR.add}"${lk()}>${ico('star', starOn && !starPend ? 'fill' : '')}</button>
         ${p && !isPaused(p) ? `<button class="notbtn" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}" aria-label="${esc(l.title)} 이 매물 아님"${lk()}>${ico('eyeoff')}아님</button>` : ''}
         <a class="iconbtn" ${ext(l)} aria-label="${esc(l.title)} 원 매물 새 창에서 열기" data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${ico('ext')}</a></span>`;
     return `<li class="row" id="r-${esc(l.key)}" tabindex="0" data-act="sheet" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-adhoc="${ctx.adhoc ? 1 : ''}">
@@ -584,17 +585,17 @@
     const rbar = bar ? `<div class="rbar" role="img" aria-label="시세 막대: 이 매물 ${esc(man(low.price))}, 시세의 절반 ${esc(man(bar.lo))}, ${esc(bar.label)} 시세 ${esc(man(bar.med))}">
         <span class="tick" style="left:0%">시세의 절반 ${esc(won(bar.lo))}</span><span class="tick" style="left:${(bar.medFrac * 100).toFixed(1)}%">${esc(bar.label)} 시세 ${esc(won(bar.med))}</span><span class="me" style="left:${(bar.item * 100).toFixed(1)}%"></span></div>` : '';
     return `${cautionLine ? `<button class="note link" style="margin:0 0 8px" data-act="jump" data-pid="${esc(p ? p.id : '')}" data-key="${esc(cautionKey || '')}">${esc(cautionLine)}</button>` : ''}
-      <section class="box" aria-label="${esc(label)}"><p class="box-label">${esc(label)}${pend ? chgPill : ''}</p>
+      <section class="box" aria-label="${esc(label)}"><p class="box-label plain">${esc(label)}${pend ? chgPill : ''}</p>
       <div class="hero">${thumb(low, 'lg')}<div style="min-width:0" data-act="sheet" data-key="${esc(low.key)}" data-pid="${esc(p ? p.id : '')}" data-adhoc="${x.adhoc ? 1 : ''}" class="hclick">
           <p class="ltitle">${esc(low.title)}</p>
           <div class="price-row" style="margin-top:6px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
           <p class="meta" style="margin:4px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · 올린 때 ${esc(ago(low.updated, t))} · 처음 본 때 ${esc(ago(low.firstSeen, t))}</p>
           ${model && low.grade && low.grade.k === 'unknown' && low.price > 0 ? `<p class="note" style="margin-top:8px;color:var(--ink3)">${esc(model)} · 매물이 적어 판정 보류</p>`
             : low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
-          ${target ? `<p class="note">${ico('target')}${esc(target.t)}</p>` : ''}
+          ${target ? `<p class="note fact-hi">${ico('target', 't')}${esc(target.t)}</p>` : ''}
           ${rbar}
         </div>
-        <div class="hstar"><button class="iconbtn ${starPend ? 'pending' : starOn ? 'on' : ''}" data-act="star" data-key="${esc(low.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-pressed="${starOn}" aria-label="${starOn ? '지켜보는 중' : '지켜보기'}"${lk()}>${ico('star', starOn && !starPend ? 'fill' : '')}</button></div></div>
+        <div class="hstar"><button class="iconbtn ${starPend ? 'pending' : starOn ? 'on' : ''}" data-act="star" data-key="${esc(low.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-label="${starOn ? RV.STAR.remove : RV.STAR.add}"${lk()}>${ico('star', starOn && !starPend ? 'fill' : '')}</button></div></div>
       <div class="hero-bottom"><span class="meta">${day() ? '<span class="sold-maybe">하루가 넘었어요 — 팔렸을 수 있어요</span>' : '원 매물에서 사요 — 거래는 마켓 앱에서'}</span>
         <a class="btn btn-sm" ${ext(low)} data-act="opened" data-key="${esc(low.key)}" data-pid="${esc(p ? p.id : '')}">원 매물 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a></div></section>`;
   }
@@ -617,11 +618,11 @@
     const heroModel = model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : '';
     let hero;
     if (low) hero = heroBox(x, low, heroModel ? `${label} · ${heroModel}` : label, cautionLine, cautionKey, heroModel);
-    else if (picked) hero = `<section class="box"><p class="box-label">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</section>`;
-    else if (src.state === 'allCaution') hero = `<section class="box"><p class="box-label">${label}</p><p class="note" style="font-size:.9375rem">${esc(src.statePage)}</p></section>`;
+    else if (picked) hero = `<section class="box"><p class="box-label plain">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</section>`;
+    else if (src.state === 'allCaution') hero = `<section class="box"><p class="box-label plain">${label}</p><p class="note" style="font-size:.9375rem">${esc(src.statePage)}</p></section>`;
     else if (src.state === 'rebase') hero = `<p class="info brand">${esc(src.statePage)}</p>${src.stateSub ? `<p class="info">${esc(src.stateSub)}</p>` : ''}`;
     else if (off) hero = '';
-    else hero = `<section class="box"><p class="box-label">${label}</p><p class="muted" style="margin:0">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p></section>`;
+    else hero = `<section class="box"><p class="box-label plain">${label}</p><p class="muted" style="margin:0">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p></section>`;
 
     // 끈 물건은 조건을 바꾸는 단추(고치기·내용까지 보기·보이기·물건 정하기)를 그리지 않아요 — 다시 켠 뒤에
     const p = off ? null : x.p, cfg = x.p && x.p.cfg;
@@ -669,7 +670,7 @@
     const rows = f.rows.length ? `<ul class="rows" style="margin-top:16px">${rowsShown.map((l) => rowHTML(l, ctx)).join('')}</ul>`
       : (all.length ? `<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" data-act="clearF">거르기 풀기</button></p>` : `<p class="empty">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
     return `${marketChips()}${chipRows(all, f)}${lines.join('')}${sum}${band}${info2.join('')}${conds}${merged}${ledger}${hero}${rows}
-      <p class="foot-hint">줄 끝 ☆ 로 지켜보기 · '아님'으로 이 매물 빼기</p>
+      <p class="foot-hint">줄 끝 ${ico('star')}<span class="sr">별</span>로 ${esc(RV.STAR.add)} · '아님'으로 이 매물 빼기</p>
       <p class="foot">거리: 당근은 거래 위치까지, 중고나라·번개장터는 판매 동네 가운데까지 어림(≈)이에요. 동네를 모르는 매물은 '지역 모름'이에요.</p>`;
   }
   function priceTab(x) {
@@ -828,7 +829,7 @@
   /* =====================================================================
    * 관심 매물 (C-10) · 알림함 (C-12)
    * ===================================================================== */
-  const SRC_LABEL = { star: '★', share: '공유', auto: '자동' };
+  const SRC_LABEL = { star: '직접', share: '공유', auto: '자동' }; // v2: ★ 글자 대신 별 아이콘 + '직접'(시안 Watches · 꼬리표 회색)
   function renderWatch() {
     const t = now();
     const ws = arr(B().watches).filter((w) => w && w.listing);
@@ -846,9 +847,9 @@
       const auto = w.src === 'auto';
       const acts = w.ended ? '' : auto
         ? `<button class="btn btn-text btn-sm" data-act="watchPin" data-key="${esc(l.key)}"${lk()}>★로 고정</button><button class="btn btn-text gray btn-sm" data-act="watchOff" data-key="${esc(l.key)}"${lk()}>그만 보기</button>`
-        : `<button class="iconbtn ${pend ? 'pending' : 'on'}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(w.pid || '')}" data-on="0" aria-label="${esc(l.title)} 지켜보는 중 — 누르면 빼기"${lk()}>${ico('star', pend ? '' : 'fill')}</button>`;
+        : `<button class="iconbtn ${pend ? 'pending' : 'on'}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(w.pid || '')}" data-on="0" aria-label="${esc(l.title)} ${esc(RV.STAR.remove)}"${lk()}>${ico('star', pend ? '' : 'fill')}</button>`;
       return `<div class="wrow">${thumb(l, 'sm')}<div style="min-width:0;cursor:pointer" data-act="watchlog" data-key="${esc(l.key)}" tabindex="0" role="button">
-          <p class="ltitle"${w.ended ? ' style="color:var(--ink3)"' : ''}><span class="pill" style="margin-right:6px">${esc(SRC_LABEL[w.src] || '★')}</span>${esc(l.title)}</p><div class="tags">${tags.map((x) => `<span>${x}</span>`).join('')}</div></div>
+          <p class="ltitle"${w.ended ? ' style="color:var(--ink3)"' : ''}><span class="pill" style="margin-right:8px">${w.src === 'star' || !SRC_LABEL[w.src] ? ico('star', 'fill') : ''}${esc(SRC_LABEL[w.src] || SRC_LABEL.star)}</span>${esc(l.title)}</p><div class="tags">${tags.map((x) => `<span>${x}</span>`).join('')}</div></div>
         <div class="wacts">${w.ended ? '<span class="badge b-plain">끝남</span>' : ''}<b class="num">${esc(won(l.price))}</b>${pend ? chgPill : ''}${acts}</div></div>`;
     };
     const alive = ws.filter((w) => !w.ended), ended = ws.filter((w) => w.ended);
@@ -858,11 +859,10 @@
       <form class="searchrow" id="shareForm" style="margin-top:14px"><label class="search" style="height:40px">${ico('ext')}<span class="sr">매물 주소</span><input id="shareUrl" autocomplete="off" placeholder="마켓 매물 주소 붙여 넣기"></label><button class="btn" type="submit" style="height:40px"${lk()}>넣기</button></form>
       <p class="under" id="shareErr">중고나라·당근·번개장터 매물 주소만 넣을 수 있어요 <span class="webonly">웹만</span></p>
       ${cmdLine(shareRec, { boxed: true, label: true })}
-      ${alive.length ? `<div class="wlist">${alive.map(rowOf).join('')}</div>` : '<p class="empty">★한 매물이 여기 보여요</p>'}
+      ${alive.length ? `<div class="wlist">${alive.map(rowOf).join('')}</div>` : '<p class="empty">관심 매물에 넣은 매물이 여기 보여요</p>'}
       <h2 class="sec-title" style="margin-top:24px;font-size:1rem">끝난 매물</h2><p class="sec-sub">판매완료·삭제된 매물은 마지막 가격과 함께 7일 보여 드려요</p>
       ${ended.length ? `<div class="wlist">${ended.map(rowOf).join('')}</div>` : ''}</section>`;
   }
-  const INBOX_ICON = { honey: 'drop', target: 'target', lowest: 'trend', nday: 'trend', drop: 'down', new: 'plus', caution: 'alert', watch: 'star', digest: 'list', system: 'gear', web: 'up' };
   const isRead = (i) => !!i.read || S.readLocal.has(i.id) || (S.readAll && i.t <= S.readAll);
   const inboxUnread = () => arr(B() && B().inbox).filter((i) => i && typeof i.read === 'boolean' && !isRead(i)).length;
   function renderInbox() {
@@ -873,8 +873,10 @@
       const d = RV.dayLabel(i.t, t);
       if (d !== last) { html += `<p class="day">${esc(d)}</p>`; last = d; }
       const unread = typeof i.read === 'boolean' && !isRead(i);
-      html += `<div class="irow ${i.kind === 'honey' ? 'honey' : ''}${unread ? ' unread' : ''}" data-act="inboxOpen" data-id="${esc(i.id || '')}" data-key="${esc(i.key || (i.listing && i.listing.key) || '')}" tabindex="0" role="button">${ico(INBOX_ICON[i.kind] || 'list')}<div style="min-width:0">
-        <p class="it">${unread ? '<span class="ud" aria-hidden="true"></span><span class="sr">안 읽음 </span>' : ''}${esc(i.title)}</p>${i.text ? `<p class="ib">${esc(i.text)}</p>` : ''}<p class="ig">${RV.inboxTags(i, t).map(esc).join(' · ')}</p></div></div>`;
+      // 아이콘은 종류 값으로(v2). 옛 묶음 글에 이모지가 남아 있으면 종류 값이 있을 때만 빼요(앱 0.8.1 은 이미 빼서 보냄)
+      const iT = i.kind ? RV.noEmoji(i.title) : str(i.title), iX = i.kind ? RV.noEmoji(i.text) : str(i.text);
+      html += `<div class="irow ${i.kind === 'honey' || i.kind === 'target' ? i.kind : ''}${unread ? ' unread' : ''}" data-act="inboxOpen" data-id="${esc(i.id || '')}" data-key="${esc(i.key || (i.listing && i.listing.key) || '')}" tabindex="0" role="button">${ico(RV.inboxIcon(i.kind))}<div style="min-width:0">
+        <p class="it">${unread ? '<span class="ud" aria-hidden="true"></span><span class="sr">안 읽음 </span>' : ''}${esc(iT)}</p>${iX ? `<p class="ib">${esc(iX)}</p>` : ''}<p class="ig">${RV.inboxTags(i, t).map(esc).join(' · ')}</p></div></div>`;
     }
     const canRead = items.some((i) => typeof i.read === 'boolean' && !isRead(i));
     return `<section style="max-width:820px"><div class="titlebar"><div style="flex:1"><h1 class="sec-title">알림함</h1><p class="sec-sub">지난 알림을 다시 봐요 · 밤사이·요약 소식도 여기 모여요</p></div>
@@ -1260,7 +1262,7 @@
         ${l.grade && l.grade.why ? `<p class="facts" style="color:var(--ink2)">${esc(l.grade.why)}</p>` : ''}
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a>
-          <button class="btn" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-pressed="${starOn}"${lk()}>${starPend ? `<span class="iconbtn pending" style="width:20px;height:20px">${ico('star')}</span> 보내는 중` : starOn ? `${ico('star', 'fill')} 지켜보는 중` : `${ico('star')} 지켜보기`}</button>
+          <button class="btn" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}"${lk()}>${starPend ? `<span class="iconbtn pending" style="width:20px;height:20px">${ico('star')}</span> ${RV.STAR.sending}` : starOn ? `${ico('star', 'fill')} ${RV.STAR.remove}` : `${ico('star')} ${RV.STAR.add}`}</button>
           ${p && !isPaused(p) ? (hidden ? `<span class="chg-pill">이 매물은 빼고 볼게요</span>` : `<button class="btn" style="color:var(--ink2)" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}"${lk()}>${ico('eyeoff')} 이 매물 아님</button>`) : ''}</div>
         ${p && !isPaused(p) ? '<p class="hint">이 매물 아님 = 이 물건의 최저가·시세·알림에서 빼요(오판 사례로 남겨 규칙을 고쳐요)</p>' : ''}
         ${p && words.length ? `<p class="flabel" style="margin-top:20px">이 말이 든 매물은 모두 빼기</p><p class="desc" style="margin:0">찾는 물건이 아닌 걸 가르는 말을 누르세요 · '빼고 볼 단어'에 들어가요</p>
