@@ -88,7 +88,7 @@
       <path d="${d}" fill="none" style="stroke:var(--brand-bright)" stroke-opacity=".85" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3" style="fill:var(--brand-bright)"/></svg>`;
   }
-  const mlows = (o, big) => ['j', 'd', 'b'].filter((m) => o && Number.isFinite(o[m])).map((m) => `<span class="mlow"${big ? ' style="font-size:.9375rem"' : ''}>${mkMark(m, !big)}${esc(man(o[m]))}</span>`).join('');
+  const mlows = (o, big) => ['j', 'd', 'b'].filter((m) => o && Number.isFinite(o[m])).map((m) => `<span class="mlow"${big ? ' style="font-size:var(--fs-body-lg)"' : ''}>${mkMark(m, !big)}${esc(man(o[m]))}</span>`).join('');
   const vlows = (a) => arr(a).filter((x) => Array.isArray(x) && Number.isFinite(x[1])).map(([v, n]) => `<span class="pill">${esc(v)} ${esc(man(n))}</span>`).join('');
   const factHi = (f) => !!f && (!!f.icon || /^\d+일 만에 최저/.test(str(f.t)));
   const facts = (a) => arr(a).map((f) => (factHi(f) ? `<span class="fact-hi">${f.icon ? ico(f.icon === 'target' ? 'target' : 'trend', f.icon === 'target' ? 't' : '') : ''}${esc(f.t)}</span>` : esc(f && f.t))).join(' · ');
@@ -445,9 +445,9 @@
       const fresh = f.fresh && !late();
       return `<div class="feed-row ${fresh ? 'fresh' : ''}" data-act="sheet" data-pid="${esc(p.id)}" data-key="${esc(l.key)}" tabindex="0" role="button">${thumb(l)}
         <div style="min-width:0"><div class="top-line"><span class="chip-name">${esc(p.name)}</span>${fresh ? '<span class="pill brand">새로</span>' : ''}<span class="meta">${esc(ago(f.at, t))}</span></div>
-        <p class="ltitle" style="margin-top:6px;font-weight:600">${esc(l.title)}</p>
-        <div class="price-row" style="margin-top:4px"><span class="price" style="font-size:1rem">${esc(won(l.price))}</span>${badge(l.grade, true)}</div>
-        <p class="meta" style="margin:3px 0 0">${esc(l.grade ? l.grade.why : '')} · ${esc(MARKET[l.m])}</p></div></div>`;
+        <p class="ltitle" style="margin-top:8px;font-weight:600">${esc(l.title)}</p>
+        <div class="price-row" style="margin-top:4px"><span class="price" style="font-size:var(--fs-price-sm)">${esc(won(l.price))}</span>${badge(l.grade, true)}</div>
+        <p class="meta" style="margin:4px 0 0">${esc(l.grade ? l.grade.why : '')} · ${esc(MARKET[l.m])}</p></div></div>`;
     }).join('');
     const ps = prods();
     const ghosts = ghostCards();
@@ -588,7 +588,7 @@
       <section class="box" aria-label="${esc(label)}"><p class="box-label plain">${esc(label)}${pend ? chgPill : ''}</p>
       <div class="hero">${thumb(low, 'lg')}<div style="min-width:0" data-act="sheet" data-key="${esc(low.key)}" data-pid="${esc(p ? p.id : '')}" data-adhoc="${x.adhoc ? 1 : ''}" class="hclick">
           <p class="ltitle">${esc(low.title)}</p>
-          <div class="price-row" style="margin-top:6px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
+          <div class="price-row" style="margin-top:8px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
           <p class="meta" style="margin:4px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · 올린 때 ${esc(ago(low.updated, t))} · 처음 본 때 ${esc(ago(low.firstSeen, t))}</p>
           ${model && low.grade && low.grade.k === 'unknown' && low.price > 0 ? `<p class="note" style="margin-top:8px;color:var(--ink3)">${esc(model)} · 매물이 적어 판정 보류</p>`
             : low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
@@ -618,8 +618,8 @@
     const heroModel = model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : '';
     let hero;
     if (low) hero = heroBox(x, low, heroModel ? `${label} · ${heroModel}` : label, cautionLine, cautionKey, heroModel);
-    else if (picked) hero = `<section class="box"><p class="box-label plain">${label}</p>${picked.line ? `<p class="note" style="font-size:.9375rem">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</section>`;
-    else if (src.state === 'allCaution') hero = `<section class="box"><p class="box-label plain">${label}</p><p class="note" style="font-size:.9375rem">${esc(src.statePage)}</p></section>`;
+    else if (picked) hero = `<section class="box"><p class="box-label plain">${label}</p>${picked.line ? `<p class="note" style="font-size:var(--fs-body-lg)">${esc(picked.line)}</p>` : `<p class="muted" style="margin:0">${esc(f.heroRows.length ? '믿을 만한 매물이 아직 없어요' : '조건에 맞는 매물이 없어요.')}</p>`}</section>`;
+    else if (src.state === 'allCaution') hero = `<section class="box"><p class="box-label plain">${label}</p><p class="note" style="font-size:var(--fs-body-lg)">${esc(src.statePage)}</p></section>`;
     else if (src.state === 'rebase') hero = `<p class="info brand">${esc(src.statePage)}</p>${src.stateSub ? `<p class="info">${esc(src.stateSub)}</p>` : ''}`;
     else if (off) hero = '';
     else hero = `<section class="box"><p class="box-label plain">${label}</p><p class="muted" style="margin:0">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p></section>`;
@@ -647,7 +647,7 @@
     if (x.a) right = `<button class="btn btn-text btn-sm" data-act="saveAdhoc"${lk()}>+ 지켜보기</button>`;
     else if (off) right = '';
     else if (p && confirmedOf(p)) right = `<button class="btn btn-text btn-sm" data-act="identify" data-pid="${esc(p.id)}"${lk()}>물건 다시 정하기</button>`;
-    else right = '<span class="muted" style="font-size:.75rem">레이더가 지켜보는 중</span>';
+    else right = '<span class="muted" style="font-size:var(--fs-label)">레이더가 지켜보는 중</span>';
     const sumN = `${f.variant ? esc(f.variant) + ' ' : ''}매물 ${f.rows.length}건 · ${SORT_LABEL[S.sort] || '싼 순'}${areaOn ? ` <span class="muted">· ${AREA_LABEL[f.area]}${S.withUnknown && f.unknown ? `(지역 모름 ${f.unknown}건 포함)` : ''} · 기준 ${esc(b.base)}</span>` : ''}`;
     const sum = `<div class="sumline" role="status"><span class="n">${sumN}</span><span class="right">${right}${toolsRight(x.id)}</span></div>`;
     const band = p && !confirmedOf(p) ? `<div class="idband" data-act="identify" data-pid="${esc(p.id)}" role="button" tabindex="0"><div><b>어떤 물건인지 정해 주세요</b><span>다른 물건이 섞이면 최저가·시세가 틀려요</span></div><span class="go">물건 정하기 ›</span></div>` : '';
@@ -679,11 +679,11 @@
     let cut = '';
     if (c.rebase) cut = `<p class="ref-big">${esc(c.rebase)}</p>`;
     else if (Array.isArray(c.rows)) cut = `<p class="ref-big">${esc(c.head)}</p>${c.rows.map((r) => `<div class="vcut ${r.hold ? 'hold' : ''}"><b>${esc(r.name)}</b><span>${esc(r.text)}</span></div>`).join('')}${c.unknown ? `<p class="hint">${esc(c.unknown)}</p>` : ''}`;
-    else if (Array.isArray(c.single)) cut = `<p class="ref-big">${esc(c.single[0])}</p>${c.single[1] ? `<p class="meta" style="margin:3px 0 0;color:var(--ink2)">${esc(c.single[1])}</p>` : ''}`;
+    else if (Array.isArray(c.single)) cut = `<p class="ref-big">${esc(c.single[0])}</p>${c.single[1] ? `<p class="meta" style="margin:4px 0 0;color:var(--ink2)">${esc(c.single[1])}</p>` : ''}`;
     const sp = spark(src.spark, 120, 800);
     const judge = `<section class="box"><p class="box-label">꿀매 판정 기준</p>${cut}
       <p class="hint">기준가 순서: 판매완료(중고나라 90일) → 사라진 매물 → 30일 관측 → 지금 올라온 가격 · 5건 이상일 때만 써요</p>
-      ${sp ? `<p class="box-label plain" style="margin-top:12px">최근 30일 최저가</p><div class="trend">${sp}</div><p class="meta" style="margin:4px 0 0">${esc(src.min30)}</p>` : (x.p && src.state !== 'empty' && src.state !== 'pending' ? '<p class="meta" style="margin:10px 0 0">추이 선은 하루 넘게 지켜본 뒤부터 그려요</p>' : '')}</section>`;
+      ${sp ? `<p class="box-label plain" style="margin-top:12px">최근 30일 최저가</p><div class="trend">${sp}</div><p class="meta" style="margin:4px 0 0">${esc(src.min30)}</p>` : (x.p && src.state !== 'empty' && src.state !== 'pending' ? '<p class="meta" style="margin:12px 0 0">추이 선은 하루 넘게 지켜본 뒤부터 그려요</p>' : '')}</section>`;
     const f = visibleRows(listOf(src), x.id);
     const s = C.priceStats(f.rows);
     // 모델 물건에서 칩을 안 고르면 모델이 섞인 중간값(디자인 4-6·G-12) — 웹 분포는 칩을 따라서 디자인 안내 글 그대로
@@ -800,7 +800,7 @@
         }).join('')}
         <div class="steps-foot">${C.isBad(st) ? `<span class="cmd bad" role="alert" style="min-height:0"><b>${esc(L.lead)}</b>&nbsp;— ${esc(L.text)}</span>` : `<span>앱이 앞에 있으면 1~2분, 백그라운드면 15분쯤 걸려요${isIos() ? ' · 아이폰은 앱을 열면 처리해요' : ''}${late() ? ' · 폰이 결과를 한동안 안 올렸어요 — 켜지면 처리해요' : ''}</span>`}
           ${st === 'sent' ? `<button class="btn btn-text gray btn-sm" data-act="cancel" data-id="${esc(rec.id)}">취소</button>` : ''}${C.isBad(st) && S.plain[rec.id] ? `<button class="btn btn-text btn-sm" data-act="retry" data-id="${esc(rec.id)}">다시 보내기</button>` : ''}</div></div>
-        ${S.adhocSwap ? `<p class="info" style="margin-top:10px">${esc(S.adhocSwap)}</p>` : ''}
+        ${S.adhocSwap ? `<p class="info" style="margin-top:12px">${esc(S.adhocSwap)}</p>` : ''}
         <div class="skels">${'<div class="skel" style="height:64px"></div>'.repeat(4)}</div>`;
     } else if (a) {
       const t = now();
@@ -814,7 +814,7 @@
     } else {
       body = `<p class="empty">아직 결과가 없어요 — 위에서 다시 찾아 주세요.</p>`;
     }
-    return `${searchBlock(q)}<div class="pv solo" style="margin-top:18px"><section style="min-width:0">
+    return `${searchBlock(q)}<div class="pv solo" style="margin-top:16px"><section style="min-width:0">
       <div class="pv-head"><button class="back" data-go="home">${ico('left')}홈</button><h1>'${esc(q)}'</h1><span class="meta">그냥 검색 · 저장 안 함</span></div>
       <div style="height:12px"></div>${body}</section></div>`;
   }
@@ -836,7 +836,7 @@
     const rowOf = (w) => {
       const p = prod(w.pid), l = w.listing;
       const tags = [];
-      if (p) tags.push(`<span class="chip-name" style="padding:1px 7px">${esc(p.name)}</span>`);
+      if (p) tags.push(`<span class="chip-name" style="padding:1px 8px">${esc(p.name)}</span>`);
       if (w.since) tags.push(`<span class="${w.sinceDir === 'down' ? 'since-down' : w.sinceDir === 'up' ? 'since-up' : ''}">${w.sinceDir === 'down' ? '▼ ' : w.sinceDir === 'up' ? '▲ ' : ''}${esc(w.since)}</span>`);
       if (w.diff) tags.push(esc(w.diff));
       if (Number.isFinite(w.days)) tags.push(`${esc(w.days)}일째`);
@@ -856,11 +856,11 @@
     const shareRec = lastRec((r) => r.type === 'share');
     return `<section class="${day() ? 'stale-day' : ''}" style="max-width:960px"><h1 class="sec-title">관심 매물</h1>
       <p class="sec-sub">찜한 매물의 가격·상태가 바뀌면 알려 드려요 · 마켓 앱에서 '공유 → 꿀매 레이더'로도 넣어요</p>
-      <form class="searchrow" id="shareForm" style="margin-top:14px"><label class="search" style="height:40px">${ico('ext')}<span class="sr">매물 주소</span><input id="shareUrl" autocomplete="off" placeholder="마켓 매물 주소 붙여 넣기"></label><button class="btn" type="submit" style="height:40px"${lk()}>넣기</button></form>
+      <form class="searchrow" id="shareForm" style="margin-top:12px"><label class="search" style="height:40px">${ico('ext')}<span class="sr">매물 주소</span><input id="shareUrl" autocomplete="off" placeholder="마켓 매물 주소 붙여 넣기"></label><button class="btn" type="submit" style="height:40px"${lk()}>넣기</button></form>
       <p class="under" id="shareErr">중고나라·당근·번개장터 매물 주소만 넣을 수 있어요 <span class="webonly">웹만</span></p>
       ${cmdLine(shareRec, { boxed: true, label: true })}
       ${alive.length ? `<div class="wlist">${alive.map(rowOf).join('')}</div>` : '<p class="empty">관심 매물에 넣은 매물이 여기 보여요</p>'}
-      <h2 class="sec-title" style="margin-top:24px;font-size:1rem">끝난 매물</h2><p class="sec-sub">판매완료·삭제된 매물은 마지막 가격과 함께 7일 보여 드려요</p>
+      <h2 class="sec-title" style="margin-top:24px">끝난 매물</h2><p class="sec-sub">판매완료·삭제된 매물은 마지막 가격과 함께 7일 보여 드려요</p>
       ${ended.length ? `<div class="wlist">${ended.map(rowOf).join('')}</div>` : ''}</section>`;
   }
   const isRead = (i) => !!i.read || S.readLocal.has(i.id) || (S.readAll && i.t <= S.readAll);
@@ -920,19 +920,19 @@
       <div class="chiprow"><span role="radiogroup" aria-label="감시 강도" class="chiprow" style="margin:0">${[['save', '절약'], ['normal', '보통']].map(([v, l]) => `<button class="cchip" role="radio" aria-checked="${inten === v}" data-act="prefInten" data-v="${v}"${L()}>${l}</button>`).join('')}</span>
         <button class="cchip" aria-pressed="${!!fp}" data-act="focusPick"${lk()}>${ico('target')}${fp ? '집중 감시 중' : '＋ 집중 감시'}</button>${prefPending('intensity') ? chgPill : ''}</div>
       <p class="hint">${esc(iHint)}</p>${cmdLine(prefRec('intensity'))}
-      ${fp ? `<div class="focusbox">${ico('target')}<div style="flex:1"><b style="font-size:.8125rem">${esc(arr(fp.ids).map((id) => (prod(id) || {}).name).filter(Boolean).join(' · '))}</b><div class="meta" style="font-size:.75rem">${esc(fp.everyMin)}분마다 · ${esc(clock(fp.until, t))}까지</div></div><button class="btn btn-text coral btn-sm" data-act="focusStop"${lk()}>멈추기</button></div>` : ''}
+      ${fp ? `<div class="focusbox">${ico('target')}<div style="flex:1"><b style="font-size:var(--fs-body-sm)">${esc(arr(fp.ids).map((id) => (prod(id) || {}).name).filter(Boolean).join(' · '))}</b><div class="meta" style="font-size:var(--fs-label)">${esc(fp.everyMin)}분마다 · ${esc(clock(fp.until, t))}까지</div></div><button class="btn btn-text coral btn-sm" data-act="focusStop"${lk()}>멈추기</button></div>` : ''}
       ${fpick ? `<div class="fpick"><p class="flabel" style="margin-top:0">물건 (${C.FOCUS_MAX}개까지)</p>
           ${prods().some((p) => !isPaused(p)) ? `<div class="chiprow">${prods().filter((p) => !isPaused(p)).map((p) => `<button class="cchip" aria-pressed="${fpick.ids.includes(p.id)}" data-act="focusId" data-pid="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>` : `<p class="hint">${esc(allPaused() ? C.PAUSE.focusNone : '먼저 홈에서 물건을 추가해 주세요.')}</p>`}
           <p class="flabel">얼마 동안</p><div class="chiprow" role="radiogroup">${C.FOCUS_HOURS.map((h) => `<button class="cchip" role="radio" aria-checked="${fpick.hours === h}" data-act="focusH" data-v="${h}">${h}시간</button>`).join('')}</div>
           <p class="flabel">얼마나 자주</p><div class="chiprow" role="radiogroup">${C.FOCUS_EVERY.map((m) => `<button class="cchip" role="radio" aria-checked="${fpick.every === m}" data-act="focusE" data-v="${m}">${m}분마다</button>`).join('')}</div>
           <p class="hint">화면이 꺼져도 정한 시간 동안 이 물건만 자주 확인해요(알림 표시줄에 '집중 감시 중'). 꿀매·최저가 갱신은 조용한 시간에도 바로 알려요. 배터리를 조금 더 써요.</p>
           <p class="hint">폰이 배터리 최적화 예외가 아니면 폰에서 알림을 한 번 눌러야 켜져요 <span class="webonly">웹만</span></p>
-          <button class="btn btn-fill" style="margin-top:10px" data-act="focusGo"${lk() || dis(!fpick.ids.length)}>${fp ? '이대로 다시 시작' : '집중 감시 시작'}</button></div>` : ''}
+          <button class="btn btn-fill" style="margin-top:12px" data-act="focusGo"${lk() || dis(!fpick.ids.length)}>${fp ? '이대로 다시 시작' : '집중 감시 시작'}</button></div>` : ''}
       ${cmdLine(focusRec)}</section>`;
     // S5·S6·S7·S8
     const qt = pr && pr.quiet ? pr.quiet : null;
     const s5 = `<section class="sbox">${phoneBox('알림 상태', str(b.notifLine) || (b.notifOn === false ? '알림이 꺼져 있어요' : '폰에서 확인해 주세요'))}
-      <h3 style="margin-top:14px">알림</h3><p class="d">꿀매·목표가는 밤에도 바로, 최저가 갱신은 기준가 이하일 때만 폰으로(조용한 시간엔 아침에), 가격 인하·새 매물은 하루 요약에만.</p>
+      <h3 style="margin-top:12px">알림</h3><p class="d">꿀매·목표가는 밤에도 바로, 최저가 갱신은 기준가 이하일 때만 폰으로(조용한 시간엔 아침에), 가격 인하·새 매물은 하루 요약에만.</p>
       <div class="swrow" style="margin-top:4px"><div class="t"><b>조용한 시간(${qt ? `${esc(qt.start)}시~${esc(qt.end)}시` : '1시~7시'})</b><span>보통 알림을 아침으로 미뤄요</span></div><button class="sw" role="switch" aria-checked="${!!(qt && qt.on)}" aria-label="조용한 시간" data-act="prefQuietOn"${L()}></button>${prefPending('quiet') ? chgPill : ''}</div>
       ${qt && qt.on ? `<div class="chiprow" role="radiogroup" style="margin-top:8px" aria-label="조용한 시간">${C.QUIET_CHOICES.map(([a, z]) => `<button class="cchip" role="radio" aria-checked="${qt.start === a && qt.end === z}" data-act="prefQuiet" data-a="${a}" data-z="${z}"${L()}>${a}~${z}시</button>`).join('')}</div>` : ''}
       ${cmdLine(prefRec('quiet'))}
@@ -956,7 +956,7 @@
     const u = C.adhocUse(b, S.sent, t);
     const gaps = RV.gaps(b, t).slice(0, 5).map((g) => `<div class="gap-row"><span>${esc(clock(g.from, t))} ~ ${g.open ? '지금' : esc(clock(g.to, t))} · ${esc(RV.dur(g.ms))}</span><span class="mark">PC를 껐던 때?</span></div>`).join('');
     const s10 = `<section class="sbox" id="s-status"><h3>수집 상태</h3><p class="d">마켓마다 마지막으로 잘 받은 때예요. 막히면 알림으로 알려요.</p>
-      <div style="display:grid;gap:4px;font-size:.8125rem">${mk || '<p class="muted">마켓 상태가 묶음에 없어요</p>'}</div>
+      <div style="display:grid;gap:4px;font-size:var(--fs-body-sm)">${mk || '<p class="muted">마켓 상태가 묶음에 없어요</p>'}</div>
       <p class="hint">당근은 이 폰에서만 모아요(다른 곳에서 대신 모으지 않아요).${dq ? `\n당근 요청 최근 1시간 ${dq.hour}번 · 오늘 ${dq.day}번 (1시간 ${(dq.hourMax || 150).toLocaleString('ko-KR')}번 · 하루 ${(dq.dayMax || 3000).toLocaleString('ko-KR')}번까지, 이 폰 전체)${dqRest}` : ''}${bdHTML ? '\n' + bdHTML : ''}\n이번 1시간 웹 그냥 검색 ${u.used}/${u.limit}번 <span class="webonly">웹만</span></p>
       <ul class="kv" style="margin-top:8px"><li>기기 <b>${esc(str(b.device) || '내 안드로이드')}</b></li><li>앱 <b>${esc(str(b.app) || '—')}</b></li>${b.watchLabel ? `<li>감시 강도 <b>${esc(b.watchLabel)}</b></li>` : ''}<li>늦음 기준 <b>${st.line}분</b></li><li>마지막 올림 <b>${esc(clock(b.made, t))}</b></li></ul>
       ${gaps ? `<p class="flabel">최근 7일 올림 공백 <span class="muted" style="font-weight:400">(7일 나란히 보는 동안만)</span></p>${gaps}` : ''}</section>`;
@@ -967,7 +967,7 @@
       ${cmdLine(lastRec((r) => r.type === 'home'))}</section>`;
     const s12 = `<section class="sbox"><h3>웹 대시보드 연결</h3><p class="d">PC에서 넓게 보는 보조 화면이에요. 이 폰이 당근을 모아 대시보드에 올려요.</p>${phoneBox('연결 · 결과 올리기', `마지막 올림 ${clock(b.made, t)} · ${str(b.device) || '내 안드로이드'}`)}</section>`;
     const s13 = `<section class="sbox"><h3>오판 사례 ${esc(Number(b.misfits) || 0)}건</h3><p class="d">'이 매물 아님'을 누른 매물이에요. 규칙 시험에 넣어 쓸수록 정확해져요.</p><p class="hint" style="margin:0">내보내기는 폰에서 해 주세요</p></section>`;
-    const s14 = arr(b.metrics).length ? `<section class="sbox"><h3>지켜보는 숫자</h3><p class="hint" style="margin:6px 0 0;color:var(--ink2)">${arr(b.metrics).map(esc).join('\n')}</p></section>` : '';
+    const s14 = arr(b.metrics).length ? `<section class="sbox"><h3>지켜보는 숫자</h3><p class="hint" style="margin:8px 0 0;color:var(--ink2)">${arr(b.metrics).map(esc).join('\n')}</p></section>` : '';
     const s15 = `<section class="sbox"><h3>오류 기록 ${esc(Number(b.errors) || 0)}건</h3><p class="d">확인하다 생긴 문제를 단계·종류만 남겨요(검색어·매물 제목은 남기지 않아요). 고칠 때 보내 주세요.</p><p class="hint" style="margin:0">내보내기는 폰에서 해 주세요</p></section>`;
     const me = `<section class="sbox"><h3>이 브라우저 <span class="webonly">웹만</span></h3><p class="d">${LOCAL_SRC ? '시험 묶음(?src=)을 보는 중이에요' : `웹 토큰 · ${S.ro ? '읽기만(예전 토큰)' : '읽기 + 이슈 쓰기'} · 명령 비밀번호 ${S.cmdKey ? '이 탭에서 넣었어요(탭을 닫으면 잊어요)' : '아직 안 넣었어요(명령을 보낼 때 한 번)'}`}</p>
       <div class="titlebar" style="gap:8px"><button class="btn btn-sm" data-act="retok">토큰 바꾸기</button><button class="btn btn-sm" data-act="forget">이 기기에서 잊기</button></div></section>`;
@@ -1017,7 +1017,7 @@
     const sug = C.suggest(d.text || '');
     const tooMany = (d.text || '').split(/[,，]/).filter((x) => x.trim()).length > 3;
     return dlgShell('', 'dA', `<div style="flex:1"><h2 id="dA">어떤 물건을 지켜볼까요?</h2><p class="desc">세 마켓에서 같은 물건의 최저가를 계속 지켜보다가, 진짜 꿀매가 뜨면 바로 알려 드려요.</p></div>${xBtn}`,
-      `<p class="flabel">물건 카드</p><p class="desc" style="margin:-2px 0 10px">같은 말(4080 = RTX4080 = 지포스 4080)·카테고리·빼기 단어(완본체·노트북)가 들어간 채로 시작해요</p>
+      `<p class="flabel">물건 카드</p><p class="desc" style="margin:-2px 0 12px">같은 말(4080 = RTX4080 = 지포스 4080)·카테고리·빼기 단어(완본체·노트북)가 들어간 채로 시작해요</p>
         <div class="qcards">${cards.map((c) => { const w = C.watchingCard(c.id, live), on = w.length > 0;
           // 그 카드로 지켜보는 물건이 모두 잠시 꺼졌으면 회색 점 · '잠시 꺼 둠 · 누르면 그만'(R7 디자인 4-7)
           const off = on && w.every(isPaused);
@@ -1028,7 +1028,7 @@
         <form id="addForm"><label class="sr" for="addText">지켜볼 물건</label><input class="field" id="addText" autocomplete="off" placeholder="지켜볼 물건" value="${esc(d.text || '')}"></form>
         <p class="hint" id="addMany"${tooMany ? '' : ' hidden'}>3개까지만 찾아요 — 4번째부터는 빼요</p>
         <div id="addSug">${sugHTML(sug, d.useCard !== false)}</div>
-        <button class="btn btn-fill btn-wide" style="margin-top:14px" data-act="addGo" id="addGo"${locked() ? lk() : dis(!(d.text || '').trim())}>지켜보기 시작</button>
+        <button class="btn btn-fill btn-wide" style="margin-top:12px" data-act="addGo" id="addGo"${locked() ? lk() : dis(!(d.text || '').trim())}>지켜보기 시작</button>
         <p class="hint">추가하면 세 마켓을 모은 뒤 '어떤 물건인지'(가격대·빼기 단어)를 정해요. 본체로 보이는 가격대는 미리 골라 둬요.</p>
         <p class="hint" style="color:var(--ink2)">꿀매 기준·목표가는 물건 카드의 '조건'에서 바꿔요</p>`, '');
   }
@@ -1048,17 +1048,17 @@
     const mm = sel.m;
     const modelOn = !!mm && !mm.off && C.canSplitModels(mm.defs);
     const bandIntro = modelOn ? C.MODEL_TEXT.introModels : mm && str(id.intro) === C.MODEL_TEXT.introModels ? C.MODEL_TEXT.introSplit : (str(id.intro) || "본체로 보이는 가격대를 골라 뒀어요. 맞으면 아래 '이대로 정하기'만 누르세요.");
-    const bandHtml = bands.length >= 2 ? `<p class="flabel">가격대</p><p class="desc" style="margin:-2px 0 9px">${esc(bandIntro)}</p>
+    const bandHtml = bands.length >= 2 ? `<p class="flabel">가격대</p><p class="desc" style="margin:-2px 0 8px">${esc(bandIntro)}</p>
       <div role="radiogroup" aria-label="가격대">${bands.map((b, i) => `<button class="band" role="radio" aria-checked="${sel.band === i}" data-act="idBand" data-i="${i}"><span><b>${esc(man(Number.isFinite(b.from) ? b.from : b.lo))} ~ ${esc(man(Number.isFinite(b.to) ? b.to : b.hi))}</b><span>${esc(b.n)}건  ·  중간 ${esc(man(b.mid))}${b.tags ? '  ·  ' + esc(b.tags) : ''}</span></span><span class="pick">${sel.band === i ? '고름' : ''}</span></button>`).join('')}</div>
       ${sel.band != null && sel.band < bands.length - 1 && !modelOn ? `<div class="chiprow" style="margin-top:2px"><button class="cchip" aria-pressed="${!!sel.withHigher}" data-act="idHigher">더 비싼 묶음도 함께</button><span class="desc" style="margin:0">프로·Ti 같은 비싼 변형이면</span></div>` : ''}` : '';
     const words = arr(id.words);
-    const wordHtml = words.length ? `<p class="flabel">자주 나오는 말</p><p class="desc" style="margin:-2px 0 9px">한 번 누르면 빼기, 한 번 더 누르면 꼭 들어갈 말, 또 누르면 원래대로.</p>
+    const wordHtml = words.length ? `<p class="flabel">자주 나오는 말</p><p class="desc" style="margin:-2px 0 8px">한 번 누르면 빼기, 한 번 더 누르면 꼭 들어갈 말, 또 누르면 원래대로.</p>
       <div class="chiprow">${words.map((w) => { const s = sel.words[w.w] | 0; return `<button class="cchip${s === 1 ? ' ex' : s === 2 ? ' in' : ''}" data-act="idWord" data-w="${esc(w.w)}" aria-label="${esc(w.w)} ${esc(w.n)}건 · ${s === 1 ? '빼기' : s === 2 ? '꼭 들어갈 말' : '그대로'}">${s === 1 ? '− ' : s === 2 ? '+ ' : ''}${esc(w.w)} <span class="c">${esc(w.n)}</span></button>`; }).join('')}</div>` : '';
     const pv = C.identifyPreview(p, sel);
     let prev;
     if (pv.kind === 'ok') {
       const v = pv.pv;
-      prev = v.n > 0 ? `<div class="l">이대로면 매물 ${esc(v.n)}건</div>${v.low ? `<div style="margin-top:4px"><span class="l">지금 최저 </span><b style="font-size:.9375rem">${esc(won(v.low.price))}</b></div><div class="meta" style="font-size:.75rem">${esc(v.low.title)}</div>` : `<div class="meta">믿을 만한 매물 없음${v.doubt ? ` · ⚠ ${esc(v.doubt)}건` : ''}</div>`}${v.low && v.doubt ? `<div class="meta" style="font-size:.6875rem">더 싸 보이는 ⚠ 확인 필요 ${esc(v.doubt)}건은 뺐어요</div>` : ''}`
+      prev = v.n > 0 ? `<div class="l">이대로면 매물 ${esc(v.n)}건</div>${v.low ? `<div style="margin-top:4px"><span class="l">지금 최저 </span><b style="font-size:var(--fs-body-lg)">${esc(won(v.low.price))}</b></div><div class="meta" style="font-size:var(--fs-label)">${esc(v.low.title)}</div>` : `<div class="meta">믿을 만한 매물 없음${v.doubt ? ` · ⚠ ${esc(v.doubt)}건` : ''}</div>`}${v.low && v.doubt ? `<div class="meta" style="font-size:var(--fs-meta)">더 싸 보이는 ⚠ 확인 필요 ${esc(v.doubt)}건은 뺐어요</div>` : ''}`
         : '<div class="l">조건에 맞는 매물이 없어요</div>';
     } else if (pv.kind === 'category') prev = '<div class="meta">카테고리는 정한 뒤 그 안에서 다시 모아요</div>';
     else prev = '<div class="meta">미리보기는 앱이 정한 뒤에 다시 세요(웹은 판정하지 않아요)</div>';
@@ -1073,7 +1073,7 @@
       }
     }
     return dlgShell('lg', 'dI', head,
-      `<p class="flabel">카테고리</p><p class="desc" style="margin:-2px 0 9px">세 마켓 모두 이 안에서만 찾아요. 품번 숫자가 겹치는 다른 물건이 빠져요.</p>
+      `<p class="flabel">카테고리</p><p class="desc" style="margin:-2px 0 8px">세 마켓 모두 이 안에서만 찾아요. 품번 숫자가 겹치는 다른 물건이 빠져요.</p>
         <div class="chiprow" role="radiogroup" aria-label="카테고리">${C.CATEGORIES.map(([k, l]) => `<button class="cchip" role="radio" aria-checked="${sel.category === k}" data-act="idCat" data-k="${esc(k)}">${esc(l)}</button>`).join('')}</div>
         ${mm ? modelSection(p, kw, mm, sel) : ''}${bandHtml}${wordHtml}<div class="preview">${prev}</div>`,
       `<button class="btn btn-text gray" data-act="close">나중에</button><span class="grow"></span><button class="btn btn-fill" data-act="idGo"${lk()}>이대로 정하기</button>`);
@@ -1101,7 +1101,7 @@
     const id = p.identify;
     const can = C.canSplitModels(mm.defs);
     const T = C.MODEL_TEXT;
-    const head = `<div id="idModels"></div><p class="flabel">모델</p><p class="desc" style="margin:-2px 0 9px">${esc(C.modelIntro(mm.user, mm.defs))}${mm.user ? ` <button class="btn btn-text" data-act="mRevert">${esc(T.revert)}</button>` : ''}</p>
+    const head = `<div id="idModels"></div><p class="flabel">모델</p><p class="desc" style="margin:-2px 0 8px">${esc(C.modelIntro(mm.user, mm.defs))}${mm.user ? ` <button class="btn btn-text" data-act="mRevert">${esc(T.revert)}</button>` : ''}</p>
       <div class="chiprow" role="radiogroup" aria-label="모델 나누기"><button class="cchip${can ? '' : ' dim'}" role="radio" aria-checked="${!mm.off && can}" data-act="mOff" data-v="0">모델마다 따로</button><button class="cchip" role="radio" aria-checked="${mm.off || !can}" data-act="mOff" data-v="1">나누지 않기</button></div>`;
     if (mm.off) return `${head}<p class="hint">${esc(T.off)}</p>`;
     const rows = can ? C.modelRows(kw, mm.defs, id.models, bandSel(p, sel), mm.pinned) : { rows: C.modelNames(mm.defs).map((n) => ({ n, c: 0, mid: 0, w: [], base: false })), unknown: 0 };
@@ -1112,7 +1112,7 @@
         ${menuOpen === r.n ? `<div class="mmenu" role="menu"><button role="menuitem" data-act="mRename" data-n="${esc(r.n)}">이름 바꾸기</button>${canMerge ? `<button role="menuitem" data-act="mMerge" data-n="${esc(r.n)}">다른 모델과 합치기</button>` : ''}<button role="menuitem" data-act="mRemove" data-n="${esc(r.n)}">${esc(T.remove)}</button></div>` : ''}</div>`).join('');
     // 추천 칩(B-5, 앱 시트 '추천' 줄): '자주 나오는 말' 칩과 같은 .cchip 꼴(고르지 않은 상태) — 누르면 바로 더함
     const chips = C.modelChips(id.models && id.models.cands, mm.defs);
-    const chipHtml = chips.length ? `<p class="hint" style="margin:4px 0 6px 4px">${esc(T.chipLabel)}</p><div class="chiprow">${chips.map((c) => `<button class="cchip" data-act="mChip" data-n="${esc(c.n)}" aria-label="${esc(c.n)} ${esc(c.c)}건 · 모델로 더하기">${esc(c.n)} <span class="c">${esc(c.c)}</span></button>`).join('')}</div>` : '';
+    const chipHtml = chips.length ? `<p class="hint" style="margin:4px 0 8px 4px">${esc(T.chipLabel)}</p><div class="chiprow">${chips.map((c) => `<button class="cchip" data-act="mChip" data-n="${esc(c.n)}" aria-label="${esc(c.n)} ${esc(c.c)}건 · 모델로 더하기">${esc(c.n)} <span class="c">${esc(c.c)}</span></button>`).join('')}</div>` : '';
     return `${head}${can ? '' : `<p class="hint">${esc(T.two)}</p>`}<div class="mrows">${rowHtml}</div>
       ${can && rows.unknown > 0 ? `<p class="hint" style="margin:2px 0 0 4px">${esc(T.unknown(rows.unknown))}</p>` : ''}
       ${chipHtml}<button class="btn btn-text madd" data-act="mAdd">${esc(T.add)}</button>`;
@@ -1165,7 +1165,7 @@
     const focusing = !!(d.sel && fp && arr(fp.ids).includes(d.sel) && fp.until > now());
     const pick = many ? `<div role="radiogroup" aria-label="그만 지켜볼 물건" style="margin:8px 0 4px">${list.map((p) => `<button class="band" role="radio" aria-checked="${d.sel === p.id}" data-act="delPick" data-pid="${esc(p.id)}"><span><b>${esc(p.name)}</b><span>${esc(isPaused(p) ? C.PAUSE.stopRow(p.cfg ? str(p.cfg.keyword) : '') : (p.cfg ? str(p.cfg.keyword) : ''))}</span></span><span class="pick">${d.sel === p.id ? '고름' : ''}</span></button>`).join('')}</div>` : '';
     return dlgShell('sm', 'dD', `<h2 id="dD">${esc(many ? C.STOP.pickTitle(d.card || list[0].name, list.length) : C.STOP.title(list[0].name))}</h2>`,
-      `${pick}<p id="dDd" class="ink2" style="margin:4px 0 0">${esc(C.STOP.body)}</p>${focusing ? `<p class="ink2" style="margin:6px 0 0">${esc(C.STOP.focus)}</p>` : ''}${d.sel && prod(d.sel) && !isPaused(prod(d.sel)) ? `<p class="muted" style="margin:6px 0 0">${esc(C.PAUSE.stopHint)}</p>` : ''}`,
+      `${pick}<p id="dDd" class="ink2" style="margin:4px 0 0">${esc(C.STOP.body)}</p>${focusing ? `<p class="ink2" style="margin:8px 0 0">${esc(C.STOP.focus)}</p>` : ''}${d.sel && prod(d.sel) && !isPaused(prod(d.sel)) ? `<p class="muted" style="margin:8px 0 0">${esc(C.PAUSE.stopHint)}</p>` : ''}`,
       `<span class="grow"></span><button class="btn btn-text gray" data-act="close" id="delCancel">${esc(C.STOP.cancel)}</button><button class="btn btn-text coral" data-act="delGo"${locked() ? lk() : dis(!d.sel)}>${esc(C.STOP.ok)}</button>`, 'alertdialog');
   }
   const chipsRadio = (name, list, cur, act) => `<div class="chiprow" role="radiogroup" aria-label="${esc(name)}">${list.map(([v, l]) => `<button class="cchip" role="radio" aria-checked="${cur === v}" data-act="${act}" data-v="${esc(v === null ? 'null' : v)}">${esc(l)}</button>`).join('')}</div>`;
@@ -1188,7 +1188,7 @@
     const latest = clock(B().made, now());
     const top = cmdLine(lastRec((r) => r.type === 'edit' && r.pid === p.id && stOf(r).st !== 'conflict'), { boxed: true, label: true });
     return dlgShell('lg', 'dE', `<div style="flex:1"><h2 id="dE">'${esc(p.name)}' 조건</h2><p class="desc">앱이 ${esc(latest)} 에 올린 값이에요 <span class="webonly">웹만</span></p></div>${xBtn}`,
-      `${top}${late() ? `<div class="banner" style="margin:6px 0 0;padding:8px 12px">${ico('alert')}<div><b style="font-size:.8125rem">폰이 ${esc(ago(B().made, now()))} 값을 올렸어요</b><span>그 사이 앱에서 바꿨다면 겹칠 수 있어요</span></div></div>` : ''}
+      `${top}${late() ? `<div class="banner" style="margin:8px 0 0;padding:8px 12px">${ico('alert')}<div><b style="font-size:var(--fs-body-sm)">폰이 ${esc(ago(B().made, now()))} 값을 올렸어요</b><span>그 사이 앱에서 바꿨다면 겹칠 수 있어요</span></div></div>` : ''}
         ${lab('thresholdPct', '꿀매 기준')}<div class="chiprow" role="radiogroup" aria-label="꿀매 기준">${C.PCT_PRESETS.map((v) => `<button class="cchip" role="radio" aria-checked="${!f.customPct && +f.thresholdPct === v}" data-act="ePct" data-v="${v}">${v === 15 ? '-15% 기본' : v === 30 ? '-30% 급매만' : `-${v}%`}</button>`).join('')}<button class="cchip" role="radio" aria-checked="${!!f.customPct}" data-act="ePctCustom">직접 입력</button></div>
         ${f.customPct ? `<div class="frow" style="margin-top:8px"><span class="meta">시세보다 -</span>${field('thresholdPct', '15', ' inputmode="numeric" style="max-width:90px"')}<span class="meta">% 이상 싸면 꿀매 (5~45)</span></div>${pctOk ? '' : `<p class="conf-note">5~45 사이로 적어 주세요(50% 넘게 싸면 '확인 필요'로 봐요)</p>`}` : ''}
         ${cfNote('thresholdPct')}<p class="hint" id="pctHint">${esc(pv || `시세보다 ${f.thresholdPct}% 이상 싼 같은 물건을 꿀매로 알려요(시세는 매물이 5건 넘게 모이면 내요)`)}</p>
@@ -1257,8 +1257,8 @@
     const isAdhoc = !!hit.adhoc || d.adhoc;
     const hidden = p && lastHide(p.id, l.key);
     return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dL"><div class="dhead"><h2 id="dL" class="sr">판단 창</h2><span style="flex:1"></span>${xBtn}</div>
-      <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:1rem">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.firstSeen, t)].filter(Boolean).join(' · '))}</p></div></div>
-        <div class="price-row" style="margin-top:14px"><span class="price" style="font-size:1.75rem">${esc(won(l.price))}</span>${badge(l.grade, false)}</div>
+      <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:var(--fs-body-lg);font-weight:600">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.firstSeen, t)].filter(Boolean).join(' · '))}</p></div></div>
+        <div class="price-row" style="margin-top:12px"><span class="price" style="font-size:var(--fs-display);line-height:32px">${esc(won(l.price))}</span>${badge(l.grade, false)}</div>
         ${l.grade && l.grade.why ? `<p class="facts" style="color:var(--ink2)">${esc(l.grade.why)}</p>` : ''}
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a>
@@ -1277,7 +1277,7 @@
     const l = w.listing, t = now();
     const ev = arr(w.events);
     const from = Number.isFinite(w.addedPrice) ? w.addedPrice : null;
-    return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dW"><div class="dhead"><h2 id="dW" style="font-size:1rem;flex:1">${esc(l.title)}</h2>${xBtn}</div>
+    return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dW"><div class="dhead"><h2 id="dW" style="font-size:var(--fs-body-lg);font-weight:600;flex:1">${esc(l.title)}</h2>${xBtn}</div>
       <div class="dbody">${from != null ? `<p class="ink2">지켜볼 때 ${esc(won(from))} → 지금 ${esc(won(l.price))}</p>` : (w.since ? `<p class="ink2">지켜본 뒤 ${esc(w.since)} · 지금 ${esc(won(l.price))}</p>` : '')}
         <p class="flabel">변화 기록</p>${ev.length ? `<ul class="cmdlist">${ev.map((e) => `<li><span class="muted">${ico('clock')}</span><div><div class="w">${esc(e.text)}</div><div class="s"><span class="muted">${esc(clock(e.t, t))}</span></div></div></li>`).join('')}</ul>` : '<p class="hint">아직 바뀐 게 없어요</p>'}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(w.pid || '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}</a>
@@ -1354,7 +1354,7 @@
       const tokbox = S.needToken ? `<div class="tokbox">
           <p class="ink2">처음 한 번만: 데이터 저장소와 <b>웹 토큰</b>을 넣어 주세요. 토큰은 이 기기에 비밀번호로 잠가 둬요.</p>
           <dl class="perm"><dt>저장소</dt><dd>junggo-dash-data 하나만</dd><dt>Contents</dt><dd>읽기 (Read-only)</dd><dt>Issues</dt><dd>읽기와 쓰기 (Read and write) <span class="pill brand">명령 보내기용</span></dd><dt>기한</dt><dd>90일 (초안)</dd></dl>
-          <p class="hint" style="margin:0 0 10px">Issues 쓰기는 앱에 명령을 보내는 데만 써요. 명령은 비밀번호로 잠가 보내서, 토큰만으로는 물건·조건을 바꿀 수 없어요. 묶음 파일은 이 토큰으로 못 바꿔요. 새면 GitHub 에서 그 토큰만 지우면 끝이에요.</p>
+          <p class="hint" style="margin:0 0 12px">Issues 쓰기는 앱에 명령을 보내는 데만 써요. 명령은 비밀번호로 잠가 보내서, 토큰만으로는 물건·조건을 바꿀 수 없어요. 묶음 파일은 이 토큰으로 못 바꿔요. 새면 GitHub 에서 그 토큰만 지우면 끝이에요.</p>
           <label class="field-l" for="lkRepo">데이터 저장소(주인/이름)</label><input id="lkRepo" type="text" autocomplete="off" spellcheck="false" value="${esc(S.repo || DEFAULT_REPO)}">
           <label class="field-l" for="lkTok">웹 토큰</label><input id="lkTok" type="password" autocomplete="off" placeholder="github_pat_…">
         </div>` : '';
@@ -1635,7 +1635,8 @@
     const r = btn.getBoundingClientRect();
     const narrow = window.innerWidth < 760;
     const left = narrow ? 16 : Math.max(8, Math.min(window.innerWidth - 248, r.right - 240));
-    const top = narrow ? Math.max(8, window.innerHeight - 280) : Math.min(window.innerHeight - 260, r.bottom + 4);
+    const H = 360; // 메뉴 줄 7개 × 48(v2 메뉴 줄 높이 48) + 안쪽
+    const top = narrow ? Math.max(8, window.innerHeight - H - 16) : Math.max(8, Math.min(window.innerHeight - H, r.bottom + 4));
     S.menu = { pid, top: Math.round(top), left: Math.round(left) };
     S.opener = btn.id || null;
     renderLayer(true);
