@@ -482,7 +482,7 @@ with sync_playwright() as p:
     page.click('.tab[data-go="watch"]')
     page.wait_for_selector('.wrow')
     wt = page.inner_text('#page')
-    check('3일째' in wt and '끌올 2번' in wt and '최근 · 가격 인하' in wt and '★로 고정' in wt and '그만 보기' in wt, '관심 매물: 출처·며칠째·끌올·최근 사건, 자동 줄만 ★로 고정·그만 보기')
+    check('3일째' in wt and '끌올 2번' in wt and '최근 · 가격 인하' in wt and '관심 매물로 고정' in wt and '그만 보기' in wt, '관심 매물: 출처·며칠째·끌올·최근 사건, 자동 줄만 관심 매물로 고정·그만 보기')
     page.fill('#shareUrl', 'https://evil.example/m.bunjang.co.kr/products/1')
     n0 = gh.last()
     page.click('#shareForm button')
@@ -636,6 +636,12 @@ with sync_playwright() as p:
     page.goto(BASE + '#p=s_4080')
     page.wait_for_selector('.pv-head')
     check(page.evaluate('() => document.documentElement.scrollWidth') <= 390, '휴대폰 폭 가로 밀림 없음(결과 화면)')
+    rows = page.evaluate('''() => [...document.querySelectorAll('.page .chiprow')].filter((r) => r.offsetParent && !r.parentElement.closest('.chiprow')).map((r) => {
+      const ys = new Set([...r.children].filter((c) => c.getBoundingClientRect().height > 0).map((c) => Math.round(c.getBoundingClientRect().top)));
+      return { lines: ys.size, x: getComputedStyle(r).overflowX, h: Math.min(...[...r.querySelectorAll('button')].map((c) => c.getBoundingClientRect().height)) };
+    })''')
+    check(len(rows) >= 2 and all(r['lines'] == 1 and r['x'] == 'auto' for r in rows), f'좁은 폭 칩 줄 = 한 줄 + 가로로 밀기(디자인 v2 Chip) — {rows}')
+    check(all(r['h'] >= 48 for r in rows), '좁은 폭 칩 누름 칸 48 이상(touch-min)')
     shot(page, '17-mobile-product')
     page.click('[data-act="edit"][data-pid="s_4080"]')
     page.wait_for_selector('#dE')

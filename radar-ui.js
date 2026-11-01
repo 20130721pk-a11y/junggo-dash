@@ -829,6 +829,7 @@
   /* =====================================================================
    * 관심 매물 (C-10) · 알림함 (C-12)
    * ===================================================================== */
+  const WATCH_PIN = '관심 매물로 고정'; // 0.8.1(앱 2단계와 같은 글). 명령 이름 '★로 고정 · {제목}'(radar-cmd what)은 3단계에서 앱과 함께
   const SRC_LABEL = { star: '직접', share: '공유', auto: '자동' }; // v2: ★ 글자 대신 별 아이콘 + '직접'(시안 Watches · 꼬리표 회색)
   function renderWatch() {
     const t = now();
@@ -846,7 +847,7 @@
       const pend = S.sent.some((r) => (r.type === 'watch' || r.type === 'star') && r.key === l.key && C.isOpen(stOf(r).st));
       const auto = w.src === 'auto';
       const acts = w.ended ? '' : auto
-        ? `<button class="btn btn-text btn-sm" data-act="watchPin" data-key="${esc(l.key)}"${lk()}>★로 고정</button><button class="btn btn-text gray btn-sm" data-act="watchOff" data-key="${esc(l.key)}"${lk()}>그만 보기</button>`
+        ? `<button class="btn btn-text btn-sm" data-act="watchPin" data-key="${esc(l.key)}"${lk()}>${esc(WATCH_PIN)}</button><button class="btn btn-text gray btn-sm" data-act="watchOff" data-key="${esc(l.key)}"${lk()}>그만 보기</button>`
         : `<button class="iconbtn ${pend ? 'pending' : 'on'}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(w.pid || '')}" data-on="0" aria-label="${esc(l.title)} ${esc(RV.STAR.remove)}"${lk()}>${ico('star', pend ? '' : 'fill')}</button>`;
       return `<div class="wrow">${thumb(l, 'sm')}<div style="min-width:0;cursor:pointer" data-act="watchlog" data-key="${esc(l.key)}" tabindex="0" role="button">
           <p class="ltitle"${w.ended ? ' style="color:var(--ink3)"' : ''}><span class="pill" style="margin-right:8px">${w.src === 'star' || !SRC_LABEL[w.src] ? ico('star', 'fill') : ''}${esc(SRC_LABEL[w.src] || SRC_LABEL.star)}</span>${esc(l.title)}</p><div class="tags">${tags.map((x) => `<span>${x}</span>`).join('')}</div></div>
@@ -891,6 +892,7 @@
    * ===================================================================== */
   function prefRec(field) { return lastRec((r) => r.type === 'prefs' && arr(r.fields).includes(field)); }
   const prefPending = (field) => S.sent.some((r) => r.type === 'prefs' && arr(r.fields).includes(field) && C.isOpen(stOf(r).st));
+  const AUTO_WATCH_TITLE = '자주 본 매물 자동으로 관심 매물에 넣기'; // 화면 글만(0.8.1). 바뀜 이름표 PREF.autoWatchN 은 3단계에서 앱 WebCmd 와 함께
   function renderSettings() {
     const b = B(), t = now();
     const pr = b.prefs && typeof b.prefs === 'object' ? b.prefs : null;
@@ -907,8 +909,8 @@
       ${cmdLine(prefRec('defaultPct'))}</section>`;
     // S2
     const an = pr ? pr.autoWatchN : null;
-    const s2 = `<section class="sbox"><h3>자주 본 매물 자동으로 지켜보기</h3><p class="d">앱에서 같은 매물을 이만큼 열면 관심 매물로 넣어요(30일 동안 다시 안 열면 빠져요).</p>
-      <div class="chiprow" role="radiogroup" aria-label="자주 본 매물 자동으로 지켜보기">${[0, 1, 2, 3, 4, 5].map((n) => `<button class="cchip" role="radio" aria-checked="${an === n}" data-act="prefAuto" data-v="${n}"${L()}>${n === 0 ? '끄기' : n === 2 ? '2번 기본' : `${n}번`}</button>`).join('')}${prefPending('autoWatchN') ? chgPill : ''}</div>${cmdLine(prefRec('autoWatchN'))}</section>`;
+    const s2 = `<section class="sbox"><h3>${esc(AUTO_WATCH_TITLE)}</h3><p class="d">앱에서 같은 매물을 이만큼 열면 관심 매물로 넣어요(30일 동안 다시 안 열면 빠져요).</p>
+      <div class="chiprow" role="radiogroup" aria-label="${esc(AUTO_WATCH_TITLE)}">${[0, 1, 2, 3, 4, 5].map((n) => `<button class="cchip" role="radio" aria-checked="${an === n}" data-act="prefAuto" data-v="${n}"${L()}>${n === 0 ? '끄기' : n === 2 ? '2번 기본' : `${n}번`}</button>`).join('')}${prefPending('autoWatchN') ? chgPill : ''}</div>${cmdLine(prefRec('autoWatchN'))}</section>`;
     // S3·S4
     const inten = pr ? pr.intensity : null;
     const fp = b.focusPlan && arr(b.focusPlan.ids).length && b.focusPlan.until > t ? b.focusPlan : null;
@@ -920,7 +922,7 @@
       <div class="chiprow"><span role="radiogroup" aria-label="감시 강도" class="chiprow" style="margin:0">${[['save', '절약'], ['normal', '보통']].map(([v, l]) => `<button class="cchip" role="radio" aria-checked="${inten === v}" data-act="prefInten" data-v="${v}"${L()}>${l}</button>`).join('')}</span>
         <button class="cchip" aria-pressed="${!!fp}" data-act="focusPick"${lk()}>${ico('target')}${fp ? '집중 감시 중' : '＋ 집중 감시'}</button>${prefPending('intensity') ? chgPill : ''}</div>
       <p class="hint">${esc(iHint)}</p>${cmdLine(prefRec('intensity'))}
-      ${fp ? `<div class="focusbox">${ico('target')}<div style="flex:1"><b style="font-size:var(--fs-body-sm)">${esc(arr(fp.ids).map((id) => (prod(id) || {}).name).filter(Boolean).join(' · '))}</b><div class="meta" style="font-size:var(--fs-label)">${esc(fp.everyMin)}분마다 · ${esc(clock(fp.until, t))}까지</div></div><button class="btn btn-text coral btn-sm" data-act="focusStop"${lk()}>멈추기</button></div>` : ''}
+      ${fp ? `<div class="focusbox">${ico('target')}<div style="flex:1"><b style="font-size:var(--fs-body-sm)">${esc(arr(fp.ids).map((id) => (prod(id) || {}).name).filter(Boolean).join(' · '))}</b><div class="meta" style="font-size:var(--fs-label)">${esc(fp.everyMin)}분마다 · ${esc(clock(fp.until, t))}까지</div></div><button class="btn btn-text plain btn-sm" data-act="focusStop"${lk()}>멈추기</button></div>` : ''}
       ${fpick ? `<div class="fpick"><p class="flabel" style="margin-top:0">물건 (${C.FOCUS_MAX}개까지)</p>
           ${prods().some((p) => !isPaused(p)) ? `<div class="chiprow">${prods().filter((p) => !isPaused(p)).map((p) => `<button class="cchip" aria-pressed="${fpick.ids.includes(p.id)}" data-act="focusId" data-pid="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>` : `<p class="hint">${esc(allPaused() ? C.PAUSE.focusNone : '먼저 홈에서 물건을 추가해 주세요.')}</p>`}
           <p class="flabel">얼마 동안</p><div class="chiprow" role="radiogroup">${C.FOCUS_HOURS.map((h) => `<button class="cchip" role="radio" aria-checked="${fpick.hours === h}" data-act="focusH" data-v="${h}">${h}시간</button>`).join('')}</div>
@@ -1281,7 +1283,7 @@
       <div class="dbody">${from != null ? `<p class="ink2">지켜볼 때 ${esc(won(from))} → 지금 ${esc(won(l.price))}</p>` : (w.since ? `<p class="ink2">지켜본 뒤 ${esc(w.since)} · 지금 ${esc(won(l.price))}</p>` : '')}
         <p class="flabel">변화 기록</p>${ev.length ? `<ul class="cmdlist">${ev.map((e) => `<li><span class="muted">${ico('clock')}</span><div><div class="w">${esc(e.text)}</div><div class="s"><span class="muted">${esc(clock(e.t, t))}</span></div></div></li>`).join('')}</ul>` : '<p class="hint">아직 바뀐 게 없어요</p>'}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(w.pid || '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}</a>
-          ${w.src === 'auto' && !w.ended ? `<button class="btn" data-act="watchPin" data-key="${esc(l.key)}"${lk()}>★로 고정</button><button class="btn" data-act="watchOff" data-key="${esc(l.key)}"${lk()}>그만 보기</button>` : ''}</div></div></aside>`;
+          ${w.src === 'auto' && !w.ended ? `<button class="btn" data-act="watchPin" data-key="${esc(l.key)}"${lk()}>${esc(WATCH_PIN)}</button><button class="btn" data-act="watchOff" data-key="${esc(l.key)}"${lk()}>그만 보기</button>` : ''}</div></div></aside>`;
   }
   // 명령 목록 (C-16)
   function drawerCmds() {

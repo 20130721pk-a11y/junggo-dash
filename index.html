@@ -365,6 +365,7 @@ a.row, a.low, a.feed-row { color: inherit; text-decoration: none; }
 .cmdpill.bad { background: var(--coral-soft); color: var(--coral); }
 .btn-text.gray { color: var(--ink3); } .btn-text.gray:hover { background: var(--surface2); color: var(--ink2); }
 .btn-text.coral { color: var(--coral); } .btn-text.coral:hover { background: var(--coral-soft); }
+.btn-text.plain { color: var(--ink); } .btn-text.plain:hover { background: var(--surface2); } /* 되돌릴 수 있는 멈춤(집중 감시 멈추기) — 코랄 아님 */
 .btn[disabled], .btn[aria-disabled="true"] { color: var(--ink3); background: var(--surface); border-color: var(--line); cursor: not-allowed; }
 .btn-text[disabled] { background: none; border-color: transparent; }
 .btn-fill[disabled] { background: var(--surface2); border-color: var(--surface2); }
@@ -635,6 +636,12 @@ button.pill { cursor: pointer; border: 0; }
   .cmdpill { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
   .quota { margin-left: 0; flex-basis: 100%; }
   .pv-head .acts { margin-left: 0; }
+  /* 칩 줄(Chip README): 한 줄 + 가로로 밀기 — 두세 줄로 쌓여 목록을 밀어내지 않게. 스크롤바는 숨기고 누름 칸 48 은 그대로 */
+  .chiprow { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .chiprow::-webkit-scrollbar { display: none; }
+  .chiprow > * { flex: none; }
+  .page .chiprow { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; scroll-padding-inline: 16px; }
+  .page .chiprow .chiprow, .chiprow .chiprow { margin: 0 !important; padding: 0; overflow: visible; }
   /* 관심 매물 줄(좁은 폭): 가격·단추를 글 아래 줄로 — 글 칸이 한 글자 폭으로 눌리던 것(0.8.0 전부터) 고침 */
   .wrow { grid-template-columns: 56px minmax(0,1fr); align-items: start; }
   .wrow .wacts { grid-column: 2; flex-wrap: wrap; }
