@@ -829,7 +829,7 @@
   /* =====================================================================
    * 관심 매물 (C-10) · 알림함 (C-12)
    * ===================================================================== */
-  const WATCH_PIN = '관심 매물로 고정'; // 0.8.1(앱 2단계와 같은 글). 명령 이름 '★로 고정 · {제목}'(radar-cmd what)은 3단계에서 앱과 함께
+  const WATCH_PIN = '관심 매물로 고정'; // 0.8.1 — 명령 이름 '관심 매물로 고정 · {제목}'(radar-cmd what · 앱 WebCmd.what)과 같은 말
   const SRC_LABEL = { star: '직접', share: '공유', auto: '자동' }; // v2: ★ 글자 대신 별 아이콘 + '직접'(시안 Watches · 꼬리표 회색)
   function renderWatch() {
     const t = now();
@@ -892,7 +892,7 @@
    * ===================================================================== */
   function prefRec(field) { return lastRec((r) => r.type === 'prefs' && arr(r.fields).includes(field)); }
   const prefPending = (field) => S.sent.some((r) => r.type === 'prefs' && arr(r.fields).includes(field) && C.isOpen(stOf(r).st));
-  const AUTO_WATCH_TITLE = '자주 본 매물 자동으로 관심 매물에 넣기'; // 화면 글만(0.8.1). 바뀜 이름표 PREF.autoWatchN 은 3단계에서 앱 WebCmd 와 함께
+  const AUTO_WATCH_TITLE = C.FIELD_LABEL.autoWatchN; // '자주 본 매물 자동으로 관심 매물에 넣기' — 바뀜 이름표(앱 WebCmd 와 같은 글)를 그대로
   function renderSettings() {
     const b = B(), t = now();
     const pr = b.prefs && typeof b.prefs === 'object' ? b.prefs : null;

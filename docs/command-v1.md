@@ -81,12 +81,12 @@ GitHub REST(버전 머리 `X-GitHub-Api-Version: 2022-11-28`):
 | `check` | `pid`? (없으면 전부) | 하나 = 결과 화면 새로고침과 같게(30분 안 전체 확인이면 빠른 확인) · 전부 = 당겨서 새로고침(`Radar` 전체 확인) | 6시간 | 전부는 30분에 한 번(초안) — 30분 안 두 번째면 `failed` '30분에 한 번만 할 수 있어요' |
 | `adhoc` | `q` | 검색창 그냥 검색(`collector.fetch` + `Products.adhocItem` + `filtered`, 30분 안 같은 검색어면 보관 결과) | 6시간 | 결과를 묶음 `adhoc` 에. 보관 결과로 답했으면 결과에 `cached:true`(웹 1시간 횟수에 안 셈). 웹 그냥 검색 **1시간 6번**(보관 결과 빼고, 앱이 셈) 넘으면 `failed` '1시간에 6번까지예요' |
 | `saveAdhoc` | `q`, `variantPick` `""`(둘 다)·`"기본"`·변형 이름 | 그냥 검색 결과 '+ 지켜보기'(`saveCurrent(variantPick)`) — 그 검색어의 보관 결과로. 없으면 먼저 모음 | — | 만들면 `pid` 를 결과에 |
-| `star` | `key`, `pid`?, `on` 참/거짓 | ★ 넣기 = `Store.watchListing(l, STAR, pid)` / 빼기 = `Store.removeWatch`. 매물을 풀·스냅숏에서 못 찾으면 키만으로(공유 넣기와 같은 꼴) | — | 이미 그 상태면 `done` |
+| `star` | `key`, `pid`?, `on` 참/거짓 | 관심 매물에 넣기 = `Store.watchListing(l, STAR, pid)` / 빼기 = `Store.removeWatch`. 매물을 풀·스냅숏에서 못 찾으면 키만으로(공유 넣기와 같은 꼴) | — | 이미 그 상태면 `done` |
 | `hide` | `pid`, `key` | 이 매물 아님(`Radar.hide` — 숨김 키 + 오판 사례) | — | `done` |
 | `unhide` | `pid`, `key` | 되돌리기 — 원격은 그 물건 숨김 키에서 **이 키만** 뺌(앱 '그 사이 바뀌었으면' 길, 기획 2-5) | — | 다음 확인 뒤 줄이 돌아와요 |
 | `unhideAll` | `pid` | 조건 창 '모두 다시 보기' + 저장(hiddenKeys 비움) | — | `done` |
 | `excludeWord` | `pid`, `word`, `key`? | 판단 화면 '이 말이 든 매물은 모두 빼기'(`excludeWord(word, from)`) | — | `done` |
-| `watch` | `key`, `op` `"pin"`·`"remove"` | 관심 매물 '★로 고정'·'그만 보기' | — | `done` |
+| `watch` | `key`, `op` `"pin"`·`"remove"` | 관심 매물 '관심 매물로 고정'·'그만 보기' | — | `done` |
 | `share` | `url` | 공유 받기와 같은 길로 관심 매물 넣기 — **단 5장 호스트 검사를 먼저**(L-6) | — | 호스트가 맞지 않으면 `failed` '중고나라·당근·번개장터 매물 주소만 넣을 수 있어요' |
 | `opened` | `key`, `pid`? | 판단 화면 'OO 앱에서 열기'의 연 횟수 셈(`noteOpened`) | — | 결과 줄·알림함 줄 없음(조용히) |
 | `inboxRead` | `ids`[알림 id] 또는 `all` 참 | 알림함 읽음 · 모두 읽음 | — | 결과 줄·알림함 줄 없음 |
@@ -140,7 +140,7 @@ GitHub REST(버전 머리 `X-GitHub-Api-Version: 2022-11-28`):
 - 바꾼 칸이 있고 충돌 칸도 있으면 상태 `conflict`, `why` '일부만 바꿨어요 — {칸 이름}은 앱에서 먼저 바뀌었어요', `conflict`{칸: 지금 값}, `applied`[바꾼 칸].
 - 모두 충돌이면 `conflict`, `why` '앱에서 먼저 바뀌었어요 — 새로 고친 뒤 다시 해 주세요', `applied` [].
 - 비교: 글은 `trim` 뒤, 목록은 차례째 같음, 수·null 은 그대로, `quiet` 는 세 칸 모두.
-- 칸 이름(앱·웹 같은 글): `keyword` 검색어 · `thresholdPct` 꿀매 기준 · `targetPrice` 목표가 · `variantPick` 변형 · `matchMode` 검색어 확인 · `category` 카테고리 · `excludeWords` 빼고 볼 단어 · `includeWords` 꼭 들어갈 단어 · `bandMin`/`bandMax` 물건 가격대 · `basicFilter` 기본 거르기 · `priceMin`/`priceMax` 예산 · `regionWords` 당근 동네 · `maxKm` 당근 거리 · `maxAgeDays` 기간 · `lowestAlert` 최저가 갱신 알림 · `defaultPct` 새 물건의 꿀매 기준 · `autoWatchN` 자주 본 매물 자동으로 지켜보기 · `intensity` 감시 강도 · `quiet` 조용한 시간 · `digestOn` 하루 요약 · `daangnHome` 당근 내 동네 · `distanceBase` 거리 기준.
+- 칸 이름(앱·웹 같은 글): `keyword` 검색어 · `thresholdPct` 꿀매 기준 · `targetPrice` 목표가 · `variantPick` 변형 · `matchMode` 검색어 확인 · `category` 카테고리 · `excludeWords` 빼고 볼 단어 · `includeWords` 꼭 들어갈 단어 · `bandMin`/`bandMax` 물건 가격대 · `basicFilter` 기본 거르기 · `priceMin`/`priceMax` 예산 · `regionWords` 당근 동네 · `maxKm` 당근 거리 · `maxAgeDays` 기간 · `lowestAlert` 최저가 갱신 알림 · `defaultPct` 새 물건의 꿀매 기준 · `autoWatchN` 자주 본 매물 자동으로 관심 매물에 넣기 · `intensity` 감시 강도 · `quiet` 조용한 시간 · `digestOn` 하루 요약 · `daangnHome` 당근 내 동네 · `distanceBase` 거리 기준.
 
 ---
 
@@ -164,7 +164,7 @@ GitHub REST(버전 머리 `X-GitHub-Api-Version: 2022-11-28`):
 | `at` · `doneAt` | 명령의 `at` · 앱이 마지막 상태로 바꾼 때 |
 
 **`what` 규칙**(웹이 결과 줄 전에 쓰는 글과 같게 — `{물건}` = 저장검색 이름, `{제목}` = 매물 제목 20자 + '…', `{q}` = 검색어):
-`add` '{물건 또는 카드 이름 또는 q} 추가' · `edit` '{물건} 조건 바꾸기' · `identify` '{물건} 물건 정하기' · `remove` '{물건} 그만 지켜보기' · `pause` '{물건} 잠시 끄기'/'{물건} 다시 켜기' · `move` '{물건} 위로'/'{물건} 아래로' · `focus` '집중 감시 시작'/'집중 감시 멈추기' · `check` '{물건} 지금 확인'/'지금 모두 확인' · `adhoc` "그냥 검색 '{q}'" · `saveAdhoc` "'{q}' 지켜보기" · `star` '★ 지켜보기 · {제목}'/'★ 빼기 · {제목}' · `hide` '이 매물 아님 · {제목}' · `unhide` '되돌리기 · {제목}' · `unhideAll` '{물건} 숨긴 매물 모두 다시 보기' · `excludeWord` "{물건} '{word}' 빼기" · `watch` '★로 고정 · {제목}'/'그만 보기 · {제목}' · `share` '관심 매물 넣기(주소)' · `recent` '최근 검색 지우기'/'최근 검색 모두 지우기' · `prefs` '설정 바꾸기' · `home` '당근 내 동네 바꾸기'.
+`add` '{물건 또는 카드 이름 또는 q} 추가' · `edit` '{물건} 조건 바꾸기' · `identify` '{물건} 물건 정하기' · `remove` '{물건} 그만 지켜보기' · `pause` '{물건} 잠시 끄기'/'{물건} 다시 켜기' · `move` '{물건} 위로'/'{물건} 아래로' · `focus` '집중 감시 시작'/'집중 감시 멈추기' · `check` '{물건} 지금 확인'/'지금 모두 확인' · `adhoc` "그냥 검색 '{q}'" · `saveAdhoc` "'{q}' 지켜보기" · `star` '관심 매물에 넣기 · {제목}'/'관심 매물에서 빼기 · {제목}' · `hide` '이 매물 아님 · {제목}' · `unhide` '되돌리기 · {제목}' · `unhideAll` '{물건} 숨긴 매물 모두 다시 보기' · `excludeWord` "{물건} '{word}' 빼기" · `watch` '관심 매물로 고정 · {제목}'/'그만 보기 · {제목}' · `share` '관심 매물 넣기(주소)' · `recent` '최근 검색 지우기'/'최근 검색 모두 지우기' · `prefs` '설정 바꾸기' · `home` '당근 내 동네 바꾸기'.
 
 **자주 쓰는 `why`**(앱·웹 같은 글): '이미 지켜보는 물건이에요' · '이미 지웠어요' · '이 물건을 찾지 못했어요(앱에서 지운 것 같아요)' · '이 매물을 찾지 못했어요' · '너무 오래돼 하지 않았어요' · '1시간에 6번까지예요' · '30분에 한 번만 할 수 있어요' · '새 검색으로 바꿨어요' · '폰에서 알림을 눌러 주세요' · '중고나라·당근·번개장터 매물 주소만 넣을 수 있어요' · '내 동네는 5곳까지예요. 하나를 빼고 더해 주세요' · '모르는 명령이에요 — 앱을 새 판으로 올려 주세요'.
 

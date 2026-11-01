@@ -39,7 +39,7 @@
     keyword: '검색어', thresholdPct: '꿀매 기준', targetPrice: '목표가', variantPick: '변형', matchMode: '검색어 확인', category: '카테고리',
     excludeWords: '빼고 볼 단어', includeWords: '꼭 들어갈 단어', bandMin: '물건 가격대', bandMax: '물건 가격대', basicFilter: '기본 거르기',
     priceMin: '예산', priceMax: '예산', regionWords: '당근 동네', maxKm: '당근 거리', maxAgeDays: '기간', lowestAlert: '최저가 갱신 알림',
-    defaultPct: '새 물건의 꿀매 기준', autoWatchN: '자주 본 매물 자동으로 지켜보기', intensity: '감시 강도', quiet: '조용한 시간', digestOn: '하루 요약',
+    defaultPct: '새 물건의 꿀매 기준', autoWatchN: '자주 본 매물 자동으로 관심 매물에 넣기', intensity: '감시 강도', quiet: '조용한 시간', digestOn: '하루 요약',
     daangnHome: '당근 내 동네', distanceBase: '거리 기준',
   };
 
@@ -318,12 +318,12 @@
       case 'check': return c.pid ? `${P} 지금 확인` : '지금 모두 확인';
       case 'adhoc': return `그냥 검색 '${str(names.q) || str(c.q)}'`;
       case 'saveAdhoc': return `'${str(names.q) || str(c.q)}' 지켜보기`;
-      case 'star': return `${c.on === false ? '★ 빼기' : '★ 지켜보기'} · ${T}`;
+      case 'star': return `${c.on === false ? '관심 매물에서 빼기' : '관심 매물에 넣기'} · ${T}`; // 0.8.1 3단계(앱 WebCmd.what 과 같은 글)
       case 'hide': return `이 매물 아님 · ${T}`;
       case 'unhide': return `되돌리기 · ${T}`;
       case 'unhideAll': return `${P} 숨긴 매물 모두 다시 보기`;
       case 'excludeWord': return `${P} '${str(names.word) || str(c.word)}' 빼기`;
-      case 'watch': return `${c.op === 'pin' ? '★로 고정' : '그만 보기'} · ${T}`;
+      case 'watch': return `${c.op === 'pin' ? '관심 매물로 고정' : '그만 보기'} · ${T}`;
       case 'share': return '관심 매물 넣기(주소)';
       case 'opened': return `열어 봄 · ${T}`;
       case 'inboxRead': return '알림 읽음';

@@ -230,7 +230,12 @@ test('화면 이름(what) — command-v1 7장 규칙', () => {
   assert.equal(w('check', {}), '지금 모두 확인');
   assert.equal(w('check', { pid: 'a' }, { product: '플스5' }), '플스5 지금 확인');
   assert.equal(w('adhoc', { q: '4080 super' }), "그냥 검색 '4080 super'");
-  assert.equal(w('star', { on: true }, { title: '이엠텍 RTX 4080 미라클 블랙 몬스터 화이트' }), '★ 지켜보기 · 이엠텍 RTX 4080 미라클 블랙 …');
+  assert.equal(w('star', { on: true }, { title: '이엠텍 RTX 4080 미라클 블랙 몬스터 화이트' }), '관심 매물에 넣기 · 이엠텍 RTX 4080 미라클 블랙 …');
+  // 0.8.1 3단계: 매물 쪽 글 = 앱 WebCmd.what(WebCmdTest.whatTextsFollowTheSpec)과 같은 글
+  assert.equal(w('star', { on: false }, { title: '갤럭시탭 S9' }), '관심 매물에서 빼기 · 갤럭시탭 S9');
+  assert.equal(w('watch', { op: 'pin' }, { title: '갤럭시탭 S9' }), '관심 매물로 고정 · 갤럭시탭 S9');
+  assert.equal(w('watch', { op: 'remove' }, { title: '갤럭시탭 S9' }), '그만 보기 · 갤럭시탭 S9');
+  assert.deepEqual(C.changedLabels(['autoWatchN']), ['자주 본 매물 자동으로 관심 매물에 넣기']);
   assert.equal(w('hide', {}, { title: '짧은 제목' }), '이 매물 아님 · 짧은 제목');
   assert.equal(w('move', { dir: 'down' }, { product: 'A' }), 'A 아래로');
   assert.equal(w('focus', { op: 'stop' }), '집중 감시 멈추기');
