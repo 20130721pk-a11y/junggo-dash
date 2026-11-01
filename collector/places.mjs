@@ -84,12 +84,22 @@ function dongIn(m, w) {
   }
   return null;
 }
+// 같은 동의 다른 적기(0.8.1 B1): '등촌제2동' ↔ '등촌2동'. 번개장터 동네 이름은 '제'를 붙여 오는데('강서구 등촌제2동') 지역 표는
+// 대개 '등촌2동'이고, 거꾸로 표가 '상일제1동'·'가야제1동'인 곳도 있다. 그 이름 그대로 아무 데도 없을 때만 이 이름으로 한 번 더 찾는다
+// ('홍제1동'·'거제1동'처럼 '제'가 원래 이름인 동은 그대로 찾히므로 바뀌지 않는다).
+export function dongAlt(w) {
+  const s = String(w || '');
+  if (/^.+제\d+동$/.test(s)) return s.replace(/제(\d+)동$/, '$1동');
+  if (/^.*[^\d제]\d+동$/.test(s)) return s.replace(/(\d+)동$/, '제$1동');
+  return null;
+}
+const hitsOf = (pool, w) => { const hits = []; for (const m of pool) { const d = dongIn(m, w); if (d) hits.push(d); } return hits; };
 // 낱말들 가운데 읍·면·동 이름을 앞에서부터 찾는다. 여러 시·군·구에 같은 이름이 있으면 모른다(null)
 function dongSearch(pool, words) {
   for (const w of words) {
     if (!/[동읍면가리]$/.test(w)) continue;
-    const hits = [];
-    for (const m of pool) { const d = dongIn(m, w); if (d) hits.push(d); }
+    let hits = hitsOf(pool, w);
+    if (!hits.length) { const a = dongAlt(w); if (a) hits = hitsOf(pool, a); }
     if (hits.length === 1) return { ...hits[0], level: 'dong' };
     if (hits.length > 1) return null;
   }

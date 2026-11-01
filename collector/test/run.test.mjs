@@ -9,7 +9,7 @@ import crypto from 'node:crypto';
 import { run as runReal, payloadOf, robotsAllows, cleanSearch, cleanConfig, dKey, dSig, runCollector, D_PATHS, BD_MAX, PAGE_GAP_MS, scrubBunjangDetails, robotsVerdict, REST_MS } from '../run.mjs';
 import { keyring, open, seal, LABEL, ITER } from '../seal.mjs';
 import { collectKey } from '../refresh.mjs';
-import { findPlace, nearbyAreas, areaKey, sameArea } from '../places.mjs';
+import { findPlace, nearbyAreas, areaKey, sameArea, dongAlt } from '../places.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 new Function('self', fs.readFileSync(path.join(here, '..', '..', 'box.js'), 'utf8'))(globalThis);
@@ -642,6 +642,27 @@ test('지역 표: 이름을 여러 가지로 적어도 가운데를 찾는다 (2
   assert.ok(near.length >= 5 && near.every((x, i) => i === 0 || near[i - 1].km <= x.km), '가까운 순');
   assert.ok(near.some((x) => x.q === '경기도 안산시 단원구') && near.some((x) => x.q === '인천광역시 남동구'));
   assert.ok(!near.some((x) => x.q.includes('시흥시')), '고른 지역은 빼고');
+});
+
+test('0.8.1 B1 지역 표: \'제N동\' ↔ \'N동\' 은 같은 동 (번개장터 동네 이름 \'강서구 등촌제2동\' 꼴)', () => {
+  const at = (t) => { const p = findPlace(t); return p && `${p.name}|${p.level}`; };
+  // 0.8.0 QA 1차 실제 이름(표에는 '등촌2동'·'중곡3동' — 전에는 모름 또는 시·군·구 어림)
+  assert.equal(at('강서구 등촌제2동'), '서울특별시 강서구 등촌2동|dong', '강서구가 서울·부산 둘이어도 동으로 하나');
+  assert.equal(at('광진구 중곡제3동'), '서울특별시 광진구 중곡3동|dong', '전에는 광진구|sgg');
+  assert.equal(at('동작구 상도제1동'), '서울특별시 동작구 상도1동|dong');
+  assert.equal(at('해운대구 좌제1동'), '부산광역시 해운대구 좌1동|dong');
+  assert.equal(at('등촌제2동'), '서울특별시 강서구 등촌2동|dong', '동 이름만');
+  // 거꾸로: 표가 '상일제1동'·'가야제1동'
+  assert.equal(at('강동구 상일1동'), '서울특별시 강동구 상일제1동|dong');
+  assert.equal(at('부산진구 가야1동'), '부산광역시 부산진구 가야제1동|dong');
+  // '제'가 원래 이름인 동은 그대로
+  assert.equal(at('서대문구 홍제1동'), '서울특별시 서대문구 홍제1동|dong');
+  assert.equal(at('연제구 거제1동'), '부산광역시 연제구 거제1동|dong');
+  assert.equal(dongAlt('등촌제2동'), '등촌2동');
+  assert.equal(dongAlt('상일1동'), '상일제1동');
+  assert.equal(dongAlt('정왕동'), null);
+  assert.equal(dongAlt('1동'), null);
+  assert.equal(dongAlt('제1동'), null);
 });
 
 test('가까운 지역 여러 곳 + 거리 기준: 근처 표시, 거리(중고나라는 동 가운데로 어림), 폰 앱 할 일, 거리 기준만 바꾸기', async () => {
