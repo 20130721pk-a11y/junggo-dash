@@ -117,6 +117,8 @@ with sync_playwright() as pw:
         check(abs(hs[0] - hs[1]) < 1 if w > 900 else hs[0] <= hs[1], tag + f'⚠ 줄이 보통 줄보다 크지 않아요 {hs}')
         if w == 1280:
             page.screenshot(path=os.path.join(OUT, 'list-1280.png'), full_page=True)
+        geo = page.evaluate("""k => { const r = document.querySelector(`li.row[data-key="${k}"]`); const a = r.querySelector('.thumb').getBoundingClientRect(), b = r.querySelector('.rmain').getBoundingClientRect(); return [a.left, a.top, b.left, b.top, r.getBoundingClientRect().left]; }""", SCAM)
+        check(geo[0] - geo[4] < 8 and geo[0] < geo[2] and abs(geo[1] - geo[3]) < 32, tag + f'썸네일이 줄 맨 앞, 본문은 그 옆(좁은 폭 이름 칸 풀림) {geo}')
 
         # ---------- 배지 누름 = 사유 창(판단 창은 안 열림) ----------
         b = vis_badge(page, SCAM)

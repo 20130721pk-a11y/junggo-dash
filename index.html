@@ -639,6 +639,7 @@ button.pill { cursor: pointer; border: 0; }
 }
 @media (max-width: 760px) {
   .row { grid-template-columns: 64px minmax(0,1fr) auto; grid-template-areas: none; }
+  .row > .thumb, .row > .rmain { grid-area: auto; } /* 위(760px 첫 묶음)의 th·main 이름 칸을 풀어요 — 남으면 썸네일·본문이 없는 이름 칸으로 밀려 줄이 깨져요 */
   .row > .ra { display: flex; }
   .steps { grid-template-columns: minmax(0,1fr); }
   .hero { grid-template-columns: 64px minmax(0,1fr); }
