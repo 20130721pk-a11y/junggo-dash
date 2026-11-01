@@ -164,6 +164,11 @@ a { color: var(--brand-bright); }
 .b-fair { background: var(--fair-soft); color: var(--fair-fg); }
 .b-high { background: var(--coral-soft); color: var(--coral); }
 .b-caution { background: var(--surface2); color: var(--ink2); }
+.b-scam { background: var(--surface2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); } /* 0.8.2 사기 의심: 회색 안에서 한 단 진하게(코랄 아님), 테두리는 안쪽이라 크기 같음 */
+/* 0.8.2 ⚠ 배지 단추(사유 있음) — 보이는 크기 그대로, 누름 칸만 위아래로 늘려 44(좁은 폭 48) */
+button.bwhy { position: relative; margin: 0; border: 0; font: inherit; font-size: var(--fs-label); font-weight: 600; line-height: 16px; cursor: pointer; }
+button.bwhy::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+button.bwhy:hover { background: var(--line); }
 .b-plain { background: var(--surface2); color: var(--ink2); font-weight: 600; }
 .then { color: var(--ink3); font-size: var(--fs-label); }
 .chg { padding: 4px 8px; border-radius: var(--r-badge); background: var(--surface2); color: var(--ink); font-size: var(--fs-label); font-weight: 600; line-height: 16px; }
@@ -566,6 +571,23 @@ button.pill { cursor: pointer; border: 0; }
 .drawer { position: fixed; z-index: 61; top: 0; right: 0; bottom: 0; width: 480px; max-width: 100%; display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--line); }
 .drawer.sm { width: 400px; background: var(--bg); }
 .drawer .dbody { flex: 1; }
+/* 0.8.2 판단 창 사유 목록(앱 ListingSheet: REASON 13/600 ink2 · 꼬리 body-sm ink3 · 줄 사이 2) */
+.rlist { display: grid; gap: 2px; margin: 4px 0 0; padding: 0; list-style: none; }
+.rlist .rt1 { display: block; color: var(--ink2); font-size: var(--fs-body-sm); font-weight: 600; }
+.rlist .rsub, .rwlist .rsub { display: block; color: var(--ink3); font-size: var(--fs-body-sm); font-weight: 400; line-height: 19px; }
+/* 0.8.2 사유 창(앱 ReasonDialog, 디자인 덧붙임 3-2): 판단 창 위에도 떠요 */
+.wscrim { position: fixed; inset: 0; z-index: 65; display: grid; place-items: center; padding: 40px 16px; background: var(--scrim); }
+.whydlg { width: 100%; max-width: 400px; max-height: calc(100vh - 80px); display: flex; flex-direction: column; background: var(--surface); border-radius: var(--r-dialog); overflow: hidden; }
+.whydlg .wbody { padding: 24px 24px 0; overflow-y: auto; }
+.whydlg h2 { margin: 0; color: var(--ink); font-size: var(--fs-title); font-weight: 700; line-height: 24px; }
+.whydlg .whead { margin: 8px 0 0; color: var(--ink2); font-size: var(--fs-body-sm); line-height: 19px; }
+.whydlg .wreasons { margin-top: 16px; }
+.whydlg .wgname { margin: 0 0 8px; color: var(--ink3); font-size: var(--fs-label); font-weight: 600; line-height: 16px; }
+.rwlist { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rwlist .rt1 { display: block; color: var(--ink); font-size: var(--fs-body); font-weight: 500; line-height: 20px; }
+.whydlg .wfoot { margin: 16px 0 0; color: var(--ink3); font-size: var(--fs-body-sm); line-height: 19px; }
+.whydlg .wbtns { display: flex; justify-content: flex-end; padding: 8px 16px 8px; }
+.whydlg .wbtns .btn-text { height: 48px; font-size: var(--fs-label); }
 .sheet-head { display: grid; grid-template-columns: 72px 1fr; gap: 12px; }
 .sheet-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
 .sheet-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
@@ -626,6 +648,8 @@ button.pill { cursor: pointer; border: 0; }
   .dfoot { position: sticky; bottom: 0; background: var(--surface); }
   .drawer, .drawer.sm { width: 100%; }
   .iconbtn, .notbtn, .btn { min-height: 48px; } /* v2 touch-min 48 */
+  button.bwhy::after { height: 48px; }
+  .wscrim { padding: 16px; }
   /* 칩: 보이는 높이 36(chip-h), 누름 칸만 위아래로 늘려 48(Chip README) */
   .cchip, .mchip, .rchip .rq { position: relative; }
   .cchip::after, .mchip::after, .rchip .rq::after { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }

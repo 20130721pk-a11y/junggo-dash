@@ -355,7 +355,7 @@ test('잠금 짝: 수집기(Node)가 junggo-radar-view 로 잠근 상자를 box.
 
 test('시험 묶음에 안 보내는 칸이 없어요 (W2-7 — 웹 쪽 자료 확인)', () => {
   const banned = /"(seller|sellerId|storeSeq|uid|lat|lng|lon|latitude|longitude|content|description|token|model|manufacturer)"\s*:/;
-  for (const f of ['radar-bundle.sample.json', 'app-chips.json']) {
+  for (const f of ['radar-bundle.sample.json', 'app-chips.json', 'app-badge.json']) {
     const text = fs.readFileSync(path.join(REPO, 'test/fixtures', f), 'utf8');
     assert.equal(banned.test(text), false, f);
   }
@@ -400,4 +400,52 @@ test('v2: 이모지 빼기 = 앱 WebBundle.noEmoji 규칙(⚠·★·▼ 글자�
 test('v2: 매물 쪽 관심 글(11/1 대표 결정 2)', () => {
   assert.equal(RV.STAR.add, '관심 매물에 넣기');
   assert.equal(RV.STAR.remove, '관심 매물에서 빼기');
+});
+
+// 0.8.2 배지 덧붙임: fixtures/app-badge.json = 앱 dev-082(867edc4) WebBundle.build 가 만든 묶음(WebBundleBadgeTest 매물 + 갈래 섞인 매물 둘)
+test('0.8.2 ⚠ 배지 둘·사유 목록·갈래: 앱 묶음 grade.badge·reasons 를 그대로 그려요', () => {
+  const b = JSON.parse(fs.readFileSync(path.join(REPO, 'test/fixtures/app-badge.json'), 'utf8')).bundle;
+  assert.equal(RV.check(b), '');
+  const g = (id) => b.products[0].listings.find((l) => l.key === id).grade;
+  // 대표 예시 233702091: 사기 의심 · 판매자 4줄 · 갈래 하나라 이름 없음
+  const s = g('j:233702091');
+  assert.deepEqual(RV.badge(s, false), { cls: 'b-scam', text: '⚠ 사기 의심', aria: '사기 의심, 사유 보기', why: 'scam' });
+  assert.deepEqual(RV.badge(s, true).text, '⚠ 사기 의심'); // 좁게도 같은 글(⚠ + 4자)
+  assert.deepEqual(RV.reasonsOf(s).map((r) => r.t), ['안심거래·후기가 없어요', '등록 계좌가 없어요', '동네를 안 적었어요', '고가 전자제품만 3개 팔아요']);
+  assert.deepEqual(RV.reasonGroups(RV.reasonsOf(s)).map((x) => [x.name, x.items.length]), [['', 4]]);
+  // 글 + 가격 = 갈래 이름 둘, 온 순서 그대로, 꼬리
+  const k = RV.reasonGroups(RV.reasonsOf(g('j:k1')));
+  assert.deepEqual(k.map((x) => x.name), ['글', '가격']);
+  assert.deepEqual(k[1].items[0], { g: 'price', t: '시세의 절반도 안 돼요', sub: '미끼·사기·다른 물건일 수 있어요' });
+  assert.equal(RV.badgeKind(g('j:k1')), 'scam');
+  // 확인 필요
+  assert.deepEqual(RV.badge(g('b:h1')), { cls: 'b-caution', text: '⚠ 확인 필요', aria: '확인 필요, 사유 보기', why: 'check' });
+  assert.equal(RV.reasonsOf(g('b:h1')).filter((r) => r.sub).length, 2);
+  assert.deepEqual(RV.reasonsOf(g('b:m1')), [{ g: 'text', t: '가격을 따로 묻게 해요(미끼 의심)', sub: '' }]);
+  // ⚠ 아니면 사유 없음
+  assert.equal(RV.reasonsOf(g('b:b2')), null);
+  assert.equal(RV.badge(g('b:b2')).why, undefined);
+});
+
+test('0.8.2 옛 묶음(badge·reasons 없음)·이상한 값은 지금처럼 why 한 줄 배지', () => {
+  const old = { k: 'caution', d: -43, why: '시세의 절반도 안 돼요 — 미끼·사기·다른 물건일 수 있어요' };
+  assert.deepEqual(RV.badge(old), { cls: 'b-caution', text: '⚠ 확인 필요' });
+  assert.equal(RV.reasonsOf(old), null);
+  assert.equal(RV.reasonsOf({ ...old, badge: 'scam' }), null); // 사유 없이 배지만 오면 옛 꼴
+  assert.equal(RV.reasonsOf({ ...old, reasons: [] }), null);
+  assert.equal(RV.reasonsOf({ ...old, reasons: [{ g: 'text' }, null, 3] }), null); // 글 없는 줄은 빼요
+  assert.deepEqual(RV.reasonsOf({ ...old, reasons: [{ g: 'text', t: 'a' }] }), [{ g: 'text', t: 'a', sub: '' }]);
+  assert.equal(RV.badge({ ...old, badge: 'weird', reasons: [{ g: 'x', t: 'a' }] }).cls, 'b-caution'); // 모르는 배지 = 확인 필요
+  assert.equal(RV.reasonsOf({ k: 'good', d: -8, reasons: [{ g: 'text', t: 'a' }] }), null); // ⚠ 아니면 무시
+  // 모르는 갈래도 이어진 것끼리 묶고 이름은 비워요(웹이 지어내지 않음)
+  assert.deepEqual(RV.reasonGroups([{ g: 'seller', t: 'a' }, { g: 'zz', t: 'b' }]).map((x) => x.name), ['판매자', '']);
+  assert.deepEqual(RV.reasonGroups([]), []);
+});
+
+test('0.8.2 사유 창 고정 글이 앱 Judge.CautionBadge 와 같아요', () => {
+  assert.equal(RV.WHY.scam.title, '사기 의심 이유');
+  assert.equal(RV.WHY.check.title, '확인 필요 이유');
+  assert.equal(RV.WHY.head, '지금 최저가·꿀매·알림에서 뺐어요. 목록엔 남아요.');
+  assert.equal(RV.WHY.foot, '본 사실만 적었어요. 정상 판매자도 걸릴 수 있어요.');
+  assert.equal(RV.WHY.close, '닫기');
 });

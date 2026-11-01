@@ -119,9 +119,46 @@
       case 'honey': return { cls: 'b-honey', text: compact ? `${d}%` : `꿀매 ${d}%`, icon: 'drop', aria: `꿀매, 시세보다 ${d == null ? '' : -d + '% '}쌈` };
       case 'good': return { cls: 'b-good', text: `시세 ${d}%` };
       case 'normal': return (d || 0) >= 25 ? { cls: 'b-high', text: `비쌈 +${d}%` } : { cls: 'b-fair', text: `보통 +${d}%` };
-      case 'caution': return { cls: 'b-caution', text: '⚠ 확인 필요' };
+      case 'caution': {
+        // 0.8.2: 사유 목록(reasons)이 오면 누를 수 있는 배지(사기 의심 b-scam / 확인 필요 b-caution). 없으면(옛 묶음) 지금처럼 글만
+        const r = reasonsOf(g);
+        if (!r) return { cls: 'b-caution', text: '⚠ 확인 필요' };
+        const kind = badgeKind(g);
+        return { cls: kind === 'scam' ? 'b-scam' : 'b-caution', text: WHY[kind].badge, aria: WHY[kind].aria, why: kind };
+      }
       default: return null; // 판정 보류 = 배지 없음
     }
+  }
+
+  /* ---------- 0.8.2 사기 의심·확인 필요 사유 (앱 Judge.CautionBadge·ReasonDialog, 묶음 grade.badge·reasons) ---------- */
+  // 사유 글·갈래·순서는 앱이 정해 보내요(웹은 다시 줄 세우거나 지어내지 않음). 창의 고정 글(제목·머리 글·끝 글)은 묶음에 없어 앱 상수를 그대로 둬요.
+  const WHY = {
+    scam: { badge: '⚠ 사기 의심', aria: '사기 의심, 사유 보기', title: '사기 의심 이유' },
+    check: { badge: '⚠ 확인 필요', aria: '확인 필요, 사유 보기', title: '확인 필요 이유' },
+    head: '지금 최저가·꿀매·알림에서 뺐어요. 목록엔 남아요.',
+    foot: '본 사실만 적었어요. 정상 판매자도 걸릴 수 있어요.', // 사기 의심만
+    close: '닫기',
+  };
+  const REASON_GROUP = { seller: '판매자', text: '글', price: '가격' };
+  const badgeKind = (g) => (g && g.badge === 'scam' ? 'scam' : 'check');
+  // ⚠ 이고 사유가 하나라도 있으면 [{g, t, sub}] (글 없는 줄은 빼요), 아니면 null(= 옛 묶음 · why 한 줄)
+  function reasonsOf(g) {
+    if (!g || typeof g !== 'object' || g.k !== 'caution' || !Array.isArray(g.reasons)) return null;
+    const out = g.reasons.filter((r) => r && typeof r === 'object' && str(r.t)).map((r) => ({ g: str(r.g), t: str(r.t), sub: str(r.sub) }));
+    return out.length ? out : null;
+  }
+  // 사유 창 갈래 나눔: 갈래가 둘 이상이면 [{name, items}] (온 순서대로 이어진 갈래끼리), 하나면 [{name: '', items: 전부}]
+  function reasonGroups(list) {
+    const rs = arr(list);
+    const names = new Set(rs.map((r) => r.g));
+    if (names.size < 2) return rs.length ? [{ name: '', items: rs }] : [];
+    const out = [];
+    for (const r of rs) {
+      const last = out[out.length - 1];
+      if (last && last.g === r.g) last.items.push(r);
+      else out.push({ g: r.g, name: REASON_GROUP[r.g] || '', items: [r] });
+    }
+    return out.map(({ name, items }) => ({ name, items }));
   }
 
   /* ---------- 같은 글 묶음 (앱 Pipeline.chipRows — 칩으로 먼저 거른 뒤 묶기, QA-1) ---------- */
@@ -374,6 +411,6 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, WHY, REASON_GROUP, reasonsOf, reasonGroups, badgeKind, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

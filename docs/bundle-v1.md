@@ -79,7 +79,7 @@
 | `url` · `thumb` | 글 · 글 또는 null | 원 매물 주소, 사진 주소 |
 | `status` | 글 | `selling` · `reserved` |
 | `firstSeen` · `updated` | ms | 처음 본 때, 올린(끌올) 때 |
-| `grade` | {`k`, `d`, `why`} 또는 null | `k` = `honey`·`good`·`normal`·`caution`·`unknown`, `d` = 시세 대비 %(음수 = 쌈), `why` = 앱 이유 글. null = 다시 내는 중 |
+| `grade` | {`k`, `d`, `why`} 또는 null | `k` = `honey`·`good`·`normal`·`caution`·`unknown`, `d` = 시세 대비 %(음수 = 쌈), `why` = 앱 이유 글. null = 다시 내는 중. ⚠ 면 `badge`·`reasons` 가 더 붙어요(맨 아래 '0.8.2 더함') |
 | `variant` · `unopened` · `dups` | 글/null · 참/거짓 · 수 | 변형·모델(앱 `ModelSplit.of` — 나누는 검색이면 모든 매물에 이름, 다섯 갈래의 기본은 `'기본'`, 아니면 모두 null), 미개봉, 같은 글 수. **모델 물건에서 모델을 못 알아본 매물은 `'모델 모름'`**(앱 `Models.UNKNOWN`, 화면 글 그대로) — `'기본'`·null 과 섞으면 안 돼요(웹 `variantOf` 가 빈 값을 '기본'으로 바꾸는 곳, R12). 모름 매물은 `grade.k = 'unknown'`, `grade.why = '모델을 모르는 매물이라 판정하지 않았어요'` |
 | `dupRows` | [매물] (없으면 칸 없음) | 이 줄에 같은 글로 묶인 매물(여러 마켓·다시 올린 글), 묶기 전 싼 순 — 매물과 같은 꼴(`dupRows` 는 다시 없음). 보이는 조건을 통과한 것만. 앱 0.7.1.1(10/20)부터 |
 | `news` | 글 또는 null | '2번 내림 · 끌올 3번' |
@@ -218,3 +218,26 @@
 `held` = { `names` 보류 모델 이름[](모델 목록 차례), `chip` 결과 화면 모델 칩 아래 한 줄('m1·m3 값이 섞여 판정 보류 — 더 좁은 모델로 나눠 주세요(예: m1 프로·m3 프로)' — 예시는 앱이 그 모델 매물 제목에서 찾은 것(스냅숏 `heldHints`, 둘까지), 없으면 '… 더 좁은 모델로 나눠 주세요' · 이름 있는 모델 칩이 둘 이상 보일 때만), `lines` 그 모델이 기준(모델 칩·기준 모델)일 때 지금 최저가 칸 자리 한 줄[](`names` 와 같은 차례) }.
 웹은 판정하지 않고 이 글을 그대로 그려요: 칩으로 좁힌 지금 최저가(`radar-view.js` `screenHero`, 앱 `CardCore.heldBase`)는 고른 칩·기준 모델이 `held.names` 에 있으면 칸 없이 `held.lines` 줄, 다른 모델 최저에 보류 모델 매물을 쓰지 않아요.
 물건 정하기 '모델' 줄은 웹이 줄을 다시 세므로 `radar-cmd.js` `tightOk`·`mixedModel`(= 앱 `Models.tight`·`Models.mixed`)로 줄마다 `held` 를 내고 `hint` 를 그 줄 아래에 그려요(R12 마무리: 보류 줄은 `narrowWord`(= 앱 `Models.narrowWord`)로 예시 `ex` 를 내고, 있으면 `hintEx` 의 `{예시}` 자리에 — `app-models.json` `narrow` 와 같은 답, 거르는 낱말 목록 `NOT_MODEL`·`NOT_MODEL_PART`·`NARROW_SKIP` 도 앱과 견줌) — 앱이 만든 `test/fixtures/app-models.json` 의 `mixed`·`tightCases`·`heldBundle`·줄 `held` 와 같은 답(`test/radar-models.test.mjs`).
+
+## 0.8.2 더함 — '⚠ 사기 의심'·'⚠ 확인 필요' 배지와 사유 (앱 dev-082 `867edc4`부터, 11/01)
+
+대표 결정 11/01 · 디자인 덧붙임(`082-badge-design` 4-7·7장). 판정 종류는 그대로 `caution` 하나예요 — 배지 글만 둘로 나눠요. 두 배지 모두 지금 최저가·꿀매 수·알림·목표가에서 빠지는 길은 같아요. 꼴 번호는 그대로 1.
+
+| 자리 | 칸 | 꼴 | 뜻 |
+|---|---|---|---|
+| 매물 `grade` (`dupRows[].grade`, `adhoc[].listings[].grade` 도 같음) | `badge` | 글 `"scam"` / `"check"` — **`k` 가 `caution` 일 때만** | 배지 글·꼴: `scam` = 「⚠ 사기 의심」(웹 `b-scam`: 바탕 `--surface2` · 글 `--ink` · 안쪽 테두리 1px `--line-strong`, 코랄 아님), `check` = 「⚠ 확인 필요」(`b-caution` 그대로) |
+| 매물 `grade` | `reasons` | [{`g`, `t`, `sub`?}] 1개 이상 — **`caution` 일 때만** | 사유 창·판단 창 목록. **보일 순서 그대로**(판매자 → 글 → 가격) — 웹은 다시 줄 세우지 않아요 |
+| `reasons[]` | `g` | `"seller"` / `"text"` / `"price"` | 갈래. 사유 창에서 갈래가 둘 이상이면 이어진 갈래마다 이름(판매자 / 글 / 가격)을 위에 붙여요. 판단 창에선 이름 없이 이어요 |
+| `reasons[]` | `t` | 글 | 줄 글(앱 상수 글 — 판매자 번호·이름·매물 제목은 들어가지 않음, F4 의 개수만 바뀜) |
+| `reasons[]` | `sub` | 글, 꼬리가 있을 때만(없으면 칸 없음) | 회색 꼬리 줄(앱 이유 글의 ' — ' 뒤) |
+| 매물 `grade` | `why` | 글(그대로) | 처음 걸린 이유 한 줄 — 옛 웹·옛 묶음용으로 남아요 |
+
+- 앱 허용 목록: `WebBundle.kt` `GRADE = {k, d, why, ref, badge, reasons}`, `REASON = {g, t, sub}` — 사유 안에 다른 칸이 있으면 앱 시험이 걸러요.
+- 웹 그리기(`radar-view.js` `badge`·`reasonsOf`·`reasonGroups`·`WHY`, `radar-ui.js` `badge`·`whyDlg`·`reasonList`):
+  - `reasons` 에 글 있는 줄이 하나라도 있으면 ⚠ 배지는 **단추**(`data-act="why"`, `aria-label` 「사기 의심, 사유 보기」/「확인 필요, 사유 보기」, 누름 칸 위아래로 늘려 44px · 좁은 폭 48px). 누르면 사유 창이고, 줄 누름(판단 창)보다 먼저 받아요. 판단 창 안 배지도 같은 창을 판단 창 위에 띄워요.
+  - 매물 줄: 이유 글 줄(`.rs.why`) 없이 배지 하나. 줄 아래 글은 다른 줄처럼 소식·같은 글·변형만(없으면 줄 없음).
+  - 판단 창: `why` 한 문단 대신 사유 목록(갈래 이름 없이, 꼬리는 회색 줄).
+  - 사유 창: 제목(scam 「사기 의심 이유」 / check 「확인 필요 이유」) · 머리 글 「지금 최저가·꿀매·알림에서 뺐어요. 목록엔 남아요.」 · 사유 한 줄씩 · scam 만 끝 글 「본 사실만 적었어요. 정상 판매자도 걸릴 수 있어요.」 · [닫기]. 이 고정 글은 묶음에 없어서 웹에 앱 `Judge.CautionBadge` 글을 그대로 적어 뒀어요(바뀌면 둘 다). `role="dialog"`, 제목 연결, Esc·바깥 누르기·[닫기]로 닫히고 초점은 배지로 돌아가요.
+  - `badge` 가 `scam` 이 아니거나 모르는 값이면 `check` 로 그려요.
+- **옛 묶음**(`867edc4` 전 앱 — `badge`·`reasons` 없음, 또는 `reasons` 가 비었음): 지금처럼 「⚠ 확인 필요」 글 배지(누를 수 없음) + 줄 `.rs.why` 와 판단 창에 `why` 한 줄.
+- 시험 자료: `test/fixtures/app-badge.json` = 앱 `867edc4` 의 `WebBundle.build` 로 만든 묶음(지어낸 매물: 대표 예시 233702091 사기 의심 4줄 · 글+가격 사기 의심 · 가격 둘 확인 필요 · 미끼 한 줄 확인 필요). 시험 `test/radar-view.test.mjs`(0.8.2 셋) · `test/badge.e2e.py`.

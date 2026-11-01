@@ -37,7 +37,7 @@
     needToken: false, lockErr: '', busy: false,
     tab: 'home', pid: '', ptab: 'list', mkSel: '', cond: '', area: 'all', withUnknown: true, sort: 'low', q: '', variant: '', vpid: '', allDaangn: false,
     searchText: '', adhocQ: SS.get(SS_ADHOC) || '', adhocSwap: '',
-    dlg: null, opener: null, menu: null, toast: null,
+    dlg: null, opener: null, menu: null, toast: null, why: null, // why = 0.8.2 사유 창 { key, g, back(연 배지) } — 판단 창 위에도 떠요
     sent: [], iss: {}, plain: SS.get(SS_PLAIN) || {}, cmdKey: null, ro: false, pend: null, pollUntil: 0, lastSt: {}, doneSeen: {}, dismissed: {},
     recentHidden: new Set(), readLocal: new Set(), readAll: 0,
   };
@@ -69,11 +69,17 @@
     for (const i of arr(B() && B().inbox)) if (i && i.listing && i.listing.key === key) return { l: i.listing, p: prod(i.pid) };
     return null;
   }
-  function badge(g, compact) {
+  // key 를 주면 0.8.2 ⚠ 배지(사유 있음)는 단추 — 누르면 사유 창(줄 누름 = 판단 창보다 먼저 받음, 디자인 덧붙임 4-7)
+  function badge(g, compact, key) {
     const b = RV.badge(g, compact);
     if (!b) return '';
+    if (b.why && key) return `<button type="button" class="badge ${b.cls} bwhy" data-act="why" data-key="${esc(key)}" aria-label="${esc(b.aria)}" aria-haspopup="dialog">${esc(b.text)}</button>`;
     const then = late() && g.k === 'honey' ? ' <span class="then">그때 기준</span>' : '';
-    return `<span class="badge ${b.cls}"${b.aria ? ` aria-label="${esc(b.aria)}"` : ''}>${b.icon ? ico(b.icon) : ''}${esc(b.text)}</span>${then}`;
+    return `<span class="badge ${b.cls}"${b.aria && !b.why ? ` aria-label="${esc(b.aria)}"` : ''}>${b.icon ? ico(b.icon) : ''}${esc(b.text)}</span>${then}`;
+  }
+  // 판단 창 사유 목록(앱 ListingSheet — 갈래 이름 없이 판매자 → 글 → 가격, 꼬리는 회색 줄)
+  function reasonList(rs) {
+    return `<ul class="rlist">${rs.map((r) => `<li><span class="rt1">${esc(r.t)}</span>${r.sub ? `<span class="rsub">${esc(r.sub)}</span>` : ''}</li>`).join('')}</ul>`;
   }
   function spark(vals, h, w) {
     vals = arr(vals);
@@ -394,7 +400,7 @@
     else {
       body = `<div class="low" data-act="sheet" data-pid="${esc(p.id)}" data-key="${esc(low.key)}" tabindex="0" role="button" aria-label="지금 최저가 ${esc(low.title)} 판단 보기">${thumb(low)}<div style="min-width:0">
           <p class="ltitle">${esc(low.title)}</p>
-          <div class="price-row"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, true)}${p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
+          <div class="price-row"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, true, low.key)}${p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
           <p class="meta" style="margin:2px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · ${esc(ago(low.updated, t))}${soldMaybe()}</p>
         </div></div>
         ${arr(p.facts).length ? `<p class="facts">${facts(p.facts)}</p>` : ''}
@@ -446,7 +452,7 @@
       return `<div class="feed-row ${fresh ? 'fresh' : ''}" data-act="sheet" data-pid="${esc(p.id)}" data-key="${esc(l.key)}" tabindex="0" role="button">${thumb(l)}
         <div style="min-width:0"><div class="top-line"><span class="chip-name">${esc(p.name)}</span>${fresh ? '<span class="pill brand">새로</span>' : ''}<span class="meta">${esc(ago(f.at, t))}</span></div>
         <p class="ltitle" style="margin-top:8px;font-weight:600">${esc(l.title)}</p>
-        <div class="price-row" style="margin-top:4px"><span class="price" style="font-size:var(--fs-price-sm)">${esc(won(l.price))}</span>${badge(l.grade, true)}</div>
+        <div class="price-row" style="margin-top:4px"><span class="price" style="font-size:var(--fs-price-sm)">${esc(won(l.price))}</span>${badge(l.grade, true, l.key)}</div>
         <p class="meta" style="margin:4px 0 0">${esc(l.grade ? l.grade.why : '')} · ${esc(MARKET[l.m])}</p></div></div>`;
     }).join('');
     const ps = prods();
@@ -539,12 +545,14 @@
       }
     }
     const unhiding = p && S.sent.some((r) => r.type === 'unhide' && r.pid === p.id && r.key === l.key && C.isOpen(stOf(r).st));
-    const sub = g && g.k === 'caution' ? `<p class="rs why">${esc(g.why)}</p>`
+    // 0.8.2: 사유가 온 ⚠ 줄은 이유 글 줄 없이 배지만(디자인 덧붙임 4-1·4-7) — 줄 아래 글은 다른 줄처럼 소식·같은 글·변형. 옛 묶음 ⚠ 는 지금처럼 why 한 줄
+    const rsOf = (first) => { const xs = [first, l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', vtagOf(l, ctx)].filter(Boolean); return xs.length ? `<p class="rs">${xs.map(esc).join(' · ')}</p>` : ''; };
+    const sub = g && g.k === 'caution' ? (RV.reasonsOf(g) ? rsOf('') : `<p class="rs why">${esc(g.why)}</p>`)
       : `<p class="rs">${[g ? g.why : (p && p.state === 'rebase' && p.cut && p.cut.rebase) || '', l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', vtagOf(l, ctx)].filter(Boolean).map(esc).join(' · ')}</p>`;
     const where = placeText(l.place);
     const unknown = RV.isUnknown(l.place);
     const sub2 = ctx.sub2 || sub;
-    const bdg = ctx.ended ? '<span class="badge b-plain">끝남</span>' : badge(g, false);
+    const bdg = ctx.ended ? '<span class="badge b-plain">끝남</span>' : badge(g, false, l.key);
     const starOn = !!(l.star || ctx.star);
     const starPend = S.sent.some((r) => r.type === 'star' && r.key === l.key && C.isOpen(stOf(r).st));
     const actions = ctx.noActs ? '' : `<span class="ra">
@@ -588,7 +596,7 @@
       <section class="box" aria-label="${esc(label)}"><p class="box-label plain">${esc(label)}${pend ? chgPill : ''}</p>
       <div class="hero">${thumb(low, 'lg')}<div style="min-width:0" data-act="sheet" data-key="${esc(low.key)}" data-pid="${esc(p ? p.id : '')}" data-adhoc="${x.adhoc ? 1 : ''}" class="hclick">
           <p class="ltitle">${esc(low.title)}</p>
-          <div class="price-row" style="margin-top:8px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
+          <div class="price-row" style="margin-top:8px"><span class="price">${esc(won(low.price))}</span>${badge(low.grade, false, low.key)}${isLowKey && p.change && !late() ? `<span class="chg ${p.change.dir === 'up' ? 'up' : 'down'}">${esc(p.change.text)}</span>` : ''}</div>
           <p class="meta" style="margin:4px 0 0">${esc(MARKET[low.m])} · ${esc(placeText(low.place))} · 올린 때 ${esc(ago(low.updated, t))} · 처음 본 때 ${esc(ago(low.firstSeen, t))}</p>
           ${model && low.grade && low.grade.k === 'unknown' && low.price > 0 ? `<p class="note" style="margin-top:8px;color:var(--ink3)">${esc(model)} · 매물이 적어 판정 보류</p>`
             : low.grade && low.grade.why ? `<p class="note" style="margin-top:8px">${esc(low.grade.why)}</p>` : ''}
@@ -983,7 +991,7 @@
    * 창 (C-4 ~ C-9, C-11, C-15, C-16, 비밀번호)
    * ===================================================================== */
   function openDlg(d, opener) {
-    S.dlg = d;
+    S.dlg = d; S.why = null;
     S.opener = opener || (document.activeElement && document.activeElement.id) || null;
     S.menu = null;
     renderLayer(true);
@@ -995,7 +1003,7 @@
     }
     if (d && d.kind === 'delete' && d.back) { S.dlg = d.back; renderLayer(); const c = document.getElementById(d.backFocus); if (c) c.focus(); return; }
     if (d && d.kind === 'model' && d.back) { S.dlg = d.back; renderLayer(); return; }
-    S.dlg = null; S.form = null;
+    S.dlg = null; S.form = null; S.why = null;
     if (d && d.kind === 'pw') S.pend = null;
     renderLayer();
     const back = S.opener && document.getElementById(S.opener);
@@ -1243,6 +1251,52 @@
     if (isModel(src)) return RV.isUnknownModel(l.variant) ? l.variant : `모델 ${l.variant}`;
     return `변형 ${l.variant}`;
   }
+  // 0.8.2 사유 창(앱 ReasonDialog, 디자인 덧붙임 3·4-7): 제목 · 머리 글 · 사유 한 줄씩(갈래가 둘 이상이면 갈래 이름) · 사기 의심만 끝 글 · [닫기]
+  function listingByKey(key) {
+    const hit = anyListing(key);
+    if (hit) return hit.l;
+    for (const src of [...prods(), ...arr(B() && B().adhoc)]) {
+      for (const l of arr(src && src.listings)) for (const d of arr(l && l.dupRows)) if (d && d.key === key) return d;
+    }
+    return null;
+  }
+  function openWhy(btn) {
+    const l = listingByKey(btn.dataset.key);
+    const g = l ? l.grade : null;
+    if (!RV.reasonsOf(g)) return;
+    S.why = { key: btn.dataset.key, g, back: btn };
+    S.menu = null;
+    renderLayer();
+    const c = $('#whyClose');
+    if (c) c.focus();
+  }
+  function closeWhy() {
+    const w = S.why;
+    if (!w) return;
+    S.why = null;
+    renderLayer();
+    // 닫으면 연 배지로 초점(다시 그려 없어졌으면 같은 매물의 보이는 배지 — 판단 창이 열려 있으면 그 안에서 먼저)
+    let back = w.back && w.back.isConnected && w.back.offsetParent !== null ? w.back : null;
+    if (!back) {
+      const sel = `[data-act="why"][data-key="${CSS.escape(w.key)}"]`;
+      back = [...document.querySelectorAll(`#layer ${sel}`), ...document.querySelectorAll(`#page ${sel}`)].find((x) => x.offsetParent !== null) || null;
+    }
+    if (back) back.focus();
+  }
+  function whyDlg() {
+    const w = S.why;
+    const l = listingByKey(w.key);
+    const g = (l && RV.reasonsOf(l.grade) ? l.grade : null) || w.g;
+    const rs = RV.reasonsOf(g);
+    if (!rs) return '';
+    const kind = RV.badgeKind(g);
+    const groups = RV.reasonGroups(rs);
+    const body = groups.map((gr, i) => `<div class="wgroup"${i ? ' style="margin-top:16px"' : ''}>${gr.name ? `<h3 class="wgname">${esc(gr.name)}</h3>` : ''}<ul class="rwlist">${gr.items.map((r) => `<li><span class="rt1">${esc(r.t)}</span>${r.sub ? `<span class="rsub">${esc(r.sub)}</span>` : ''}</li>`).join('')}</ul></div>`).join('');
+    return `<div class="wscrim" data-act="whyScrim"><div class="whydlg" role="dialog" aria-modal="true" aria-labelledby="dWhy" aria-describedby="dWhyHead">
+      <div class="wbody"><h2 id="dWhy">${esc(RV.WHY[kind].title)}</h2><p class="whead" id="dWhyHead">${esc(RV.WHY.head)}</p>
+        <div class="wreasons">${body}</div>${kind === 'scam' ? `<p class="wfoot">${esc(RV.WHY.foot)}</p>` : ''}</div>
+      <div class="wbtns"><button type="button" class="btn btn-text" id="whyClose" data-act="whyClose">${esc(RV.WHY.close)}</button></div></div></div>`;
+  }
   // 판단 창 (C-7)
   function drawerSheet() {
     const d = S.dlg;
@@ -1260,8 +1314,8 @@
     const hidden = p && lastHide(p.id, l.key);
     return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dL"><div class="dhead"><h2 id="dL" class="sr">판단 창</h2><span style="flex:1"></span>${xBtn}</div>
       <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:var(--fs-body-lg);font-weight:600">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.firstSeen, t)].filter(Boolean).join(' · '))}</p></div></div>
-        <div class="price-row" style="margin-top:12px"><span class="price" style="font-size:var(--fs-display);line-height:32px">${esc(won(l.price))}</span>${badge(l.grade, false)}</div>
-        ${l.grade && l.grade.why ? `<p class="facts" style="color:var(--ink2)">${esc(l.grade.why)}</p>` : ''}
+        <div class="price-row" style="margin-top:12px"><span class="price" style="font-size:var(--fs-display);line-height:32px">${esc(won(l.price))}</span>${badge(l.grade, false, l.key)}</div>
+        ${RV.reasonsOf(l.grade) ? reasonList(RV.reasonsOf(l.grade)) : l.grade && l.grade.why ? `<p class="facts" style="color:var(--ink2)">${esc(l.grade.why)}</p>` : ''}
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a>
           <button class="btn" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}"${lk()}>${starPend ? `<span class="iconbtn pending" style="width:20px;height:20px">${ico('star')}</span> ${RV.STAR.sending}` : starOn ? `${ico('star', 'fill')} ${RV.STAR.remove}` : `${ico('star')} ${RV.STAR.add}`}</button>
@@ -1330,6 +1384,8 @@
     const el = $('#layer');
     const body = el.querySelector('.dbody');
     const keep = body ? body.scrollTop : 0;
+    const wOld = el.querySelector('.whydlg');
+    const inWhy = !!(wOld && wOld.contains(document.activeElement));
     let html = '';
     if (S.menu) html = menuHTML();
     else if (S.dlg) {
@@ -1337,7 +1393,9 @@
       html = fn ? fn() : '';
       if (!html) S.dlg = null;
     }
+    if (S.why && !S.menu) { const w = whyDlg(); if (w) html += w; else S.why = null; }
     el.innerHTML = html;
+    if (inWhy && S.why) { const c = $('#whyClose'); if (c) c.focus(); }
     const nb = el.querySelector('.dbody');
     if (nb && !focusFirst) nb.scrollTop = keep;
     if (focusFirst) {
@@ -1422,13 +1480,13 @@
   function go(tab, pid) {
     // 홈 탭을 한 번 더 누르면 결과 화면을 닫고 홈으로(앱 MainScreen 과 같게)
     const h = tab === 'product' ? '#p=' + encodeURIComponent(pid) : tab === 'home' ? '#' : '#' + tab;
-    S.menu = null;
+    S.menu = null; S.why = null;
     if (location.hash === h || (h === '#' && !location.hash)) { fromHash(); render(); window.scrollTo(0, 0); }
     else location.hash = h;
   }
   window.addEventListener('hashchange', () => {
     fromHash();
-    if (S.phase === 'ready') { S.dlg = null; render(); window.scrollTo(0, 0); }
+    if (S.phase === 'ready') { S.dlg = null; S.why = null; render(); window.scrollTo(0, 0); }
     // 화면을 옮긴 뒤 열 창(알림함 이행 줄 → 물건 정하기 '모델' 칸)
     const after = S.afterNav; S.afterNav = null;
     if (after && S.phase === 'ready') after();
@@ -1670,6 +1728,9 @@
     switch (a) {
       // 창·메뉴
       case 'scrim': if (e.target === t) closeDlg(); return;
+      case 'why': e.preventDefault(); openWhy(t); return;
+      case 'whyScrim': if (e.target === t) closeWhy(); return;
+      case 'whyClose': closeWhy(); return;
       case 'close': closeDlg(); return;
       case 'menuClose': S.menu = null; renderLayer(); return;
       case 'menu': e.stopPropagation(); menuAt(t, pid); return;
@@ -1924,12 +1985,13 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if (S.why) { e.preventDefault(); closeWhy(); return; }
       if (S.menu) { S.menu = null; renderLayer(); const b = S.opener && document.getElementById(S.opener); if (b) b.focus(); return; }
       if (S.dlg) { e.preventDefault(); closeDlg(); return; }
     }
     // 창 안에서만 Tab 이 돌아요
-    if (e.key === 'Tab' && (S.dlg || S.menu)) {
-      const box = $('#layer .dialog') || $('#layer .drawer') || $('#layer .menu');
+    if (e.key === 'Tab' && (S.dlg || S.menu || S.why)) {
+      const box = $('#layer .whydlg') || $('#layer .dialog') || $('#layer .drawer') || $('#layer .menu');
       if (box) {
         const f = [...box.querySelectorAll('button:not([disabled]),a[href],input,select,[tabindex="0"]')];
         if (f.length) {
