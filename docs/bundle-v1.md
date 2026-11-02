@@ -241,3 +241,31 @@
   - `badge` 가 `scam` 이 아니거나 모르는 값이면 `check` 로 그려요.
 - **옛 묶음**(`867edc4` 전 앱 — `badge`·`reasons` 없음, 또는 `reasons` 가 비었음): 지금처럼 「⚠ 확인 필요」 글 배지(누를 수 없음) + 줄 `.rs.why` 와 판단 창에 `why` 한 줄.
 - 시험 자료: `test/fixtures/app-badge.json` = 앱 `867edc4` 의 `WebBundle.build` 로 만든 묶음(지어낸 매물: 대표 예시 233702091 사기 의심 4줄 · 글+가격 사기 의심 · 가격 둘 확인 필요 · 미끼 한 줄 확인 필요). 시험 `test/radar-view.test.mjs`(0.8.2 셋) · `test/badge.e2e.py`.
+
+## 0.8.4·0.8.5 더함 — 판정 기준 줄 · 알림 '모름' 띠 · 못 받은 마켓·당근 0건 · 수집 상태 사람 말 (앱 dev-085, 11/02)
+
+대표 결정 11/02(홈 카드 마켓 줄 표시는 셋만 — '0건'(진짜 0건만) · '쉬는 중'(마켓이 막아 쉼) · '못 받음'(나머지 전부, 내 동네 안 정함 포함), 누르면 까닭 창, 결과 화면 맨 위 줄, 설정 말은 사람 말로) · 디자인 `085-design` 4-1·4-2. **웹은 글을 만들지 않고 앱이 보낸 글을 그대로 그려요**(AC-6-3·AC-8-2). 꼴 번호는 그대로 1 — 칸을 더하기만 했어요.
+
+| 자리 | 칸 | 꼴 | 뜻 |
+|---|---|---|---|
+| 머리 | `notifBanner` | 글, 띠를 보일 때만(없으면 칸 없음) | 0.8.4 T11 — 알림 띠 앞 줄(앱 `NotifCheck.bannerText`). 꺼짐·긴급 꺼짐·**모름**(상태를 못 읽음) 모두. 모름이면 `notifOn` 은 `false` 라 옛 웹은 '꺼져 있어요'로 그렸어요 — 이 칸이 있으면 이 글로 |
+| 물건 | `gaps` | [{`m`, `short`?, `line`, `sub`?, `speech`}] — 표시가 있을 때만 | 마켓 표시(중·당·번 차례). `short` = 카드 마켓 줄 짧은 표시(`못 받음`·`쉬는 중`·`0건`, **없으면 일부만 받음** — 카드엔 가격 그대로), `line` = 줄 글, `sub` = 회색 꼬리(없으면 칸 없음), `speech` = 화면 읽기 글. 끈 물건·다시 잡는 중엔 안 실어요 |
+| 물건 | `gapHead` | 글, 잘 받은 마켓이 있을 때만 | 까닭 창 머리 글 '중고나라는 5분 전에 잘 받았어요.' |
+| 물건 | `gapLabel` | 글, 카드 마켓 줄이 단추일 때만(`short` 가 하나라도) | 마켓 줄 화면 읽기 '마켓별 최저가: 중고나라 135만, 당근 쉬는 중, 번개장터 못 받음' |
+| 물건 | `info` | 글[], 있을 때만 | 갈래가 아닌 안내(천천히 중 '고른 동네만 찾아요'·'동네가 많아 n곳은 찾지 않았어요') — 결과 화면 날 글 줄. `gaps`·`info` 가 있는 묶음이면 `notes` 대신 이걸 그려요(`notes` 는 옛 웹용으로 남음) |
+| `adhoc[]` | `gaps` | 물건과 같은 꼴 | 그냥 검색 표시(꼬리는 그냥 검색 꼴 — '이번 결과엔 빠졌어요' 등, 지난 매물 꼬리 없음) |
+| `adhoc[].cut` | `basis` | 글, 빌렸을 때만 | 0.8.4 T9 — '지켜보는 {이름} 시세로 판정해요'. 시세 탭 '꿀매 판정 기준' 바로 아래 한 줄(Ink2) |
+| 시장 `markets[]` | `text` | 글(뜻이 바뀜) | **0.8.5부터 설정 수집 상태 사람 말**(앱 `HealthText.line`): '5분 전에 잘 받았어요' · '12시간째 못 받고 있어요 · 마켓 화면이 바뀌어 읽지 못했어요' · '당근이 막아 쉬는 중이에요 · 내일 01:40에 다시 해요' 등 |
+| 시장 | `tone` | `"ok"` / `"warn"` / `"bad"` | 상태 말 색 — ok Ink3 · warn Ink2 · bad 코랄(막힘) |
+| 시장 | `bannerSub` | 글, `banner` 가 있을 때만 | 막힘 띠 둘째 줄(앱 홈 띠와 같은 `HealthCore.problems` 글). 예전엔 `text` 를 썼어요 |
+
+- 웹 그리기(`radar-ui.js`):
+  - 홈 카드: `gapRowHTML` — 중·당·번 자리마다 `short`(회색 밑줄 `.gmark`) 또는 `marketLows` 가격. `short` 가 하나라도 있으면 줄 전체가 `<button data-act="gap" aria-haspopup="dialog">`(높이 48) → 까닭 창. 지금 최저가가 없는 카드도 `short` 가 있으면 이 줄. 카드 맨 아래 날 글 줄(`notes[0]`)은 지움.
+  - 까닭 창 `gapDlg`: 사유 창(`.whydlg`) 꼴 · 제목 '이번 확인 · 마켓 상태'(웹 상수 `RV.GAP_TITLE` = 앱 `GapText.TITLE`) · `gapHead` · 마켓마다 `line`/`sub` · [닫기]. Esc·바깥·[닫기]로 닫히고 초점은 마켓 줄로.
+  - 물건·그냥 검색 화면: 목록 탭 맨 위(마켓 칩 위) `gapTopHTML` — 마켓마다 `line`(Ink2)/`sub`(Ink3), `role="status"`.
+  - 설정 수집 상태: `tone` 이 있으면 1줄 이름 / 2줄 `text`(색 = `tone`). 없으면(옛 묶음) 예전 '성공 {때} · {text}'.
+  - 머리 줄(디자인 3-1): 알약을 `.pills` 로 묶어 그 안에서만 줄바꿈, 확인 글 `.when` 은 한 줄 고정.
+- 앱 허용 목록: `WebBundle.kt` `PRODUCT` += `gaps, gapHead, gapLabel, info` · `ADHOC` += `gaps` · `GAP = {m, short, line, sub, speech}` · `MARKET = {m, okAt, text, tone, bad, banner, bannerSub}` · `HEADER` += `notifBanner`.
+- 지문('바뀌었나'): 시장 `text`(okAt 옆)와 `gapHead` 는 '5분 전에'처럼 때마다 바뀌어 지문에서 빼요(`tone`·`bad` 는 남김).
+- **옛 묶음**(0.8.4 까지): `gaps`·`tone`·`notifBanner` 없음 → 카드 날 글 줄 한 줄, 수집 상태 '성공 {때} · {text}', 알림 띠는 `notifOn === false` 일 때 예전 글.
+- 시험 자료: `test/fixtures/app-gaps.json` = 앱 dev-085 `WebBundleGap085Test.writesGapCasesForTheWeb` 가 만든 묶음(지어낸 매물 — A 번개장터 못 받음 · B 당근 쉬는 중 + 번개장터 못 받음 · C 당근 0건 · W 세 마켓 다 · 일부만 · 정상, 그냥 검색 ① + 판정 기준 줄). 시험 `test/gaps.e2e.py`.
