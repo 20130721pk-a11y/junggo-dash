@@ -140,7 +140,7 @@ with sync_playwright() as p:
     rows = page.locator('.rows .row .rs').all_inner_texts()
     check(sum(1 for r in rows if '모델 모름' in r) == 4, "'모델 모름' 꼬리표 4줄(기준과 상관없이 늘 — G-4)")
     check(any(r.endswith('스팟클린') for r in rows) and not any('변형 ' in r for r in rows), "기준 아닌 모델 꼬리표는 이름만('변형 X' 아님)")
-    tails = page.evaluate("() => [...document.querySelectorAll('.rows .row')].map(r => [r.dataset.key, r.querySelector('.rs').textContent])")
+    tails = page.evaluate("() => [...document.querySelectorAll('.rows .row')].map(r => [r.dataset.key, (r.querySelector('.rs') || {}).textContent || ''])")
     byKey = {l['key']: l for l in P['listings']}
     check(all(not t.endswith(' · 크로스웨이브') and t != '크로스웨이브' for k, t in tails if byKey[k]['variant'] == '크로스웨이브'), '기준 모델(크로스웨이브) 줄엔 모델 꼬리표 없음(앱 variantTag)')
     check('모델 자동 2개' in page.inner_text('.conds'), "조건 요약 '모델 자동 2개'(앱 글 그대로)")
