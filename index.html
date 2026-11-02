@@ -116,7 +116,12 @@ a { color: var(--brand-bright); }
 }
 .card.has-honey { border-color: var(--honey-edge); }
 .card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.card-head .when { margin-left: auto; color: var(--ink3); font-size: var(--fs-label); }
+.card-head .when { margin-left: auto; color: var(--ink3); font-size: var(--fs-label); white-space: nowrap; flex: none; }
+/* 0.8.5 머리 줄(디자인 085 3-1): 알약 묶음만 줄바꿈, 확인 글·⋯ 는 한 줄 그대로 */
+.card-head { flex-wrap: nowrap; align-items: flex-start; }
+.card-head .pills { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; flex: 1 1 auto; min-width: 0; padding: 4px 0; }
+.card-head .pills .chip-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.card-head .when { line-height: 32px; }
 .chip-name { padding: 2px 8px; border-radius: var(--r-pill); background: var(--brand-soft); color: var(--brand-bright); font-size: var(--fs-label); font-weight: 600; white-space: nowrap; }
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface2); color: var(--ink2); font-size: var(--fs-label); font-weight: 600; white-space: nowrap; }
 .pill.honey { background: var(--honey-soft); color: var(--honey); }
@@ -132,6 +137,25 @@ a { color: var(--brand-bright); }
 .facts .fact-hi .ico { margin-right: 4px; } .fact-hi .ico.t { color: var(--brand-bright); }
 .lines { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .mlow { display: inline-flex; align-items: center; gap: 4px; color: var(--ink2); font-size: var(--fs-body-sm); font-weight: 600; }
+/* 0.8.5 T6·T8: 카드 마켓 줄 짧은 표시(회색 밑줄 '누르는 회색 글') — 표시가 있으면 줄 전체가 단추(48) */
+.gaprow { width: 100%; min-height: 48px; padding: 0 8px 0 0; border: 0; border-radius: var(--r-ctl); background: none; text-align: left; font: inherit; cursor: pointer; }
+.gaprow:hover { background: var(--surface2); }
+.gaprow:focus-visible { outline: 2px solid var(--brand-bright); outline-offset: 2px; }
+.gmark { color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+/* 결과(물건) 화면 맨 위 줄 — 마켓마다 줄 글(Ink2 body-sm) / 꼬리(Ink3 meta) */
+.gaptop { display: grid; gap: 8px; margin: 0 0 12px; }
+.gtl { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 8px; align-items: start; }
+.gtl .mk { margin-top: 2px; }
+.gtl .gl { margin: 0; color: var(--ink2); font-size: var(--fs-body-sm); line-height: 19px; }
+.gtl .gs { margin: 2px 0 0; color: var(--ink3); font-size: var(--fs-label); line-height: 16px; }
+.gapdlg .grow { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 8px; align-items: start; }
+.gapdlg .grow .mk { margin-top: 2px; }
+/* 설정 수집 상태 사람 말(1줄 이름 / 2줄 상태 말, 줄 수 제한 없음) */
+.mstat { padding: 4px 0; }
+.mstat p { margin: 2px 0 0 24px; font-size: var(--fs-body-sm); line-height: 19px; }
+.mstat .mlow { color: var(--ink); font-weight: 400; font-size: var(--fs-body); }
+/* 0.8.4 T9 판정 기준 줄(시세 탭 '꿀매 판정 기준' 아래, Ink2) */
+.basis { margin: 0 0 8px; color: var(--ink2); font-size: var(--fs-body-sm); }
 .note { display: flex; gap: 8px; align-items: flex-start; margin: 0; color: var(--ink2); font-size: var(--fs-body-sm); }
 .note .ico { margin-top: 1px; }
 .note.link { cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; background: none; border: 0; padding: 0; text-align: left; }

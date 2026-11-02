@@ -139,6 +139,8 @@
     foot: '본 사실만 적었어요. 정상 판매자도 걸릴 수 있어요.', // 사기 의심만
     close: '닫기',
   };
+  // 0.8.5 T6·T8 까닭 창 제목(앱 GapText.TITLE) — 줄 글·꼬리·머리 글은 묶음(gaps·gapHead)에서 그대로
+  const GAP_TITLE = '이번 확인 · 마켓 상태';
   const REASON_GROUP = { seller: '판매자', text: '글', price: '가격' };
   const badgeKind = (g) => (g && g.badge === 'scam' ? 'scam' : 'check');
   // ⚠ 이고 사유가 하나라도 있으면 [{g, t, sub}] (글 없는 줄은 빼요), 아니면 null(= 옛 묶음 · why 한 줄)
@@ -411,6 +413,6 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, WHY, REASON_GROUP, reasonsOf, reasonGroups, badgeKind, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, WHY, GAP_TITLE, REASON_GROUP, reasonsOf, reasonGroups, badgeKind, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

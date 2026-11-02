@@ -95,6 +95,27 @@
       <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3" style="fill:var(--brand-bright)"/></svg>`;
   }
   const mlows = (o, big) => ['j', 'd', 'b'].filter((m) => o && Number.isFinite(o[m])).map((m) => `<span class="mlow"${big ? ' style="font-size:var(--fs-body-lg)"' : ''}>${mkMark(m, !big)}${esc(man(o[m]))}</span>`).join('');
+  // 0.8.5 T6·T8 마켓 표시 — 글은 앱(GapText)이 보낸 그대로(short·line·sub·speech), 웹은 만들지 않아요
+  const gapsOf = (src) => arr(src && src.gaps).filter((g) => g && MARKET[g.m] && str(g.line));
+  // 카드 마켓 줄: 중·당·번 자리마다 가격 또는 짧은 표시(회색 밑줄). 표시가 하나라도 있으면 줄 전체가 단추 → 까닭 창
+  function gapRowHTML(p) {
+    const gs = gapsOf(p);
+    const lows = p.marketLows || {};
+    const cells = ['j', 'd', 'b'].map((m) => {
+      const g = gs.find((x) => x.m === m);
+      if (g && str(g.short)) return { m, mark: str(g.short) };
+      return Number.isFinite(lows[m]) ? { m, price: lows[m] } : null;
+    }).filter(Boolean);
+    if (!cells.some((c) => c.mark)) return mlows(lows) && cells.length >= 2 ? `<div class="lines">${mlows(lows)}</div>` : '';
+    const inner = cells.map((c) => `<span class="mlow">${mkMark(c.m, true)}${c.mark ? `<span class="gmark">${esc(c.mark)}</span>` : esc(man(c.price))}</span>`).join('');
+    return `<button type="button" class="lines gaprow" data-act="gap" data-pid="${esc(p.id)}" aria-haspopup="dialog" aria-label="${esc(str(p.gapLabel) || '마켓별 최저가')}, 까닭 보기">${inner}</button>`;
+  }
+  // 결과(물건) 화면 맨 위 줄: 마켓마다 한 덩이 — 줄 글(Ink2) / 꼬리(Ink3). 누르지 않아요
+  function gapTopHTML(src) {
+    const gs = gapsOf(src);
+    if (!gs.length || src.state === 'paused' || src.state === 'rebase') return '';
+    return `<div class="gaptop" role="status" aria-live="polite">${gs.map((g) => `<div class="gtl" aria-label="${esc(str(g.speech) || g.line)}">${mkMark(g.m, true)}<div><p class="gl">${esc(g.line)}</p>${str(g.sub) ? `<p class="gs">${esc(g.sub)}</p>` : ''}</div></div>`).join('')}</div>`;
+  }
   const vlows = (a) => arr(a).filter((x) => Array.isArray(x) && Number.isFinite(x[1])).map(([v, n]) => `<span class="pill">${esc(v)} ${esc(man(n))}</span>`).join('');
   const factHi = (f) => !!f && (!!f.icon || /^\d+일 만에 최저/.test(str(f.t)));
   const facts = (a) => arr(a).map((f) => (factHi(f) ? `<span class="fact-hi">${f.icon ? ico(f.icon === 'target' ? 'target' : 'trend', f.icon === 'target' ? 't' : '') : ''}${esc(f.t)}</span>` : esc(f && f.t))).join(' · ');
@@ -333,9 +354,11 @@
       if (S.ro) out.push(ban('지금 토큰은 읽기만 돼요', "웹에서 바꾸려면 '읽기 + 이슈 쓰기' 토큰으로 바꿔 주세요. 보기는 그대로 돼요.", '<button class="btn btn-sm" data-act="retok">토큰 바꾸기</button>', '', 'key'));
       if (b.cmdLock && b.cmdLock.until > t) out.push(ban('앱이 웹 명령 받기를 잠시 멈췄어요', esc(str(b.cmdLock.why) || '열 수 없는 명령이 많이 왔어요 — GitHub 에서 웹 토큰을 지우고 새로 만들어 주세요')));
       if (b.stall && typeof b.stall === 'object') out.push(ban(esc(b.stall.title), esc(b.stall.text)));
-      if (b.notifOn === false) out.push(ban('폰 알림이 꺼져 있어요 — 꿀매가 떠도 폰이 울리지 않아요. 폰 설정에서 켜 주세요'));
+      // 알림 띠(0.8.4 T11): 앱이 띠 글(notifBanner)을 보내면 그대로 — '모름'(확인하지 못함)도 띠. 옛 묶음은 꺼짐만
+      if (str(b.notifBanner)) out.push(ban(esc(b.notifBanner), str(b.notifLine) && str(b.notifLine) !== str(b.notifBanner) ? esc(str(b.notifLine).replace(str(b.notifBanner), '').replace(/^\s*—\s*/, '')) : ''));
+      else if (b.notifOn === false) out.push(ban('폰 알림이 꺼져 있어요 — 꿀매가 떠도 폰이 울리지 않아요. 폰 설정에서 켜 주세요'));
       for (const m of arr(b.markets)) {
-        if (m && m.bad) out.push(ban(esc(m.banner || `${MARKET[m.m] || ''} 확인이 막힌 것 같아요`), esc(m.text), '<button class="btn btn-sm" data-go="settings">수집 상태 보기</button>'));
+        if (m && m.bad) out.push(ban(esc(m.banner || `${MARKET[m.m] || ''} 확인이 막힌 것 같아요`), esc(str(m.bannerSub) || m.text), '<button class="btn btn-sm" data-go="settings">수집 상태 보기</button>'));
       }
       const fp = b.focusPlan;
       if ((S.tab === 'home') && fp && arr(fp.ids).length && fp.until > t) {
@@ -382,12 +405,12 @@
     if (isPaused(p)) return pausedCardHTML(p, i, n);
     const when = !(p.checkedAt > 0) ? '아직 확인 전' : late() ? `${clock(p.checkedAt, t)} 확인` : ago(p.checkedAt, t);
     const pend = pendingPid(p.id, ['edit', 'identify', 'unhideAll', 'excludeWord']);
-    const head = `<div class="card-head">
+    const head = `<div class="card-head"><div class="pills">
       <span class="chip-name">${esc(p.name)}</span>
       ${Number.isFinite(p.pct) ? `<span class="pill">꿀매 -${esc(p.pct)}%</span>` : ''}${pend ? chgPill : ''}${pausePill(p)}
       ${p.honey > 0 ? `<span class="pill honey">${ico('drop')}꿀매 ${esc(p.honey)}</span>` : ''}
       ${p.focus ? `<span class="pill brand" title="집중 감시 중">${ico('target')}<span class="sr">집중 감시 중</span></span>` : ''}
-      ${isModel(p) && str(p.baseVariant) ? `<span class="pill">${esc(p.baseVariant)} 기준</span>` : ''}
+      ${isModel(p) && str(p.baseVariant) ? `<span class="pill">${esc(p.baseVariant)} 기준</span>` : ''}</div>
       <span class="when">${esc(when)} · ${esc(p.count || 0)}건</span>
       <button class="iconbtn" aria-haspopup="menu" aria-label="${esc(p.name)} 메뉴" data-act="menu" data-pid="${esc(p.id)}" data-i="${i}" data-n="${n}" id="menu-${esc(p.id)}">${ico('more')}</button></div>`;
     const rec = lastRec((r) => r.pid === p.id && ['edit', 'identify', 'check', 'move', 'unhideAll', 'excludeWord', 'pause'].includes(r.type));
@@ -396,7 +419,7 @@
     if (p.state === 'allCaution') body = `<p class="state-text ink2">${esc(p.stateCard)}</p>`;
     // 다시 내는 중(물건 정한 직후) · 다시 켠 뒤 기준을 잡는 중(R7 — stateSub '이번 확인은 알림 없이 기준만 잡아요')
     else if (p.state === 'rebase') body = `<div role="status"><p class="state-text" style="color:var(--brand-bright)">${esc(p.stateCard)}</p>${p.stateSub ? `<p class="facts">${esc(p.stateSub)}</p>` : ''}</div>`;
-    else if (!low) body = `<p class="state-text muted">${esc(p.stateCard || '조건에 맞는 매물이 없어요')}</p>`;
+    else if (!low) body = `<p class="state-text muted">${esc(p.stateCard || '조건에 맞는 매물이 없어요')}</p>${gapsOf(p).some((g) => str(g.short)) ? gapRowHTML(p) : ''}`;
     else {
       body = `<div class="low" data-act="sheet" data-pid="${esc(p.id)}" data-key="${esc(low.key)}" tabindex="0" role="button" aria-label="지금 최저가 ${esc(low.title)} 판단 보기">${thumb(low)}<div style="min-width:0">
           <p class="ltitle">${esc(low.title)}</p>
@@ -405,12 +428,13 @@
         </div></div>
         ${arr(p.facts).length ? `<p class="facts">${facts(p.facts)}</p>` : ''}
         ${spark(p.spark, 28, 300) ? `<div style="height:28px">${spark(p.spark, 28, 300)}</div>` : ''}
-        ${mlows(p.marketLows) ? `<div class="lines">${mlows(p.marketLows)}</div>` : ''}
+        ${gapRowHTML(p)}
         ${vlows(p.variantLows) ? `<div class="lines">${vlows(p.variantLows)}</div>` : ''}
         ${p.cautionCard ? `<button class="note link" data-act="jump" data-pid="${esc(p.id)}" data-key="${esc(p.cautionKey || '')}">${esc(p.cautionCard)}</button>` : ''}
         ${p.nearText ? `<p class="facts">${esc(p.nearText)}</p>` : ''}`;
     }
-    const note = arr(p.notes)[0] ? `<p class="facts">${esc(p.notes[0])}</p>` : '';
+    // 0.8.5: 카드 맨 아래 날 글 줄은 지움 — 못 받은 마켓은 마켓 줄 짧은 표시 + 까닭 창(옛 묶음(gaps 없음)만 예전처럼 한 줄)
+    const note = !Array.isArray(p.gaps) && !Array.isArray(p.info) && arr(p.notes)[0] ? `<p class="facts">${esc(p.notes[0])}</p>` : '';
     const idPill = !confirmedOf(p) ? `<button class="pill brand" data-act="identify" data-pid="${esc(p.id)}"${lk()}>물건 정하기</button>` : '<span></span>';
     return `<article class="card ${p.honey > 0 ? 'has-honey' : ''}" aria-label="${esc(p.name)}">${head}${cmdLine(rec, { label: true })}${homeQueueText(p)}${body}${note}
       <div class="card-foot">${idPill}<button class="btn btn-text btn-sm" data-open="${esc(p.id)}">결과 전체 보기 ›</button></div></article>`;
@@ -671,13 +695,15 @@
     else if (!bf) info2.push(`<p class="info">고장·부품용·박스만·대여 글도 보는 중${p ? (pendBasic ? chgPill : `<button class="btn btn-text" data-act="basic" data-pid="${esc(p.id)}" data-v="1"${lk()}>다시 빼기</button>`) : ''}</p>`);
     const conds = arr(src.conds).length ? `<ul class="conds" aria-label="조건 요약">${src.conds.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '';
     const merged = Number(src.merged) > 0 ? `<p class="info">같은 글 ${esc(src.merged)}건을 한 줄로 묶었어요(여러 마켓·다시 올린 글)</p>` : '';
-    const ledger = arr(src.ledger).length || arr(src.notes).length ? `<div class="ledger">${arr(src.ledger).map((l) => `<p class="note">${esc(l)}</p>`).join('')}${arr(src.notes).map((n) => `<p class="meta">${esc(n)}</p>`).join('')}</div>` : '';
+    // 날 글 줄: 0.8.5 부터 갈래가 된 글은 맨 위 줄로(gaps) — 갈래 아닌 안내(info)만. 옛 묶음(gaps·info 없음)은 notes 그대로
+    const rawNotes = Array.isArray(src.gaps) || Array.isArray(src.info) ? arr(src.info) : arr(src.notes);
+    const ledger = arr(src.ledger).length || rawNotes.length ? `<div class="ledger">${arr(src.ledger).map((l) => `<p class="note">${esc(l)}</p>`).join('')}${rawNotes.map((n) => `<p class="meta">${esc(n)}</p>`).join('')}</div>` : '';
     const rowsShown = low ? f.rows.filter((l) => l.key !== low.key) : f.rows;
     // 꼬리표 기준: 모델 물건은 앱처럼 고른 칩이 기준(칩 > 기준 모델), 다섯 갈래는 그대로
     const ctx = { p: x.p, adhoc: !!x.a, base: model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : (src.baseVariant || '기본'), vtag: true, model };
     const rows = f.rows.length ? `<ul class="rows" style="margin-top:16px">${rowsShown.map((l) => rowHTML(l, ctx)).join('')}</ul>`
       : (all.length ? `<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" data-act="clearF">거르기 풀기</button></p>` : `<p class="empty">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
-    return `${marketChips()}${chipRows(all, f)}${lines.join('')}${sum}${band}${info2.join('')}${conds}${merged}${ledger}${hero}${rows}
+    return `${gapTopHTML(src)}${marketChips()}${chipRows(all, f)}${lines.join('')}${sum}${band}${info2.join('')}${conds}${merged}${ledger}${hero}${rows}
       <p class="foot-hint">줄 끝 ${ico('star')}<span class="sr">별</span>로 ${esc(RV.STAR.add)} · '아님'으로 이 매물 빼기</p>
       <p class="foot">거리: 당근은 거래 위치까지, 중고나라·번개장터는 판매 동네 가운데까지 어림(≈)이에요. 동네를 모르는 매물은 '지역 모름'이에요.</p>`;
   }
@@ -689,7 +715,9 @@
     else if (Array.isArray(c.rows)) cut = `<p class="ref-big">${esc(c.head)}</p>${c.rows.map((r) => `<div class="vcut ${r.hold ? 'hold' : ''}"><b>${esc(r.name)}</b><span>${esc(r.text)}</span></div>`).join('')}${c.unknown ? `<p class="hint">${esc(c.unknown)}</p>` : ''}`;
     else if (Array.isArray(c.single)) cut = `<p class="ref-big">${esc(c.single[0])}</p>${c.single[1] ? `<p class="meta" style="margin:4px 0 0;color:var(--ink2)">${esc(c.single[1])}</p>` : ''}`;
     const sp = spark(src.spark, 120, 800);
-    const judge = `<section class="box"><p class="box-label">꿀매 판정 기준</p>${cut}
+    // 0.8.4 T9: 그냥 검색이 지켜보는 같은 물건 시세를 빌렸으면 '지켜보는 {이름} 시세로 판정해요'(앱 시세 탭과 같은 자리 — 제목 바로 아래 Ink2)
+    const basis = str(c.basis) ? `<p class="basis">${esc(c.basis)}</p>` : '';
+    const judge = `<section class="box"><p class="box-label">꿀매 판정 기준</p>${basis}${cut}
       <p class="hint">기준가 순서: 판매완료(중고나라 90일) → 사라진 매물 → 30일 관측 → 지금 올라온 가격 · 5건 이상일 때만 써요</p>
       ${sp ? `<p class="box-label plain" style="margin-top:12px">최근 30일 최저가</p><div class="trend">${sp}</div><p class="meta" style="margin:4px 0 0">${esc(src.min30)}</p>` : (x.p && src.state !== 'empty' && src.state !== 'pending' ? '<p class="meta" style="margin:12px 0 0">추이 선은 하루 넘게 지켜본 뒤부터 그려요</p>' : '')}</section>`;
     const f = visibleRows(listOf(src), x.id);
@@ -955,7 +983,11 @@
       ${phoneBox('배터리 최적화 예외', bt ? [bt.exempt ? '예외로 켜져 있어요' : '아직 최적화 대상이에요', bt.lastBgAt > 0 ? `마지막 백그라운드 확인 ${ago(bt.lastBgAt, t)}` : '백그라운드 확인 전이에요', str(bt.text)].filter(Boolean).join(' · ') : '')}</section>`;
     // S10 수집 상태
     const st = live();
-    const mk = arr(b.markets).filter((m) => MARKET[m.m]).map((m) => `<div class="mlow">${mkMark(m.m)}${esc(MARKET[m.m])} <span class="${m.bad ? 'bad' : 'ink2'}" style="font-weight:400">${m.okAt > 0 ? `성공 ${esc(ago(m.okAt, t))}` : '아직 기록 없음'}${m.text ? ' · ' + esc(m.text) : ''}</span></div>`).join('');
+    // 0.8.5 AC-6-2: 앱 설정과 같은 사람 말(markets[].text)·색(tone: ok Ink3 · warn Ink2 · bad 코랄) — 1줄 이름 / 2줄 상태 말. 옛 묶음(tone 없음)은 예전 꼴
+    const TONE = { ok: 'muted', warn: 'ink2', bad: 'bad' };
+    const mk = arr(b.markets).filter((m) => MARKET[m.m]).map((m) => (m.tone
+      ? `<div class="mstat" aria-label="${esc(MARKET[m.m])}, ${esc(str(m.text).replace(/ · /g, ', '))}"><div class="mlow">${mkMark(m.m)}<span>${esc(MARKET[m.m])}</span></div><p class="${TONE[m.tone] || 'muted'}">${esc(m.text)}</p></div>`
+      : `<div class="mlow">${mkMark(m.m)}${esc(MARKET[m.m])} <span class="${m.bad ? 'bad' : 'ink2'}" style="font-weight:400">${m.okAt > 0 ? `성공 ${esc(ago(m.okAt, t))}` : '아직 기록 없음'}${m.text ? ' · ' + esc(m.text) : ''}</span></div>`)).join('');
     const dq = b.daangn;
     // 번개장터 동네 요청 수(R8, 묶음 bunjangDetail) — 글은 앱 설정 줄 그대로(text), 없으면 숫자로 같은 꼴
     const bd = b.bunjangDetail;
@@ -991,7 +1023,7 @@
    * 창 (C-4 ~ C-9, C-11, C-15, C-16, 비밀번호)
    * ===================================================================== */
   function openDlg(d, opener) {
-    S.dlg = d; S.why = null;
+    S.dlg = d; S.why = null; S.gap = null;
     S.opener = opener || (document.activeElement && document.activeElement.id) || null;
     S.menu = null;
     renderLayer(true);
@@ -1283,6 +1315,36 @@
     }
     if (back) back.focus();
   }
+  // 까닭 창(0.8.5 T6·T8) — 사유 창과 같은 꼴(.whydlg). 카드 마켓 줄을 누르면
+  function openGap(btn) {
+    const p = prod(btn.dataset.pid);
+    if (!p || !gapsOf(p).length) return;
+    S.gap = { pid: p.id, back: btn };
+    S.menu = null;
+    renderLayer();
+    const c = $('#gapClose');
+    if (c) c.focus();
+  }
+  function closeGap() {
+    const w = S.gap;
+    if (!w) return;
+    S.gap = null;
+    renderLayer();
+    let back = w.back && w.back.isConnected && w.back.offsetParent !== null ? w.back : null;
+    if (!back) back = [...document.querySelectorAll(`#page [data-act="gap"][data-pid="${CSS.escape(w.pid)}"]`)].find((x) => x.offsetParent !== null) || null;
+    if (back) back.focus();
+  }
+  function gapDlg() {
+    const p = prod(S.gap.pid);
+    const gs = gapsOf(p);
+    if (!gs.length) return '';
+    const head = str(p.gapHead);
+    const rows = gs.map((g) => `<li class="grow" aria-label="${esc(str(g.speech) || g.line)}">${mkMark(g.m, true)}<div><span class="rt1">${esc(g.line)}</span>${str(g.sub) ? `<span class="rsub">${esc(g.sub)}</span>` : ''}</div></li>`).join('');
+    return `<div class="wscrim" data-act="gapScrim"><div class="whydlg gapdlg" role="dialog" aria-modal="true" aria-labelledby="dGap"${head ? ' aria-describedby="dGapHead"' : ''}>
+      <div class="wbody"><h2 id="dGap">${esc(RV.GAP_TITLE)}</h2>${head ? `<p class="whead" id="dGapHead">${esc(head)}</p>` : ''}
+        <div class="wreasons"><ul class="rwlist">${rows}</ul></div></div>
+      <div class="wbtns"><button type="button" class="btn btn-text" id="gapClose" data-act="gapClose">${esc(RV.WHY.close)}</button></div></div></div>`;
+  }
   function whyDlg() {
     const w = S.why;
     const l = listingByKey(w.key);
@@ -1385,6 +1447,7 @@
     const body = el.querySelector('.dbody');
     const keep = body ? body.scrollTop : 0;
     const wOld = el.querySelector('.whydlg');
+    const inGap = !!(wOld && wOld.classList.contains('gapdlg') && wOld.contains(document.activeElement));
     const inWhy = !!(wOld && wOld.contains(document.activeElement));
     let html = '';
     if (S.menu) html = menuHTML();
@@ -1394,7 +1457,9 @@
       if (!html) S.dlg = null;
     }
     if (S.why && !S.menu) { const w = whyDlg(); if (w) html += w; else S.why = null; }
+    if (S.gap && !S.menu && !S.why) { const w = gapDlg(); if (w) html += w; else S.gap = null; }
     el.innerHTML = html;
+    if (inGap && S.gap) { const c = $('#gapClose'); if (c) c.focus(); }
     if (inWhy && S.why) { const c = $('#whyClose'); if (c) c.focus(); }
     const nb = el.querySelector('.dbody');
     if (nb && !focusFirst) nb.scrollTop = keep;
@@ -1480,13 +1545,13 @@
   function go(tab, pid) {
     // 홈 탭을 한 번 더 누르면 결과 화면을 닫고 홈으로(앱 MainScreen 과 같게)
     const h = tab === 'product' ? '#p=' + encodeURIComponent(pid) : tab === 'home' ? '#' : '#' + tab;
-    S.menu = null; S.why = null;
+    S.menu = null; S.why = null; S.gap = null;
     if (location.hash === h || (h === '#' && !location.hash)) { fromHash(); render(); window.scrollTo(0, 0); }
     else location.hash = h;
   }
   window.addEventListener('hashchange', () => {
     fromHash();
-    if (S.phase === 'ready') { S.dlg = null; S.why = null; render(); window.scrollTo(0, 0); }
+    if (S.phase === 'ready') { S.dlg = null; S.why = null; S.gap = null; render(); window.scrollTo(0, 0); }
     // 화면을 옮긴 뒤 열 창(알림함 이행 줄 → 물건 정하기 '모델' 칸)
     const after = S.afterNav; S.afterNav = null;
     if (after && S.phase === 'ready') after();
@@ -1731,6 +1796,9 @@
       case 'why': e.preventDefault(); openWhy(t); return;
       case 'whyScrim': if (e.target === t) closeWhy(); return;
       case 'whyClose': closeWhy(); return;
+      case 'gap': e.preventDefault(); openGap(t); return;
+      case 'gapScrim': if (e.target === t) closeGap(); return;
+      case 'gapClose': closeGap(); return;
       case 'close': closeDlg(); return;
       case 'menuClose': S.menu = null; renderLayer(); return;
       case 'menu': e.stopPropagation(); menuAt(t, pid); return;
@@ -1986,11 +2054,12 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (S.why) { e.preventDefault(); closeWhy(); return; }
+      if (S.gap) { e.preventDefault(); closeGap(); return; }
       if (S.menu) { S.menu = null; renderLayer(); const b = S.opener && document.getElementById(S.opener); if (b) b.focus(); return; }
       if (S.dlg) { e.preventDefault(); closeDlg(); return; }
     }
     // 창 안에서만 Tab 이 돌아요
-    if (e.key === 'Tab' && (S.dlg || S.menu || S.why)) {
+    if (e.key === 'Tab' && (S.dlg || S.menu || S.why || S.gap)) {
       const box = $('#layer .whydlg') || $('#layer .dialog') || $('#layer .drawer') || $('#layer .menu');
       if (box) {
         const f = [...box.querySelectorAll('button:not([disabled]),a[href],input,select,[tabindex="0"]')];
