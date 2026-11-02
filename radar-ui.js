@@ -2015,9 +2015,16 @@
     const id = e.target.id;
     if (id === 'fSort') { S.sort = e.target.value; render(); }
   });
+  let composing = false;
+  document.addEventListener('compositionstart', () => { composing = true; });
+  document.addEventListener('compositionend', (e) => {
+    composing = false;
+    if (e.target && e.target.id === 'fQ') { S.q = e.target.value; render(); }
+  });
   document.addEventListener('input', (e) => {
     const el = e.target;
-    if (el.id === 'fQ') { S.q = el.value; render(); return; }
+    // 한글 조합 중(IME)에 다시 그리면 칸이 새로 생겨 'ㅇㅏㅅ…'처럼 낱자로 갈라져요 — 조합이 끝날 때(compositionend) 그려요(11/2 대표 제보)
+    if (el.id === 'fQ') { S.q = el.value; if (!(e.isComposing || composing)) render(); return; }
     if (el.id === 'q') {
       S.searchText = el.value;
       const cached = el.value.trim() && C.adhocCached(B(), el.value, now());
