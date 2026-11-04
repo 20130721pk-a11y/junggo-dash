@@ -524,21 +524,24 @@
   // 재료 = 묶음 identify.models { src, off, defs, auto, pinned, items:[[제목, 값, 표시]] } — 표시 1 = 같은 글(앱 Dedup.group 이 빼는 것),
   // 2 = 처음 단어 상태로 빠지는 매물. 판정은 하지 않고 '어느 모델 낱말이 든 제목인가'만 앱과 같은 규칙으로 세요.
   const UNKNOWN_MODEL = '모델 모름';
+  // 앱 Matcher.ALIASES 와 같은 목록(0.8.6 C-2 상표 영문 표기 더함 — 앱 = 웹)
   const M_ALIASES = [
-    ['아이폰', 'iphone'], ['아이패드', 'ipad'], ['맥북', 'macbook'], ['아이맥', 'imac'],
-    ['에어팟', 'airpods', 'airpod'], ['애플워치', 'applewatch'], ['애플', 'apple'],
-    ['갤럭시', 'galaxy'], ['갤탭', '갤럭시탭', 'galaxytab'], ['버즈', 'buds'],
-    ['프로', 'pro'], ['맥스', 'max'], ['플러스', 'plus'], ['미니', 'mini'],
-    ['울트라', 'ultra'], ['에어', 'air'], ['닌텐도', 'nintendo'], ['스위치', 'switch'],
-    ['플레이스테이션', '플스', 'playstation'],
-    ['ps5', '플스5', '플레이스테이션5', 'playstation5'],
-    ['ps4', '플스4', '플레이스테이션4', 'playstation4'],
-    ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'],
-    ['후지필름', '후지', 'fujifilm'], ['라이카', 'leica'], ['로지텍', 'logitech'],
-    ['레노버', 'lenovo'], ['삼성', 'samsung'], ['엘지', 'lg'], ['샤오미', 'xiaomi'],
-    ['나이키', 'nike'], ['아디다스', 'adidas'], ['뉴발란스', 'newbalance'],
-    ['스타벅스', 'starbucks'], ['레고', 'lego'], ['기가', 'gb'], ['테라', 'tb'],
-    ['디오스', 'dios'],
+    ['아이폰', 'iphone'], ['아이패드', 'ipad'], ['맥북', 'macbook'], ['아이맥', 'imac'], ['에어팟', 'airpods', 'airpod'], ['애플워치', 'applewatch'], ['애플', 'apple'],
+    ['갤럭시', 'galaxy'], ['갤탭', '갤럭시탭', 'galaxytab'], ['버즈', 'buds'], ['프로', 'pro'], ['맥스', 'max'], ['플러스', 'plus'], ['미니', 'mini'], ['울트라', 'ultra'],
+    ['에어', 'air'], ['닌텐도', 'nintendo'], ['스위치', 'switch'], ['플레이스테이션', '플스', 'playstation'], ['ps5', '플스5', '플레이스테이션5', 'playstation5'],
+    ['ps4', '플스4', '플레이스테이션4', 'playstation4'], ['다이슨', 'dyson'], ['소니', 'sony'], ['캐논', 'canon'], ['니콘', 'nikon'], ['후지필름', '후지', 'fujifilm'],
+    ['라이카', 'leica'], ['로지텍', 'logitech'], ['레노버', 'lenovo'], ['삼성', 'samsung'], ['엘지', 'lg'], ['샤오미', 'xiaomi'], ['나이키', 'nike'],
+    ['아디다스', 'adidas'], ['뉴발란스', 'newbalance'], ['스타벅스', 'starbucks'], ['레고', 'lego'], ['기가', 'gb'], ['테라', 'tb'], ['디오스', 'dios'], ['씰리', 'sealy'],
+    ['시몬스', 'simmons'], ['템퍼', 'tempur'], ['이케아', 'ikea'], ['한샘', 'hanssem'], ['허먼밀러', 'hermanmiller'], ['시디즈', 'sidiz'], ['발뮤다', 'balmuda'],
+    ['드롱기', 'delonghi'], ['브레빌', 'breville'], ['필립스', 'philips'], ['브라운', 'braun'], ['보스', 'bose'], ['젠하이저', 'sennheiser'], ['마샬', 'marshall'],
+    ['하만카돈', 'harmankardon'], ['로보락', 'roborock'], ['비쎌', 'bissell'], ['쿠쿠', 'cuckoo'], ['위닉스', 'winix'], ['코웨이', 'coway'], ['테팔', 'tefal'],
+    ['일렉트로룩스', 'electrolux'], ['밀레', 'miele'], ['보쉬', 'bosch'], ['지멘스', 'siemens'], ['고프로', 'gopro'], ['올림푸스', 'olympus'], ['파나소닉', 'panasonic'],
+    ['시그마', 'sigma'], ['탐론', 'tamron'], ['인스탁스', 'instax'], ['폴라로이드', 'polaroid'], ['야마하', 'yamaha'], ['펜더', 'fender'], ['깁슨', 'gibson'],
+    ['롤랜드', 'roland'], ['마이크로소프트', 'microsoft'], ['엑스박스', 'xbox'], ['서피스', 'surface'], ['에이수스', 'asus'], ['에이서', 'acer'], ['커세어', 'corsair'],
+    ['레오폴드', 'leopold'], ['루이비통', 'louisvuitton'], ['구찌', 'gucci'], ['샤넬', 'chanel'], ['프라다', 'prada'], ['롤렉스', 'rolex'], ['오메가', 'omega'],
+    ['까르띠에', 'cartier'], ['몽블랑', 'montblanc'], ['슈프림', 'supreme'], ['스투시', 'stussy'], ['노스페이스', 'northface'], ['파타고니아', 'patagonia'],
+    ['아크테릭스', 'arcteryx'], ['몽클레어', 'moncler'], ['컨버스', 'converse'], ['반스', 'vans'], ['리복', 'reebok'], ['푸마', 'puma'], ['아식스', 'asics'],
+    ['살로몬', 'salomon'], ['호카', 'hoka'], ['크록스', 'crocs'], ['라코스테', 'lacoste'], ['레이밴', 'rayban'], ['젠틀몬스터', 'gentlemonster'],
   ];
   const M_INDEX = new Map();
   for (const g of M_ALIASES) { const n = g.map(norm); for (const w of n) M_INDEX.set(w, n); }
@@ -550,12 +553,36 @@
     '택포', '택배', '택배비', '직거래', '무료배송', '반값택배', '편의점', '포함', '가능', '불가', '문의', '네고',
     '정품', '상태', '좋음', '좋아요', '최상', '깨끗', '깨끗합니다', '깔끔', '급', '가격', '원', '만원', '개', '제품', '상품',
     'gb', 'tb', 'mb', 'cm', 'mm', 'kg', '인치']);
+  // 앱 Matcher.unglue(0.8.6 C-1): 붙여 쓴 낱말을 같은 말 열쇠로 자른다('에어팟프로' → 에어팟 + 프로). 열쇠는 낱말 첫머리·앞 열쇠 바로 뒤·
+  // 글자 갈래(한글/영문/숫자)가 바뀌는 자리에서만 시작하고 끝도 그런 자리(또는 다음 열쇠 앞)여야 한다('에어컨'·'프로젝터'는 그대로).
+  const M_KEYS = [...M_INDEX.keys()].filter((k) => k.length >= 2).sort((a, b) => b.length - a.length);
+  const clsOf = (c) => (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(c) ? 0 : /[a-z]/.test(c) ? 1 : /[0-9]/.test(c) ? 2 : 3);
+  const boundaryAt = (n, i) => i === 0 || i >= n.length || clsOf(n[i]) !== clsOf(n[i - 1]);
+  const RUNS_RE = /[가-힣ㄱ-ㅎㅏ-ㅣ]+|[^가-힣ㄱ-ㅎㅏ-ㅣ]+/g;
+  function keyAt(n, i, depth) {
+    for (const k of M_KEYS) if (n.startsWith(k, i) && (boundaryAt(n, i + k.length) || (depth < 3 && keyAt(n, i + k.length, depth + 1) != null))) return k;
+    return null;
+  }
+  function unglueKey(n) {
+    const out = [];
+    let buf = '', i = 0, lastKey = false, used = false;
+    while (i < n.length) {
+      const k = lastKey || boundaryAt(n, i) ? keyAt(n, i, 0) : null;
+      if (k != null) {
+        if (buf) { out.push(...(buf.match(RUNS_RE) || [])); buf = ''; }
+        out.push(k); i += k.length; lastKey = true; used = true;
+      } else { buf += n[i]; i++; lastKey = false; }
+    }
+    if (!used) return n.match(RUNS_RE) || [];
+    if (buf) out.push(...(buf.match(RUNS_RE) || []));
+    return out;
+  }
   function groupsOf(kw) {
     const out = [];
     for (const w of String(kw || '').split(/\s+/)) {
       const n = norm(w);
       if (!n) continue;
-      const parts = M_INDEX.has(n) ? [n] : (n.match(/[가-힣ㄱ-ㅎㅏ-ㅣ]+|[^가-힣ㄱ-ㅎㅏ-ㅣ]+/g) || []);
+      const parts = M_INDEX.has(n) ? [n] : unglueKey(n);
       for (const q of parts) if (q) out.push(M_INDEX.get(q) || [q]);
     }
     return out;

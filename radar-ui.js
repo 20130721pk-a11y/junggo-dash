@@ -35,7 +35,7 @@
     phase: 'loading', // loading | lock | first | version | token | ready
     bundle: null, box: null, key: null, salt: '', token: '', repo: '', lastCt: '', pulledAt: 0, level: '',
     needToken: false, lockErr: '', busy: false,
-    tab: 'home', pid: '', ptab: 'list', mkSel: '', cond: '', area: 'all', withUnknown: true, sort: 'low', q: '', variant: '', vpid: '', allDaangn: false,
+    tab: 'home', pid: '', ptab: 'list', mkSel: '', cond: '', area: 'all', withUnknown: true, sort: 'low', q: '', variant: '', vpid: '', nearDaangn: false,
     searchText: '', adhocQ: SS.get(SS_ADHOC) || '', adhocSwap: '',
     dlg: null, opener: null, menu: null, toast: null, why: null, // why = 0.8.2 사유 창 { key, g, back(연 배지) } — 판단 창 위에도 떠요
     sent: [], iss: {}, plain: SS.get(SS_PLAIN) || {}, cmdKey: null, ro: false, pend: null, pollUntil: 0, lastSt: {}, doneSeen: {}, dismissed: {},
@@ -515,12 +515,14 @@
   const AREA_LABEL = { all: '전체', near: '가까운 동네만', 3: '3km 안', 5: '5km 안', 10: '10km 안', 20: '20km 안' };
   const SORT_LABEL = { low: '싼 순', seen: '처음 본 순', near: '가까운 순' };
   function variantFor(id) {
-    if (S.vpid !== id) { S.vpid = id; S.variant = ''; S.cond = ''; S.mkSel = ''; S.allDaangn = false; }
+    if (S.vpid !== id) { S.vpid = id; S.variant = ''; S.cond = ''; S.mkSel = ''; S.nearDaangn = false; }
     return S.variant;
   }
   const mkObj = () => (S.mkSel ? { j: S.mkSel === 'j', d: S.mkSel === 'd', b: S.mkSel === 'b' } : { j: true, d: true, b: true });
   function visibleRows(list, id) {
     const b = B();
+    // 그냥 검색 당근 '가까운 동네만'(0.8.6 — 기본은 전체, 앱 ResultsScreen nearDaangn 과 같게)
+    if (S.nearDaangn) list = arr(list).filter((l) => !l || l.m !== 'd' || (l.place && l.place.near === true));
     return RV.filterListings(list, { mk: mkObj(), area: b.base ? S.area : 'all', withUnknown: S.withUnknown, q: S.q, sort: S.sort, variant: variantFor(id), cond: S.cond });
   }
   function marketChips() {
@@ -570,9 +572,9 @@
     }
     const unhiding = p && S.sent.some((r) => r.type === 'unhide' && r.pid === p.id && r.key === l.key && C.isOpen(stOf(r).st));
     // 0.8.2: 사유가 온 ⚠ 줄은 이유 글 줄 없이 배지만(디자인 덧붙임 4-1·4-7) — 줄 아래 글은 다른 줄처럼 소식·같은 글·변형. 옛 묶음 ⚠ 는 지금처럼 why 한 줄
-    const rsOf = (first) => { const xs = [first, l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', vtagOf(l, ctx)].filter(Boolean); return xs.length ? `<p class="rs">${xs.map(esc).join(' · ')}</p>` : ''; };
+    const rsOf = (first) => { const xs = [first, l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', l.shop ? '가게' : '', vtagOf(l, ctx)].filter(Boolean); return xs.length ? `<p class="rs">${xs.map(esc).join(' · ')}</p>` : ''; };
     const sub = g && g.k === 'caution' ? (RV.reasonsOf(g) ? rsOf('') : `<p class="rs why">${esc(g.why)}</p>`)
-      : `<p class="rs">${[g ? g.why : (p && p.state === 'rebase' && p.cut && p.cut.rebase) || '', l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', vtagOf(l, ctx)].filter(Boolean).map(esc).join(' · ')}</p>`;
+      : `<p class="rs">${[g ? g.why : (p && p.state === 'rebase' && p.cut && p.cut.rebase) || '', l.news, l.dups > 0 ? `같은 글 ${l.dups}건` : '', l.shop ? '가게' : '', vtagOf(l, ctx)].filter(Boolean).map(esc).join(' · ')}</p>`;
     const where = placeText(l.place);
     const unknown = RV.isUnknown(l.place);
     const sub2 = ctx.sub2 || sub;
@@ -661,10 +663,10 @@
     const dropped = (x.p || x.a || {}).dropped || {};
     const areaOn = b.base && f.area !== 'all';
     const lines = [];
-    // 그냥 검색 당근 근처 줄(앱 CardCore.daangnNearLine)
-    if (x.a && x.a.nearby && x.a.nearby.total > x.a.nearby.near) {
+    // 그냥 검색 당근 근처 줄(앱 CardCore.daangnNearLine, 0.8.6 — 기본 전체, 누르면 가까운 동네만)
+    if (x.a && x.a.nearby && (S.nearDaangn || (x.a.nearby.total > x.a.nearby.near && x.a.nearby.total > 0))) {
       const nb = x.a.nearby;
-      lines.push(`<button class="info brand link" data-act="allDaangn">${S.allDaangn ? `당근 ${esc(nb.total)}건 모두 보는 중 · 근처만 보기` : `당근 ${esc(nb.total)}건 중 내 동네 근처 ${esc(nb.near)}건만 보여요 · 전체 보기`}</button>`);
+      lines.push(`<button class="info brand link" data-act="nearDaangn">${S.nearDaangn ? `가까운 동네만 보는 중 · 당근 전체 ${esc(nb.total)}건 보기` : nb.near > 0 ? `당근 ${esc(nb.total)}건 중 내 동네 근처 ${esc(nb.near)}건 · 가까운 동네만 보기` : `당근 ${esc(nb.total)}건 · 내 동네 근처는 없어요`}</button>`);
     }
     if (x.a && x.a.ask) lines.push(`<p class="info">이 검색은 ${esc(x.a.ask.v)} 매물이 훨씬 많아요(${esc(x.a.ask.n)}건 · 기본 ${esc(x.a.ask.b)}건) · ${esc(x.a.ask.v)} 칩을 누르면 ${esc(x.a.ask.v)} 최저가를 봐요</p>`);
     // '모델을 제목 낱말로 자동으로 나눴어요'(디자인 4-3·G-5, 앱 AutoSplitLine): 저장한 물건 = '고치기'(물건 정하기 '모델' 칸), 그냥 검색 = 안내만(대표 결정 3)
@@ -685,14 +687,19 @@
     const band = p && !confirmedOf(p) ? `<div class="idband" data-act="identify" data-pid="${esc(p.id)}" role="button" tabindex="0"><div><b>어떤 물건인지 정해 주세요</b><span>다른 물건이 섞이면 최저가·시세가 틀려요</span></div><span class="go">물건 정하기 ›</span></div>` : '';
     // 검색어 확인·기본 거르기 줄(앱 MatchLine·BasicLine) — 저장한 물건은 단추가 조건 고치기 명령
     const info2 = [];
-    const mm = cfg ? cfg.matchMode : 'title';
+    // 그냥 검색은 묶음의 matchMode(0.8.6 기본 제목·내용 — 앱 Products.ADHOC_MATCH)
+    const mm = cfg ? cfg.matchMode : (x.a && x.a.matchMode) || 'title';
     const pendMatch = p && S.sent.some((r) => r.type === 'edit' && r.pid === p.id && arr(r.fields).includes('matchMode') && C.isOpen(stOf(r).st));
     const pendBasic = p && S.sent.some((r) => r.type === 'edit' && r.pid === p.id && arr(r.fields).includes('basicFilter') && C.isOpen(stOf(r).st));
-    if (mm !== 'content' && dropped.match > 0) info2.push(`<p class="info">제목이 검색어와 맞지 않는 ${esc(dropped.match)}건은 뺐어요${p ? (pendMatch ? chgPill : `<button class="btn btn-text" data-act="matchMode" data-pid="${esc(p.id)}" data-v="content"${lk()}>내용까지 보기</button>`) : ''}</p>`);
+    // 뺀 것이 남은 것보다 많으면 눈에 띄게(앱 CardCore.matchLine·matchLoud, 0.8.6)
+    const loud = mm !== 'content' && dropped.match > 0 && dropped.match > all.length;
+    if (mm !== 'content' && dropped.match > 0) info2.push(`<p class="info${loud ? ' brand' : ''}">${loud ? `제목에 검색어가 없는 매물이 더 많아요 — ${esc(dropped.match)}건은 뺐어요` : `제목이 검색어와 맞지 않는 ${esc(dropped.match)}건은 뺐어요`}${p ? (pendMatch ? chgPill : `<button class="btn btn-text" data-act="matchMode" data-pid="${esc(p.id)}" data-v="content"${lk()}>내용까지 보기</button>`) : ''}</p>`);
     else if (mm === 'content') info2.push(`<p class="info">당근 설명·사이트 검색 결과까지 보는 중${p ? (pendMatch ? chgPill : `<button class="btn btn-text" data-act="matchMode" data-pid="${esc(p.id)}" data-v="title"${lk()}>제목만</button>`) : ''}</p>`);
     const bf = cfg ? cfg.basicFilter !== false : true;
     if (bf && dropped.basic > 0) info2.push(`<p class="info">고장·부품용·박스만·대여 글 ${esc(dropped.basic)}건은 뺐어요${p ? (pendBasic ? chgPill : `<button class="btn btn-text" data-act="basic" data-pid="${esc(p.id)}" data-v="0"${lk()}>보이기</button>`) : ''}</p>`);
     else if (!bf) info2.push(`<p class="info">고장·부품용·박스만·대여 글도 보는 중${p ? (pendBasic ? chgPill : `<button class="btn btn-text" data-act="basic" data-pid="${esc(p.id)}" data-v="1"${lk()}>다시 빼기</button>`) : ''}</p>`);
+    // 업자로 뺀 수(앱 CardCore.proLine, 0.8.6 C-10 — 전엔 조용히 뺐어요)
+    if (Number(dropped.pro) > 0) info2.push(`<p class="info">업자 글 ${esc(dropped.pro)}건은 뺐어요(중고나라 한 검색에 3건 이상 올린 판매자·번개장터 공식 셀러)</p>`);
     const conds = arr(src.conds).length ? `<ul class="conds" aria-label="조건 요약">${src.conds.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '';
     const merged = Number(src.merged) > 0 ? `<p class="info">같은 글 ${esc(src.merged)}건을 한 줄로 묶었어요(여러 마켓·다시 올린 글)</p>` : '';
     // 날 글 줄: 0.8.5 부터 갈래가 된 글은 맨 위 줄로(gaps) — 갈래 아닌 안내(info)만. 옛 묶음(gaps·info 없음)은 notes 그대로
@@ -1951,7 +1958,7 @@
       case 'cond': S.cond = S.cond === t.dataset.c ? '' : t.dataset.c; render(); return;
       case 'area': S.area = t.dataset.a; render(); return;
       case 'withUnknown': S.withUnknown = !S.withUnknown; render(); return;
-      case 'allDaangn': S.allDaangn = !S.allDaangn; render(); return;
+      case 'nearDaangn': S.nearDaangn = !S.nearDaangn; render(); return;
       case 'clearF': S.area = 'all'; S.q = ''; S.mkSel = ''; S.variant = ''; S.cond = ''; render(); return;
       case 'csv': csvSave(t.dataset.ns); toast('보이는 매물을 CSV로 저장했어요'); return;
       case 'matchMode': send('edit', { pid, set: { matchMode: t.dataset.v }, base: { matchMode: (prod(pid).cfg || {}).matchMode || 'title' } }); return;
