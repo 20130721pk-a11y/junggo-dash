@@ -725,7 +725,10 @@
     if (bf && dropped.basic > 0) info2.push(`<p class="info">고장·부품용·박스만·대여 글 ${esc(dropped.basic)}건은 뺐어요${p ? (pendBasic ? chgPill : `<button class="btn btn-text" data-act="basic" data-pid="${esc(p.id)}" data-v="0"${lk()}>보이기</button>`) : ''}</p>`);
     else if (!bf) info2.push(`<p class="info">고장·부품용·박스만·대여 글도 보는 중${p ? (pendBasic ? chgPill : `<button class="btn btn-text" data-act="basic" data-pid="${esc(p.id)}" data-v="1"${lk()}>다시 빼기</button>`) : ''}</p>`);
     // 업자로 뺀 수(앱 CardCore.proLine, 0.8.6 C-10 — 전엔 조용히 뺐어요)
-    if (Number(dropped.pro) > 0) info2.push(`<p class="info">업자 글 ${esc(dropped.pro)}건은 뺐어요(중고나라 한 검색에 3건 이상 올린 판매자·번개장터 공식 셀러)</p>`);
+    if (Number(dropped.pro) > 0) info2.push(`<p class="info">번개장터 공식 셀러 글 ${esc(dropped.pro)}건은 뺐어요</p>`);
+    // 가게 글(앱 CardCore.shopLine — 11/4 대표 위임 결정: 중고나라·번개장터 모두 빼지 않고 '가게' 표시만)
+    const shopN = f.rows.filter((l) => l && l.shop).length;
+    if (shopN > 0) info2.push(`<p class="info">가게 글 ${esc(shopN)}건(한 검색에 같은 판매자 글 3건 이상)도 '가게'로 표시해 보여요</p>`);
     const conds = arr(src.conds).length ? `<ul class="conds" aria-label="조건 요약">${src.conds.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '';
     const merged = Number(src.merged) > 0 ? `<p class="info">같은 글 ${esc(src.merged)}건을 한 줄로 묶었어요(여러 마켓·다시 올린 글)</p>` : '';
     // 날 글 줄: 0.8.5 부터 갈래가 된 글은 맨 위 줄로(gaps) — 갈래 아닌 안내(info)만. 옛 묶음(gaps·info 없음)은 notes 그대로
@@ -2004,6 +2007,7 @@
       case 'cond': S.cond = S.cond === t.dataset.c ? '' : t.dataset.c; render(); return;
       case 'area': S.area = t.dataset.a; render(); return;
       case 'withUnknown': S.withUnknown = !S.withUnknown; render(); return;
+      case 'allDaangn': S.allDaangn = !S.allDaangn; render(); return;
       case 'clearF': S.area = 'all'; S.q = ''; S.mkSel = ''; S.variant = ''; S.cond = ''; render(); return;
       case 'csv': csvSave(t.dataset.ns); toast('보이는 매물을 CSV로 저장했어요'); return;
       case 'matchMode': send('edit', { pid, set: { matchMode: t.dataset.v }, base: { matchMode: (prod(pid).cfg || {}).matchMode || 'title' } }); return;
