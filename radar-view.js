@@ -267,6 +267,8 @@
   function screenHero(rows, o) {
     o = o || {};
     const all = arr(rows).filter(Boolean);
+    // 0.8.6 J-1: 값이 섞여 전체 판정 보류(묶음 mixedAll = 앱이 낸 한 줄) — 칸 없이 그 줄(앱 CardCore.screenHero 와 같게, 칩과 상관없이)
+    if (str(o.mixed)) return { hero: null, doubtful: 0, line: str(o.mixed), cautionKey: null };
     const model = o.term === 'model';
     if (model && isUnknownModel(str(o.chip))) return { hero: null, doubtful: 0, line: unknownChipLine(all.length), cautionKey: null };
     const split = o.base !== undefined ? !!str(o.base) : all.some((l) => str(l.variant));

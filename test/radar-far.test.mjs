@@ -70,3 +70,16 @@ test('옛 묶음(far 줄·nearOnly 없음)은 근처만 그대로 · 줄 글은 
   assert.equal(RV.daangnNearLine(3, 3, false), null);
   assert.equal(RV.daangnNearLine(4, 0, false), '내 동네 근처 당근은 없어요 · 당근 전체 4건 보기');
 });
+
+test('값이 섞여 전체 판정 보류(묶음 mixedAll)면 칩을 골라도 지금 최저가 칸 없이 그 한 줄(앱 CardCore.screenHero J-1)', () => {
+  const line = '여러 물건 값이 섞여 판정 보류 — 모델까지 넣어 검색해 주세요';
+  const rows = [
+    { key: 'j:1', m: 'j', price: 30000, grade: { k: 'unknown', why: line } },
+    { key: 'b:2', m: 'b', price: 900000, grade: { k: 'unknown', why: line } },
+  ];
+  const h = RV.screenHero(rows, { name: '씰리', market: 'j', mixed: line });
+  assert.equal(h.hero, null);
+  assert.equal(h.line, line);
+  // 칸이 없는 옛 묶음은 예전 고르기 그대로
+  assert.equal(RV.screenHero(rows, { name: '씰리' }).hero.key, 'j:1');
+});

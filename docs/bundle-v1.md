@@ -290,3 +290,4 @@
 - 관심 매물 `watches[].listing.grade`(S-2): 같은 물건 매물 줄(모은 풀 → 스냅숏)에 같은 매물이 있으면 그 판매자 의심 이유로 판정(앱 `Watch.judgedListing` — 앱 관심 탭과 같은 함수). 칸은 그대로.
 - 앱 허용 목록: `LISTING` += `far` · `NEARBY` = `{total, near, nearOnly, far, lines}` · `PRODUCT` += `marketCaution`.
 - 시험 자료: `test/fixtures/app-far.json` = 앱 `WebBundleFar086Test.farFieldsAreAllowed` 가 만든 그냥 검색 한 건(지어낸 매물 — 중고나라 6 · 근처 당근 2 · 근처 밖 당근 5). 시험 `test/radar-far.test.mjs`·`test/far.e2e.py`.
+- **값이 섞여 전체 판정 보류**(판정 담당 fix-086-judge J-1, 앱 `Snapshot.mixedAll`): 물건·`adhoc[]` 에 `mixedAll` = 그 한 줄('여러 물건 값이 섞여 판정 보류 — 모델까지 넣어 검색해 주세요', 앱 `Judge.MIXED_ALL_REASON`), 그럴 때만. 그때 `state` = `unknown`(판정 보류) · `lowKey` 없음 · `statePage`/`stateCard` = 그 줄 · `cut.single` = [그 줄](꿀매 기준 줄 없음 — 앱 시세 탭과 같게). 웹 `RV.screenHero(rows, { mixed })` 는 칩을 골라도 칸 없이 그 줄. 매물 줄 `grade.k` 는 `unknown`(이유 같은 글). 끈 물건·다시 잡는 중엔 안 실어요.

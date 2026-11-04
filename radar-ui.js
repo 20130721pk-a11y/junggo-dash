@@ -656,7 +656,7 @@
     // 잠시 끈 물건(R7)은 지금 최저가 칸을 그리지 않아요 — 맨 위 띠가 '끌 때 결과'임을 알림(앱 결과 화면과 같음)
     const off = src.state === 'paused';
     const picked = chipped && src.state !== 'rebase' && src.state !== 'pending' && !off
-      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term, held: src.held })
+      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term, held: src.held, mixed: src.mixedAll })
       : null;
     const low = picked ? picked.hero : (src.state === 'ok' || src.state === 'unknown') ? findL(src, src.lowKey) : null;
     const cautionLine = picked ? picked.line : src.cautionPage;
