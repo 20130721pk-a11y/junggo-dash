@@ -267,6 +267,8 @@
   function screenHero(rows, o) {
     o = o || {};
     const all = arr(rows).filter(Boolean);
+    // 0.8.6 J-1: 값이 섞여 전체 판정 보류(묶음 mixedAll = 앱이 낸 한 줄) — 칸 없이 그 줄(앱 CardCore.screenHero 와 같게, 칩과 상관없이)
+    if (str(o.mixed)) return { hero: null, doubtful: 0, line: str(o.mixed), cautionKey: null };
     const model = o.term === 'model';
     if (model && isUnknownModel(str(o.chip))) return { hero: null, doubtful: 0, line: unknownChipLine(all.length), cautionKey: null };
     const split = o.base !== undefined ? !!str(o.base) : all.some((l) => str(l.variant));
@@ -294,6 +296,28 @@
     return { hero, doubtful, line, cautionKey: cautions.length ? cautions[0].key : null };
   }
   const kmOf = (l) => (l.place && !isUnknown(l.place) && Number.isFinite(l.place.km) ? l.place.km : Infinity);
+
+  /* ---------- 그냥 검색 근처 밖 당근 줄 (0.8.6 W-1, 앱 ResultsScreen.rememberVisible allDaangn 과 같은 셈) ---------- */
+  // 묶음 adhoc[].listings[].far = 근처 밖 당근 줄(앱이 낸 표시 — 웹은 거리를 다시 재지 않아요). adhoc[].nearby.nearOnly = 앱 기본 보기가 근처만인가
+  // (없으면 근처만 — 0.7.1 결정 2 그대로). all = 웹 '전체 보기'를 켰나. 돌려주는 것: { nearOnly, has(실린 근처 밖 줄이 있나), hide(지금 빼나), rows }.
+  // '가까운 동네만' 지역 칩은 filterListings 가 place.near 로 거르므로 근처 밖 줄은 거기서도 빠져요(앱 Nearby.passes 와 같게).
+  function daangnFar(a, all) {
+    const ls = arr(a && a.listings).filter(Boolean);
+    const nb = a && a.nearby && typeof a.nearby === 'object' ? a.nearby : null;
+    const nearOnly = !(nb && nb.nearOnly === false);
+    const has = ls.some((l) => l.far === true);
+    // all = 기본 보기 뒤집기(0.8.6 수집·매칭 — 앱 기본이 당근 전체면 뒤집었을 때 근처 밖을 숨김)
+    const hide = nearOnly ? !all : !!all;
+    return { nearOnly, has, hide, rows: hide && has ? regroup(ls, (l) => l.far !== true) : ls };
+  }
+  // 앱 CardCore.daangnNearLine 과 같은 글(묶음 nearby.lines 가 없을 때만 — 0.8.6 묶음은 앱 글을 실어요)
+  function daangnNearLine(n, m, all) {
+    if (n === m || n === 0) return null;
+    if (!all && m === 0) return `내 동네 근처 당근은 없어요 · 당근 전체 ${n}건 보기`;
+    if (!all) return `가까운 동네만 보는 중 · 당근 전체 ${n}건 보기`;
+    if (m === 0) return `당근 ${n}건 · 내 동네 근처는 없어요`;
+    return `당근 ${n}건 중 내 동네 근처 ${m}건 · 가까운 동네만 보기`;
+  }
 
   /* ---------- 알림함 꼬리표 (앱 InboxScreen.kt:128-132 와 같은 규칙) ---------- */
   function inboxTags(i, now) {
@@ -414,5 +438,6 @@
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
     badge, WHY, GAP_TITLE, REASON_GROUP, reasonsOf, reasonGroups, badgeKind, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
+    daangnFar, daangnNearLine,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

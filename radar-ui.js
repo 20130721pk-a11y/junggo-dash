@@ -35,7 +35,7 @@
     phase: 'loading', // loading | lock | first | version | token | ready
     bundle: null, box: null, key: null, salt: '', token: '', repo: '', lastCt: '', pulledAt: 0, level: '',
     needToken: false, lockErr: '', busy: false,
-    tab: 'home', pid: '', ptab: 'list', mkSel: '', cond: '', area: 'all', withUnknown: true, sort: 'low', q: '', variant: '', vpid: '', nearDaangn: false,
+    tab: 'home', pid: '', ptab: 'list', mkSel: '', cond: '', area: 'all', withUnknown: true, sort: 'low', q: '', variant: '', vpid: '', allDaangn: false,
     searchText: '', adhocQ: SS.get(SS_ADHOC) || '', adhocSwap: '',
     dlg: null, opener: null, menu: null, toast: null, why: null, // why = 0.8.2 사유 창 { key, g, back(연 배지) } — 판단 창 위에도 떠요
     sent: [], iss: {}, plain: SS.get(SS_PLAIN) || {}, cmdKey: null, ro: false, pend: null, pollUntil: 0, lastSt: {}, doneSeen: {}, dismissed: {},
@@ -101,13 +101,21 @@
   function gapRowHTML(p) {
     const gs = gapsOf(p);
     const lows = p.marketLows || {};
+    // 0.8.6 U-5: 매물은 있는데 모두 ⚠ 인 마켓 자리 글(앱 GapText.CAUTION_ONLY 그대로 — 묶음 marketCaution). 누르지 않는 회색
+    const mc = p.marketCaution && typeof p.marketCaution === 'object' ? p.marketCaution : {};
     const cells = ['j', 'd', 'b'].map((m) => {
       const g = gs.find((x) => x.m === m);
       if (g && str(g.short)) return { m, mark: str(g.short) };
-      return Number.isFinite(lows[m]) ? { m, price: lows[m] } : null;
+      if (Number.isFinite(lows[m])) return { m, price: lows[m] };
+      return str(mc[m]) ? { m, caution: str(mc[m]) } : null;
     }).filter(Boolean);
-    if (!cells.some((c) => c.mark)) return mlows(lows) && cells.length >= 2 ? `<div class="lines">${mlows(lows)}</div>` : '';
-    const inner = cells.map((c) => `<span class="mlow">${mkMark(c.m, true)}${c.mark ? `<span class="gmark">${esc(c.mark)}</span>` : esc(man(c.price))}</span>`).join('');
+    const cellHTML = (c) => `<span class="mlow">${mkMark(c.m, true)}${c.mark ? `<span class="gmark">${esc(c.mark)}</span>` : c.caution ? `<span class="muted">${esc(c.caution)}</span>` : esc(man(c.price))}</span>`;
+    // 줄을 보일지·누를지는 그대로(가격 2곳 이상 또는 까닭 표시 · 까닭 표시만 단추)
+    if (!cells.some((c) => c.mark)) {
+      if (!(mlows(lows) && cells.filter((c) => c.price != null).length >= 2)) return '';
+      return cells.some((c) => c.caution) ? `<div class="lines">${cells.map(cellHTML).join('')}</div>` : `<div class="lines">${mlows(lows)}</div>`;
+    }
+    const inner = cells.map(cellHTML).join('');
     return `<button type="button" class="lines gaprow" data-act="gap" data-pid="${esc(p.id)}" aria-haspopup="dialog" aria-label="${esc(str(p.gapLabel) || '마켓별 최저가')}, 까닭 보기">${inner}</button>`;
   }
   // 결과(물건) 화면 맨 위 줄: 마켓마다 한 덩이 — 줄 글(Ink2) / 꼬리(Ink3). 누르지 않아요
@@ -515,14 +523,18 @@
   const AREA_LABEL = { all: '전체', near: '가까운 동네만', 3: '3km 안', 5: '5km 안', 10: '10km 안', 20: '20km 안' };
   const SORT_LABEL = { low: '싼 순', seen: '처음 본 순', near: '가까운 순' };
   function variantFor(id) {
-    if (S.vpid !== id) { S.vpid = id; S.variant = ''; S.cond = ''; S.mkSel = ''; S.nearDaangn = false; }
+    if (S.vpid !== id) { S.vpid = id; S.variant = ''; S.cond = ''; S.mkSel = ''; S.allDaangn = false; }
     return S.variant;
   }
   const mkObj = () => (S.mkSel ? { j: S.mkSel === 'j', d: S.mkSel === 'd', b: S.mkSel === 'b' } : { j: true, d: true, b: true });
+  // 매물 줄 재료: 그냥 검색은 근처 밖 당근 줄을 앱 기본 보기·'전체 보기'대로 거른 것(0.8.6 W-1), 저장한 물건은 그대로
+  function rowsOf(src, id) {
+    if (!String(id || '').startsWith('adhoc:')) return listOf(src);
+    variantFor(id); // 다른 검색으로 옮겼으면 '전체 보기'부터 풀고
+    return RV.daangnFar(src, S.allDaangn).rows;
+  }
   function visibleRows(list, id) {
     const b = B();
-    // 그냥 검색 당근 '가까운 동네만'(0.8.6 — 기본은 전체, 앱 ResultsScreen nearDaangn 과 같게)
-    if (S.nearDaangn) list = arr(list).filter((l) => !l || l.m !== 'd' || (l.place && l.place.near === true));
     return RV.filterListings(list, { mk: mkObj(), area: b.base ? S.area : 'all', withUnknown: S.withUnknown, q: S.q, sort: S.sort, variant: variantFor(id), cond: S.cond });
   }
   function marketChips() {
@@ -635,14 +647,16 @@
   }
   // x = { id, p(저장한 물건)|null, a(그냥 검색)|null, name, src(물건 꼴) }
   function listTab(x) {
-    const src = x.src, all = listOf(src), b = B();
+    const src = x.src, all = rowsOf(src, x.id), b = B();
     const f = visibleRows(all, x.id);
     const label = late() ? '그때 최저가' : '지금 최저가';
-    const chipped = !!S.mkSel || !!f.variant || f.area !== 'all' || !!f.cond;
+    // 그냥 검색 '전체 보기'로 근처 밖 당근 줄을 넣었으면 지금 최저가도 그 줄에서 다시 골라요(앱 ResultsScreen 과 같게 — 0.8.6 W-1)
+    const far = x.a ? RV.daangnFar(x.a, S.allDaangn) : null;
+    const chipped = !!S.mkSel || !!f.variant || f.area !== 'all' || !!f.cond || !!(far && far.has && S.allDaangn);
     // 잠시 끈 물건(R7)은 지금 최저가 칸을 그리지 않아요 — 맨 위 띠가 '끌 때 결과'임을 알림(앱 결과 화면과 같음)
     const off = src.state === 'paused';
     const picked = chipped && src.state !== 'rebase' && src.state !== 'pending' && !off
-      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term, held: src.held })
+      ? RV.screenHero(f.heroRows, { name: x.name, chip: f.variant, base: src.baseVariant, market: S.mkSel, term: src.term, held: src.held, mixed: src.mixedAll })
       : null;
     const low = picked ? picked.hero : (src.state === 'ok' || src.state === 'unknown') ? findL(src, src.lowKey) : null;
     const cautionLine = picked ? picked.line : src.cautionPage;
@@ -663,10 +677,22 @@
     const dropped = (x.p || x.a || {}).dropped || {};
     const areaOn = b.base && f.area !== 'all';
     const lines = [];
-    // 그냥 검색 당근 근처 줄(앱 CardCore.daangnNearLine, 0.8.6 — 기본 전체, 누르면 가까운 동네만)
-    if (x.a && x.a.nearby && (S.nearDaangn || (x.a.nearby.total > x.a.nearby.near && x.a.nearby.total > 0))) {
+    // 그냥 검색 당근 근처 줄(앱 CardCore.daangnNearLine — 글은 묶음 nearby.lines 그대로). 앱 기본 보기가 근처만일 때만(앱 결과 화면과 같게).
+    // 0.8.6 W-1: 근처 밖 줄이 실렸으면 누르면 진짜로 줄이 바뀌어요. 옛 묶음(줄 없음)이면 단추 없이 '앱에서 전체 보기' 안내만
+    // 0.8.6 수집·매칭: 앱 기본이 당근 전체(nearOnly false)여도 같은 줄 — S.allDaangn 은 '기본 보기 뒤집기'(앱 ResultsScreen flipDaangn)
+    if (x.a && x.a.nearby && Number(x.a.nearby.total) > Number(x.a.nearby.near)) {
       const nb = x.a.nearby;
-      lines.push(`<button class="info brand link" data-act="nearDaangn">${S.nearDaangn ? `가까운 동네만 보는 중 · 당근 전체 ${esc(nb.total)}건 보기` : nb.near > 0 ? `당근 ${esc(nb.total)}건 중 내 동네 근처 ${esc(nb.near)}건 · 가까운 동네만 보기` : `당근 ${esc(nb.total)}건 · 내 동네 근처는 없어요`}</button>`);
+      const ln = arr(nb.lines);
+      if (far.has) {
+        const showAll = !far.hide;
+        const text = (showAll ? str(ln[1]) : str(ln[0])) || RV.daangnNearLine(Number(nb.total), Number(nb.near), showAll);
+        if (text) lines.push(`<button class="info brand link" data-act="allDaangn" aria-pressed="${S.allDaangn}">${esc(text)}</button>`);
+        const carried = arr(x.a.listings).filter((l) => l && l.far === true).length;
+        const farN = Number(nb.total) - Number(nb.near);
+        if (showAll && far.nearOnly && carried < farN) lines.push(`<p class="info">근처 밖 당근 ${esc(farN)}건 중 싼 ${esc(carried)}건만 웹에 실었어요 · 나머지는 앱에서 봐요</p>`);
+      } else if (far.nearOnly) {
+        lines.push(`<p class="info">당근 ${esc(nb.total)}건 중 내 동네 근처 ${esc(nb.near)}건만 실렸어요 · 앱에서 전체 보기</p>`);
+      }
     }
     if (x.a && x.a.ask) lines.push(`<p class="info">이 검색은 ${esc(x.a.ask.v)} 매물이 훨씬 많아요(${esc(x.a.ask.n)}건 · 기본 ${esc(x.a.ask.b)}건) · ${esc(x.a.ask.v)} 칩을 누르면 ${esc(x.a.ask.v)} 최저가를 봐요</p>`);
     // '모델을 제목 낱말로 자동으로 나눴어요'(디자인 4-3·G-5, 앱 AutoSplitLine): 저장한 물건 = '고치기'(물건 정하기 '모델' 칸), 그냥 검색 = 안내만(대표 결정 3)
@@ -678,7 +704,7 @@
     if (model && src.held && src.held.chip && RV.variantChips(all).filter((v) => !RV.isUnknownModel(v)).length >= 2) lines.push(`<p class="info">${esc(src.held.chip)}</p>`);
     if (f.hiddenUnknown) lines.push(`<p class="info">지역 모름 ${esc(f.hiddenUnknown)}건은 숨겼어요 — '지역 모르는 매물도 함께 보기'를 켜면 보여요</p>`);
     let right;
-    if (x.a) right = `<button class="btn btn-text btn-sm" data-act="saveAdhoc"${lk()}>+ 지켜보기</button>`;
+    if (x.a) right = saveAdhocBtn(S.adhocQ);
     else if (off) right = '';
     else if (p && confirmedOf(p)) right = `<button class="btn btn-text btn-sm" data-act="identify" data-pid="${esc(p.id)}"${lk()}>물건 다시 정하기</button>`;
     else right = '<span class="muted" style="font-size:var(--fs-label)">레이더가 지켜보는 중</span>';
@@ -727,7 +753,7 @@
     const judge = `<section class="box"><p class="box-label">꿀매 판정 기준</p>${basis}${cut}
       <p class="hint">기준가 순서: 판매완료(중고나라 90일) → 사라진 매물 → 30일 관측 → 지금 올라온 가격 · 5건 이상일 때만 써요</p>
       ${sp ? `<p class="box-label plain" style="margin-top:12px">최근 30일 최저가</p><div class="trend">${sp}</div><p class="meta" style="margin:4px 0 0">${esc(src.min30)}</p>` : (x.p && src.state !== 'empty' && src.state !== 'pending' ? '<p class="meta" style="margin:12px 0 0">추이 선은 하루 넘게 지켜본 뒤부터 그려요</p>' : '')}</section>`;
-    const f = visibleRows(listOf(src), x.id);
+    const f = visibleRows(rowsOf(src, x.id), x.id);
     const s = C.priceStats(f.rows);
     // 모델 물건에서 칩을 안 고르면 모델이 섞인 중간값(디자인 4-6·G-12) — 웹 분포는 칩을 따라서 디자인 안내 글 그대로
     const mixed = isModel(src) && !f.variant;
@@ -860,6 +886,26 @@
     return `${searchBlock(q)}<div class="pv solo" style="margin-top:16px"><section style="min-width:0">
       <div class="pv-head"><button class="back" data-go="home">${ico('left')}홈</button><h1>'${esc(q)}'</h1><span class="meta">그냥 검색 · 저장 안 함</span></div>
       <div style="height:12px"></div>${body}</section></div>`;
+  }
+  // '+ 지켜보기'(0.8.6 W-2): 보낸 명령이 열린 동안은 '바꾸는 중'(다시 보내지 않음), 앱이 끝냈으면(새로 만듦·이미 지켜봄 둘 다 pid) '지켜보는 중 ›'(그 물건 화면)
+  function saveAdhocRec(q) {
+    for (let i = S.sent.length - 1; i >= 0; i--) {
+      const r = S.sent[i];
+      if (r.type === 'saveAdhoc' && (S.plain[r.id] || {}).q === q && stOf(r).st !== 'cancel') return r;
+    }
+    return null;
+  }
+  function watchedPid(q) {
+    const r = saveAdhocRec(q);
+    const pid = r && stOf(r).st === 'done' ? (stOf(r).row || {}).pid : '';
+    return pid && prod(pid) ? pid : '';
+  }
+  function saveAdhocBtn(q) {
+    const r = saveAdhocRec(q);
+    if (r && C.isOpen(stOf(r).st)) return chgPill;
+    const pid = watchedPid(q);
+    if (pid) return `<button class="btn btn-text btn-sm" data-open="${esc(pid)}">지켜보는 중 ›</button>`;
+    return `<button class="btn btn-text btn-sm" data-act="saveAdhoc"${lk()}>+ 지켜보기</button>`;
   }
   function saveAdhocDone(q) {
     const r = lastRec((x) => x.type === 'saveAdhoc' && (S.plain[x.id] || {}).q === q && stOf(x).st === 'done');
@@ -1723,7 +1769,7 @@
    * ===================================================================== */
   function csvSave(ns) {
     let rows = [], name = '';
-    if (ns.startsWith('adhoc:')) { const a = adhocEntry(); if (!a) return; rows = visibleRows(listOf(a), ns).rows; name = S.adhocQ; }
+    if (ns.startsWith('adhoc:')) { const a = adhocEntry(); if (!a) return; rows = visibleRows(rowsOf(a, ns), ns).rows; name = S.adhocQ; }
     else { const p = prod(ns); if (!p) return; rows = visibleRows(listOf(p), p.id).rows; name = p.name; }
     const blob = new Blob([RV.csv(rows, now())], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
@@ -1958,7 +2004,6 @@
       case 'cond': S.cond = S.cond === t.dataset.c ? '' : t.dataset.c; render(); return;
       case 'area': S.area = t.dataset.a; render(); return;
       case 'withUnknown': S.withUnknown = !S.withUnknown; render(); return;
-      case 'nearDaangn': S.nearDaangn = !S.nearDaangn; render(); return;
       case 'clearF': S.area = 'all'; S.q = ''; S.mkSel = ''; S.variant = ''; S.cond = ''; render(); return;
       case 'csv': csvSave(t.dataset.ns); toast('보이는 매물을 CSV로 저장했어요'); return;
       case 'matchMode': send('edit', { pid, set: { matchMode: t.dataset.v }, base: { matchMode: (prod(pid).cfg || {}).matchMode || 'title' } }); return;
@@ -1988,8 +2033,18 @@
       case 'exWord': send('excludeWord', { pid, word: t.dataset.w, key: key || undefined }); return;
       // 그냥 검색
       case 'adhocAgain': send('adhoc', { q: S.adhocQ }); return;
-      case 'saveAdhoc': { const a2 = adhocEntry(); if (a2 && a2.ask) openDlg({ kind: 'variant' }); else send('saveAdhoc', { q: S.adhocQ, variantPick: '' }); return; }
-      case 'saveV': S.dlg = null; renderLayer(); send('saveAdhoc', { q: S.adhocQ, variantPick: t.dataset.v }); return;
+      case 'saveAdhoc': {
+        // 열린 명령이 있거나 이미 지켜보면 또 보내지 않아요(0.8.6 W-2)
+        const r0 = saveAdhocRec(S.adhocQ);
+        if ((r0 && C.isOpen(stOf(r0).st)) || watchedPid(S.adhocQ)) { render(); return; }
+        const a2 = adhocEntry(); if (a2 && a2.ask) openDlg({ kind: 'variant' }); else send('saveAdhoc', { q: S.adhocQ, variantPick: '' }); return;
+      }
+      case 'saveV': {
+        S.dlg = null; renderLayer();
+        const r1 = saveAdhocRec(S.adhocQ);
+        if ((r1 && C.isOpen(stOf(r1).st)) || watchedPid(S.adhocQ)) { render(); return; }
+        send('saveAdhoc', { q: S.adhocQ, variantPick: t.dataset.v }); return;
+      }
       // 관심 매물 · 알림함
       case 'watchPin': send('watch', { key, op: 'pin' }); return;
       case 'watchOff': send('watch', { key, op: 'remove' }); return;
