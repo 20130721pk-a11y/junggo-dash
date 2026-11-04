@@ -364,7 +364,8 @@ with sync_playwright() as p:
     page.click('#qGo')
     page.wait_for_selector('.pv-head')
     at_ = page.inner_text('#page')
-    check(gh.last() == before and '모아 둔 결과예요' in at_ and '당근 8건 중 내 동네 근처 3건만 보여요 · 전체 보기' in at_, '30분 안 검색어는 보내지 않고 묶음 adhoc 결과로(횟수 안 셈) + 당근 근처 줄')
+    check(gh.last() == before and '모아 둔 결과예요' in at_ and '당근 8건 중 내 동네 근처 3건만 실렸어요 · 앱에서 전체 보기' in at_ and page.locator('[data-act="allDaangn"]').count() == 0,
+          '30분 안 검색어는 보내지 않고 묶음 adhoc 결과로(횟수 안 셈) + 당근 근처 줄(0.8.6 W-1: 근처 밖 줄이 없는 옛 묶음은 단추 없이 안내 — 누르는 시험은 test/far.e2e.py)')
     page.click('[data-act="saveAdhoc"]')
     page.wait_for_selector('#dV')
     check(page.locator('.vbtns button').all_inner_texts() == ['SUPER만', '기본만', '둘 다(지금 최저가는 기본, SUPER 는 변형별 줄)'], '변형 묻기 세 단추 = 앱 글')

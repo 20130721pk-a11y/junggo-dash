@@ -172,7 +172,7 @@
 
 ### 그냥 검색 결과 (`adhoc[]`)
 
-`{ q, at(모은 때 = 앱 cachedAt), cmd?(그 명령 id), count, lowKey, state, stateCard, statePage, cautionPage, cautionKey, baseVariant, term, modelSource, models, facts, cut, conds, notes, listings[], nearby: {total, near} 또는 null, ask: {v, n, b} 또는 null, dropped }` — 물건과 같은 꼴(매물 줄 = 앱 결과 화면 줄 전부)에 `nearby`('당근 31건 중 내 동네 근처 9건만 보여요' 의 31·9 — 앱 `CardCore` 줄), `ask`(변형 묻기 창 '이 검색은 {v} 매물이 훨씬 많아요({v} {n}건 · 기본 {b}건)')를 더함. `listings[].grade` 는 '시세 판정은 참고용'(판단 창 글).
+`{ q, at(모은 때 = 앱 cachedAt), cmd?(그 명령 id), count, lowKey, state, stateCard, statePage, cautionPage, cautionKey, baseVariant, term, modelSource, models, facts, cut, conds, notes, listings[], nearby: {total, near, nearOnly?, far?, lines?}(0.8.6 칸은 아래) 또는 null, ask: {v, n, b} 또는 null, dropped }` — 물건과 같은 꼴(매물 줄 = 앱 결과 화면 줄 전부)에 `nearby`('당근 31건 중 내 동네 근처 9건만 보여요' 의 31·9 — 앱 `CardCore` 줄), `ask`(변형 묻기 창 '이 검색은 {v} 매물이 훨씬 많아요({v} {n}건 · 기본 {b}건)')를 더함. `listings[].grade` 는 '시세 판정은 참고용'(판단 창 글).
 
 ## R12 모델 나누기 (앱 0.7.5, 10/22 — 앱 쪽 묶음까지, 웹 그리기는 4단계)
 
@@ -269,3 +269,24 @@
 - 지문('바뀌었나'): 시장 `text`(okAt 옆)와 `gapHead` 는 '5분 전에'처럼 때마다 바뀌어 지문에서 빼요(`tone`·`bad` 는 남김).
 - **옛 묶음**(0.8.4 까지): `gaps`·`tone`·`notifBanner` 없음 → 카드 날 글 줄 한 줄, 수집 상태 '성공 {때} · {text}', 알림 띠는 `notifOn === false` 일 때 예전 글.
 - 시험 자료: `test/fixtures/app-gaps.json` = 앱 dev-085 `WebBundleGap085Test.writesGapCasesForTheWeb` 가 만든 묶음(지어낸 매물 — A 번개장터 못 받음 · B 당근 쉬는 중 + 번개장터 못 받음 · C 당근 0건 · W 세 마켓 다 · 일부만 · 정상, 그냥 검색 ① + 판정 기준 줄). 시험 `test/gaps.e2e.py`.
+
+## 0.8.6 더함 — 그냥 검색 근처 밖 당근 줄 · 모두 ⚠ 인 마켓 자리 (앱 fix-086-ui, 11/04)
+
+감사 `audit-ui-web` W-1(웹 '전체 보기'가 글만 바뀜)·U-5(매물이 있는데 마켓 줄 자리가 사라짐)·S-2(관심 매물 사기 배지). 꼴 번호는 그대로 1 — 칸을 더하기만 했어요. 옛 웹은 새 칸을 모르고 지나가요(옛 웹은 근처 밖 줄도 목록에 그려요 — 판에 맞춰 웹부터 올려요).
+
+| 자리 | 칸 | 꼴 | 뜻 |
+|---|---|---|---|
+| `adhoc[].listings[]` | `far` | `true`, 근처 밖 당근 줄에만(아니면 칸 없음) | 내 동네 근처 보기(앱 `ViewSpec.daangnNearOnly`)를 못 지나는 당근 줄 — 앱 결과 화면 '전체 보기'(`ResultsScreen` `allDaangn`)에서만 보이는 줄. 앱 기본 보기가 근처만이면 기본 줄 뒤에 `SHEET_ROWS`(100)줄까지 덧붙이고(넓힌 보기로 묶은 줄, 싼 순), 기본 보기가 전체면 기본 줄에 이미 있어 표시만 달아요. 등급·판단 창 재료(`grade`·`sheet`)는 다른 줄과 같은 함수 |
+| `adhoc[].nearby` | `nearOnly` | 참/거짓 | 앱 그냥 검색 기본 보기가 당근 근처만인가(`AdhocCore.viewOf`). 없으면(옛 묶음) 근처만으로 봐요. 거짓이면 웹도 처음부터 근처 밖 줄을 보이고, 근처 줄 단추는 그리지 않아요(앱 결과 화면과 같게) — '가까운 동네만' 지역 칩이 근처 밖 줄을 빼요(`place.near`) |
+| `adhoc[].nearby` | `far` | 수 | 실은 근처 밖 줄 수. `total - near` 보다 적으면 상한(100)에 걸린 것 — 웹은 '근처 밖 당근 n건 중 싼 k건만 웹에 실었어요' |
+| `adhoc[].nearby` | `lines` | [근처만 보는 중 글, 전체 보는 중 글] | 근처 줄 글(앱 `CardCore.daangnNearLine` 그대로). 웹은 이 글을 그려요(없으면 같은 규칙의 웹 사본) |
+| 물건 | `marketCaution` | {j,d,b: 글}, 그런 마켓이 있을 때만 | 마켓 최저가(`marketLows`)는 없는데 기준 변형 매물이 스냅숏에 있고 모두 ⚠ 인 마켓 — 카드 마켓 줄 그 자리에 이 글('확인 필요', 앱 `GapText.CAUTION_ONLY`)을 회색으로, 누르지 않음. 줄을 보일지·단추일지는 예전 규칙 그대로(가격 2곳 이상 또는 `gaps.short`). 끈 물건·다시 잡는 중엔 안 실어요 |
+
+- 웹 그리기(`radar-ui.js`·`radar-view.js`):
+  - `RV.daangnFar(adhoc, allDaangn)` → `{ nearOnly, has, hide, rows }` — 목록·시세 탭·CSV·칩이 같은 줄(`rowsOf`). 근처만(기본)이면 `far` 줄을 빼고, '전체 보기'면 넣고 지금 최저가를 `RV.screenHero` 로 다시 골라요(앱 결과 화면과 같은 고르기).
+  - 근처 줄: `far` 줄이 실렸으면 `<button data-act="allDaangn" aria-pressed>`(글 = `nearby.lines`), 옛 묶음이면 단추 없이 '당근 n건 중 내 동네 근처 m건만 실렸어요 · 앱에서 전체 보기'.
+  - '+ 지켜보기'(W-2): 보낸 `saveAdhoc` 명령이 열린 동안 '바꾸는 중'(누르기·다시 보내기 없음), 끝나 `pid` 가 오면 '지켜보는 중 ›'(그 물건 화면).
+  - 홈 카드 `gapRowHTML`: `marketCaution` 자리 = `.muted` 글.
+- 관심 매물 `watches[].listing.grade`(S-2): 같은 물건 매물 줄(모은 풀 → 스냅숏)에 같은 매물이 있으면 그 판매자 의심 이유로 판정(앱 `Watch.judgedListing` — 앱 관심 탭과 같은 함수). 칸은 그대로.
+- 앱 허용 목록: `LISTING` += `far` · `NEARBY` = `{total, near, nearOnly, far, lines}` · `PRODUCT` += `marketCaution`.
+- 시험 자료: `test/fixtures/app-far.json` = 앱 `WebBundleFar086Test.farFieldsAreAllowed` 가 만든 그냥 검색 한 건(지어낸 매물 — 중고나라 6 · 근처 당근 2 · 근처 밖 당근 5). 시험 `test/radar-far.test.mjs`·`test/far.e2e.py`.
