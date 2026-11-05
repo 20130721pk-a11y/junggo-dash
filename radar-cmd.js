@@ -23,7 +23,9 @@
   const STALE_MS = 6 * H; // 대표 결정(10/20): 늦은 그냥 검색·지금 확인·집중 감시 켜기
 
   const TYPES = ['add', 'edit', 'identify', 'remove', 'move', 'focus', 'check', 'adhoc', 'saveAdhoc', 'star', 'hide', 'unhide', 'unhideAll',
-    'excludeWord', 'watch', 'share', 'opened', 'inboxRead', 'recent', 'prefs', 'home', 'pause'];
+    'excludeWord', 'watch', 'share', 'opened', 'inboxRead', 'recent', 'prefs', 'home', 'pause',
+    // 0.8.7 앱 = 웹 조작: 판단 창 '사기 같아요'·되돌리기 · 그냥 검색 매물 '이 매물 아님'(되돌리기 = on false)·'빼기 단어'
+    'scam', 'unscam', 'adhocHide', 'adhocWord'];
   // 화면에 상태 줄을 안 그리는 작은 명령(머리 알약에도 안 셈)
   const QUIET = ['opened', 'inboxRead'];
   // 다시 모으는 명령 — '앱이 하는 중 · 세 마켓에서 모으는 중'
@@ -142,6 +144,14 @@
       case 'star': return keyOk(c.key) && boolOk(c.on) && (c.pid == null || pidOk(c.pid)) ? '' : 'star';
       case 'hide': case 'unhide': return pidOk(c.pid) && keyOk(c.key) ? '' : 'hide';
       case 'excludeWord': return pidOk(c.pid) && textOk(c.word, 40) && c.word.trim() && (c.key == null || keyOk(c.key)) ? '' : 'word';
+      // 0.8.7 '사기 같아요': 저장한 물건(pid) 또는 그냥 검색(q) 중 하나만 · 되돌리기는 그 명령 id(ref)와 같은 매물 키(앱 WebCmd.checkFields 와 같음)
+      case 'scam': {
+        const hasPid = c.pid != null, hasQ = c.q != null;
+        return keyOk(c.key) && hasPid !== hasQ && (hasPid ? pidOk(c.pid) : textOk(c.q, 200) && c.q.trim()) ? '' : 'scam';
+      }
+      case 'unscam': return ID_RE.test(str(c.ref)) && keyOk(c.key) ? '' : 'unscam';
+      case 'adhocHide': return textOk(c.q, 200) && c.q.trim() && keyOk(c.key) && boolOk(c.on) ? '' : 'adhocHide';
+      case 'adhocWord': return textOk(c.q, 200) && c.q.trim() && textOk(c.word, 40) && c.word.trim() && (c.key == null || keyOk(c.key)) ? '' : 'word';
       case 'watch': return keyOk(c.key) && (c.op === 'pin' || c.op === 'remove') ? '' : 'watch';
       case 'share': return shareOk(c.url) ? '' : 'url';
       case 'opened': return keyOk(c.key) && (c.pid == null || pidOk(c.pid)) ? '' : 'opened';
@@ -252,7 +262,8 @@
     const r = { id: c.id, n, type: c.type, at: c.at };
     if (c.pid) r.pid = c.pid;
     if (c.key) r.key = c.key;
-    if (c.type === 'star' || c.type === 'pause') r.on = c.on;
+    if (c.type === 'star' || c.type === 'pause' || c.type === 'adhocHide') r.on = c.on;
+    if (c.type === 'unscam') r.ref = c.ref;
     if (c.type === 'focus') r.op = c.op;
     if (c.type === 'move') r.dir = c.dir;
     if (c.type === 'watch') r.op = c.op;
@@ -323,6 +334,10 @@
       case 'unhide': return `되돌리기 · ${T}`;
       case 'unhideAll': return `${P} 숨긴 매물 모두 다시 보기`;
       case 'excludeWord': return `${P} '${str(names.word) || str(c.word)}' 빼기`;
+      case 'scam': return `사기 같아요 · ${T}`;
+      case 'unscam': return `사기 같아요 되돌리기 · ${T}`;
+      case 'adhocHide': return c.on === false ? `되돌리기 · ${T}` : `이 매물 아님 · ${T}`;
+      case 'adhocWord': return `그냥 검색 '${str(names.q) || str(c.q)}'에서 '${str(names.word) || str(c.word)}' 빼기`;
       case 'watch': return `${c.op === 'pin' ? '관심 매물로 고정' : '그만 보기'} · ${T}`;
       case 'share': return '관심 매물 넣기(주소)';
       case 'opened': return `열어 봄 · ${T}`;

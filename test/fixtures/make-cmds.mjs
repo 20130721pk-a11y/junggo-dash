@@ -60,6 +60,13 @@ export function plains() {
     mk('home', { set: { daangnHome: '정왕동, 배곧동, 은행동', distanceBase: '정왕동' }, base: { daangnHome: '정왕동', distanceBase: '' } }, 29),
     mk('pause', { pid: 's_5080', on: true }, 30),
     mk('pause', { pid: 's_5080', on: false }, 31),
+    // 0.8.7 앱 = 웹 조작
+    mk('scam', { pid: 's_4080', key: 'j:1001' }, 32),
+    mk('scam', { q: '4080 super', key: 'b:1000' }, 33),
+    mk('unscam', { ref: 'c_mvg7t08w_aaadb', key: 'j:1001' }, 34),
+    mk('adhocHide', { q: '4080 super', key: 'b:1000', on: true }, 35),
+    mk('adhocHide', { q: '4080 super', key: 'b:1000', on: false }, 36),
+    mk('adhocWord', { q: '4080 super', word: '본체', key: 'j:1001' }, 37),
   ];
 }
 

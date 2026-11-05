@@ -346,6 +346,15 @@
   const inboxIcon = (kind) => INBOX_ICON[kind] || 'list';
   // 매물 쪽 ☆ 글(11/1 대표 결정 2 — 앱도 0.8.1 2단계에서 같은 글). 물건 쪽 '지켜보기 시작'·'그만 지켜보기'는 그대로
   const STAR = { add: '관심 매물에 넣기', remove: '관심 매물에서 빼기', sending: '보내는 중' };
+  // '사기 같아요'·'이 매물 아님' 판단 창 글(앱 ui/ListingSheet.kt SCAM_LABEL·SCAM_CLICK·SCAM_HINT·SCAM_SNACK·HIDE 안내와 같은 글, 0.8.2 디자인 5장 확정)
+  const SCAM = {
+    label: '사기 같아요',
+    click: '숨기고 판매자 숫자 남기기',
+    hint: '사기 같아요 = 물건은 맞는데 믿기 어려울 때 · 숨기고 판매자 숫자만 남겨요(이름·번호는 안 남겨요)',
+    snack: '숨기고 판매자 숫자를 남겼어요',
+    hideHint: '이 매물 아님 = 이 물건의 최저가·시세·알림에서 빼요(오판 사례로 남겨 규칙을 고쳐요)',
+    hideSnack: '이 매물은 빼고 볼게요',
+  };
   // 앱 WebBundle.noEmoji 와 같은 규칙: 그림 이모지(U+1F000 이상)·⚙(U+2699)·글꼴 바꿈표(U+FE0F)를 빼고 겹친 띄어쓰기를 하나로.
   // ⚠·★·▼ 글자는 그대로(디자인 v2 README 3장). 앱이 이미 빼서 보내니 웹은 옛 묶음 대비로만 써요(종류 값이 있을 때)
   function noEmoji(text) {
@@ -439,7 +448,7 @@
   root.RadarView = {
     KIND, KNOWN, LABEL, TOKEN_LABEL, LATE_MIN, MARKET, MARK, AREAS, REPO_RE,
     check, arr, str, lateLineMin, liveState, won, man, ago, clock, dayLabel, dur, kmLabel, isUnknown, placeText,
-    badge, WHY, GAP_TITLE, REASON_GROUP, reasonsOf, reasonGroups, badgeKind, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
+    badge, WHY, GAP_TITLE, REASON_GROUP, reasonsOf, reasonGroups, badgeKind, variantChips, variantCounts, filterListings, screenHero, unknownChipLine, isUnknownModel, UNKNOWN_MODEL, BASE_VARIANT, inboxTags, INBOX_ICON, inboxIcon, STAR, SCAM, noEmoji, gaps, safeUrl, esc, csv, fetchRadar,
     daangnFar, daangnNearLine,
   };
 })(typeof self !== 'undefined' ? self : globalThis);

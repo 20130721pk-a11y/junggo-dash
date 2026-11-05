@@ -268,7 +268,7 @@
     S.sent.push(rec); saveSent();
     S.lastSt[rec.id] = 'sent';
     const pl = {};
-    for (const k of ['q', 'card', 'word', 'pid', 'key', 'set', 'base', 'variantPick', 'on', 'op', 'dir', 'ids', 'hours', 'everyMin', 'url', 'all']) if (c[k] !== undefined) pl[k] = c[k];
+    for (const k of ['q', 'card', 'word', 'pid', 'key', 'set', 'base', 'variantPick', 'on', 'op', 'dir', 'ids', 'hours', 'everyMin', 'url', 'all', 'ref']) if (c[k] !== undefined) pl[k] = c[k];
     S.plain[rec.id] = { type, ...pl }; savePlain();
     S.pollUntil = now() + C.POLL_FOR_MS;
     if (!o.quiet) render();
@@ -584,14 +584,16 @@
   // 매물 줄(웹 2판 줄 + ☆·아님 단추) — 줄 누름 = 판단 창, ↗ = 원 매물
   function rowHTML(l, ctx) {
     const t = now(), g = l.grade, p = ctx.p;
-    const hideRec = p ? lastHide(p.id, l.key) : null;
+    // 숨기는 명령(이 매물 아님 · 사기 같아요 · 0.8.7 그냥 검색 이 매물 아님)을 보냈으면 앱 결과가 오기까지 접어 둠 — 앱이 처리하면 묶음에서 그 줄이 빠짐
+    const at = p ? { pid: p.id } : ctx.adhoc && ctx.q ? { q: ctx.q } : null;
+    const hideRec = at ? lastHideOf(at, l.key) : null;
     if (hideRec) {
       const st = stOf(hideRec).st;
-      if (hideRec.type === 'hide' && st !== 'failed' && st !== 'stale' && st !== 'conflict') {
-        return `<li class="folded" role="status">이 매물은 빼고 볼게요${st === 'sent' ? '<span class="muted"> · 보냈어요</span>' : st === 'running' ? '<span class="muted"> · 앱이 하는 중</span>' : ''}<button class="btn btn-text" data-act="unhideRow" data-id="${esc(hideRec.id)}" data-pid="${esc(p.id)}" data-key="${esc(l.key)}"${lk()}>되돌리기</button></li>`;
+      if (st !== 'failed' && st !== 'stale' && st !== 'conflict') {
+        return `<li class="folded" role="status">${esc(hideRec.type === 'scam' ? RV.SCAM.snack : RV.SCAM.hideSnack)}${st === 'sent' ? '<span class="muted"> · 보냈어요</span>' : st === 'running' ? '<span class="muted"> · 앱이 하는 중</span>' : ''}<button class="btn btn-text" data-act="unhideRow" data-id="${esc(hideRec.id)}" data-pid="${esc(p ? p.id : '')}" data-key="${esc(l.key)}"${lk()}>되돌리기</button></li>`;
       }
     }
-    const unhiding = p && S.sent.some((r) => r.type === 'unhide' && r.pid === p.id && r.key === l.key && C.isOpen(stOf(r).st));
+    const unhiding = at && S.sent.some((r) => isUnhideOf(r, at, l.key) && C.isOpen(stOf(r).st));
     // 0.8.7 앱 = 웹(앱 결과 줄 ListingRow): 판정 이유 글 줄 없이 배지만 — 아래 줄은 변형·모델 꼬리표 · 미개봉 · 가게 · 같은 글(앱 RowText.dupTag 글),
     // 셋째 줄은 '흥정 신호 · …'(앱 RowText.haggleLine). 동네·때는 넓은 화면은 칸, 좁은 화면은 아래 줄(앱과 같은 차례). 옛 묶음 ⚠(사유 없음)만 지금처럼 why 한 줄
     const tags = [vtagOf(l, ctx), l.unopened ? '미개봉' : '', l.shop ? '가게' : '', str(l.dupText) || (l.dups > 0 ? `같은 글 ${l.dups}개 더` : '')].filter(Boolean);
@@ -607,11 +609,12 @@
     const starPend = S.sent.some((r) => r.type === 'star' && r.key === l.key && C.isOpen(stOf(r).st));
     const actions = ctx.noActs ? '' : `<span class="ra">
         <button class="iconbtn ${starPend ? 'pending' : starOn ? 'on' : ''}" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}" aria-label="${esc(l.title)} ${starOn ? RV.STAR.remove : RV.STAR.add}"${lk()}>${ico('star', starOn && !starPend ? 'fill' : '')}</button>
-        ${p && !isPaused(p) ? `<button class="notbtn" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}" aria-label="${esc(l.title)} 이 매물 아님"${lk()}>${ico('eyeoff')}아님</button>` : ''}
+        ${p && !isPaused(p) ? `<button class="notbtn" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}" aria-label="${esc(l.title)} 이 매물 아님"${lk()}>${ico('eyeoff')}아님</button>`
+          : !p && ctx.adhoc && ctx.q ? `<button class="notbtn" data-act="aHide" data-key="${esc(l.key)}" data-q="${esc(ctx.q)}" aria-label="${esc(l.title)} 이 매물 아님"${lk()}>${ico('eyeoff')}아님</button>` : ''}
         <a class="iconbtn" ${ext(l)} aria-label="${esc(l.title)} 원 매물 새 창에서 열기" data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${ico('ext')}</a></span>`;
     return `<li class="row" id="r-${esc(l.key)}" tabindex="0" data-act="sheet" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-adhoc="${ctx.adhoc ? 1 : ''}">
       ${thumb(l, 'sm')}
-      <div class="rmain" style="min-width:0"><p class="rt"${ctx.ended ? ' style="color:var(--ink3)"' : ''}>${starOn ? ico('star', 'fill') + '<span class="sr">관심 매물 </span>' : ''}${esc(l.title)}</p>${unhiding ? '<p class="rs">되돌리는 중 · 다음 확인 뒤 다시 보여요</p>' : sub2}
+      <div class="rmain" style="min-width:0"><p class="rt"${ctx.ended ? ' style="color:var(--ink3)"' : ''}>${starOn ? ico('star', 'fill') + '<span class="sr">관심 매물 </span>' : ''}${esc(l.title)}</p>${unhiding ? `<p class="rs">${p ? '되돌리는 중 · 다음 확인 뒤 다시 보여요' : '되돌리는 중'}</p>` : sub2}
         <div class="compact"><span class="rp2">${esc(won(l.price))}</span>${bdg}<span class="meta">${esc([where, ago(l.updated, t)].filter(Boolean).join(' · '))}${soldMaybe()}</span></div></div>
       <span class="rb">${bdg}</span>
       <span class="rp">${esc(won(l.price))}</span>
@@ -621,14 +624,30 @@
       ${actions}
     </li>`;
   }
-  function lastHide(pid, key) {
+  // 명령이 어느 물건(pid)·그냥 검색(q) 것인가 — 그냥 검색어는 보낸 내용(S.plain)에서(slim 엔 검색어를 두지 않음)
+  const qOf = (r) => str((S.plain[r.id] || {}).q);
+  function sameWhere(r, w) {
+    if (!r) return false;
+    if (w.pid) return r.pid === w.pid;
+    return !r.pid && !!qOf(r) && C.norm(qOf(r)) === C.norm(w.q);
+  }
+  // 되돌리기 명령인가: unhide(물건) · adhocHide off(그냥 검색) · unscam(되돌릴 사기 같아요 명령 ref 가 이 자리)
+  function isUnhideOf(r, w, key) {
+    if (r.key !== key) return false;
+    if (r.type === 'unscam') return sameWhere(S.sent.find((x) => x.id === r.ref), w);
+    if (r.type === 'unhide') return !!w.pid && r.pid === w.pid;
+    return r.type === 'adhocHide' && r.on === false && sameWhere(r, w);
+  }
+  // 이 매물을 숨긴 마지막 명령(이 매물 아님 · 사기 같아요 · 그냥 검색 이 매물 아님). 그 뒤 되돌리기·취소가 있으면 null
+  function lastHideOf(w, key) {
     for (let i = S.sent.length - 1; i >= 0; i--) {
       const r = S.sent[i];
-      if (r.pid === pid && r.key === key && (r.type === 'hide' || r.type === 'unhide')) {
-        if (r.type === 'unhide') return null;
-        if (stOf(r).st === 'cancel') return null;
-        return r;
-      }
+      if (r.key !== key) continue;
+      if (isUnhideOf(r, w, key)) return null;
+      const hides = (r.type === 'hide' && !!w.pid) || r.type === 'scam' || (r.type === 'adhocHide' && r.on !== false);
+      if (!hides || !sameWhere(r, w)) continue;
+      if (stOf(r).st === 'cancel') return null;
+      return r;
     }
     return null;
   }
@@ -637,7 +656,9 @@
     // 0.8.7 앱 = 웹(앱 HeroCard): 이름표 · 제목 · 가격 + 배지 · '마켓 · 동네 · 올린 때' · 판정 이유(판정 보류는 안 씀) · 시세 막대. ▼▲·목표가 줄은 홈 카드·판단 창에서
     const starOn = !!low.star;
     const starPend = S.sent.some((r) => r.type === 'star' && r.key === low.key && C.isOpen(stOf(r).st));
-    const pend = p && (pendingPid(p.id, ['edit', 'identify', 'unhideAll', 'excludeWord']) || S.sent.some((r) => r.type === 'hide' && r.pid === p.id && C.isOpen(stOf(r).st)));
+    const pend = p ? (pendingPid(p.id, ['edit', 'identify', 'unhideAll', 'excludeWord']) || S.sent.some((r) => (r.type === 'hide' || r.type === 'scam') && r.pid === p.id && C.isOpen(stOf(r).st)))
+      // 0.8.7 그냥 검색: 숨김·빼기 단어·사기 같아요를 앱이 다시 셀 때까지 '바꾸는 중'
+      : x.a && S.sent.some((r) => ['adhocHide', 'adhocWord', 'scam'].includes(r.type) && sameWhere(r, { q: str(x.a.q) }) && C.isOpen(stOf(r).st));
     const bar = C.priceBar(low.price, low.grade && low.grade.ref);
     const rbar = bar ? `<div class="rbar" role="img" aria-label="시세 막대: 이 매물 ${esc(man(low.price))}, 시세의 절반 ${esc(man(bar.lo))}, ${esc(bar.label)} 시세 ${esc(man(bar.med))}">
         <span class="tick" style="left:0%">시세의 절반 ${esc(won(bar.lo))}</span><span class="tick" style="left:${(bar.medFrac * 100).toFixed(1)}%">${esc(bar.label)} 시세 ${esc(won(bar.med))}</span><span class="me" style="left:${(bar.item * 100).toFixed(1)}%"></span></div>` : '';
@@ -746,7 +767,7 @@
     const ledger = arr(src.ledger).length || rawNotes.length ? `<div class="ledger">${arr(src.ledger).map((l) => `<p class="note">${esc(l)}</p>`).join('')}${rawNotes.map((n) => `<p class="meta">${esc(n)}</p>`).join('')}</div>` : '';
     const rowsShown = low ? f.rows.filter((l) => l.key !== low.key) : f.rows;
     // 꼬리표 기준: 모델 물건은 앱처럼 고른 칩이 기준(칩 > 기준 모델), 다섯 갈래는 그대로
-    const ctx = { p: x.p, adhoc: !!x.a, base: model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : (src.baseVariant || '기본'), vtag: true, model };
+    const ctx = { p: x.p, adhoc: !!x.a, q: x.a ? str(x.a.q) : '', base: model ? ((f.variant && !RV.isUnknownModel(f.variant) ? f.variant : '') || str(src.baseVariant)) : (src.baseVariant || '기본'), vtag: true, model };
     const rows = f.rows.length ? `<ul class="rows" style="margin-top:16px">${rowsShown.map((l) => rowHTML(l, ctx)).join('')}</ul>`
       : (all.length ? `<p class="empty">거르기에 맞는 매물이 없어요 — <button class="btn btn-text" data-act="clearF">거르기 풀기</button></p>` : `<p class="empty">${esc(src.statePage || '조건에 맞는 매물이 없어요.')}</p>`);
     return `${gapTopHTML(src)}${marketChips()}${chipRows(all, f)}${lines.join('')}${sum}${band}${info2.join('')}${conds}${merged}${ledger}${hero}${rows}
@@ -1444,9 +1465,20 @@
     return g.why ? `<p class="facts" style="color:var(${g.k === 'honey' ? '--honey' : '--ink2'});font-weight:600">${esc(g.why)}</p>` : '';
   }
   // 판단 창 (C-7)
+  // 그냥 검색 결과 화면에서 연 줄(0.8.7): 같은 매물이 지켜보는 물건에도 있어도 그 검색 결과의 판정·조작으로(앱 결과 화면 시트 = savedId 없음)
+  function adhocHit(key) {
+    const a = adhocEntry();
+    if (!a) return null;
+    for (const l of arr(a.listings)) {
+      if (l && l.key === key) return { l, p: null, adhoc: a };
+      const dd = arr(l && l.dupRows).find((x) => x && x.key === key);
+      if (dd) return { l: dd, p: null, adhoc: a };
+    }
+    return null;
+  }
   function drawerSheet() {
     const d = S.dlg;
-    const hit = anyListing(d.key);
+    const hit = (d.adhoc && !d.pid && adhocHit(d.key)) || anyListing(d.key);
     if (!hit) return '';
     const l = hit.l, p = d.pid ? prod(d.pid) : hit.p;
     const t = now();
@@ -1455,9 +1487,17 @@
     const starOn = !!l.star;
     const starPend = S.sent.some((r) => r.type === 'star' && r.key === l.key && C.isOpen(stOf(r).st));
     const words = arr(sheet.words);
-    const exPend = (w) => p && S.sent.some((r) => r.type === 'excludeWord' && r.pid === p.id && (S.plain[r.id] || {}).word === w && C.isOpen(stOf(r).st));
     const isAdhoc = !!hit.adhoc || d.adhoc;
-    const hidden = p && lastHide(p.id, l.key);
+    // 0.8.7: 그냥 검색 매물도 앱 판단 시트처럼 '이 매물 아님'·'사기 같아요'·빼기 단어(앱 결과 화면 vm.hide·scam·excludeWord — 그 검색 결과에만)
+    const aq = !p && hit.adhoc ? str(hit.adhoc.q) : '';
+    const where = p ? (isPaused(p) ? null : { pid: p.id }) : aq ? { q: aq } : null;
+    const exPend = (w) => where && S.sent.some((r) => (where.pid ? r.type === 'excludeWord' : r.type === 'adhocWord') && sameWhere(r, where) && (S.plain[r.id] || {}).word === w && C.isOpen(stOf(r).st));
+    const hidden = where && lastHideOf(where, l.key);
+    const whereAttr = where ? (where.pid ? `data-pid="${esc(where.pid)}"` : `data-q="${esc(where.q)}"`) : '';
+    const hideBtn = !where ? '' : hidden ? `<span class="chg-pill">${esc(hidden.type === 'scam' ? RV.SCAM.snack : RV.SCAM.hideSnack)}</span>`
+      : `<button class="btn" style="color:var(--ink2)" data-act="${where.pid ? 'hide' : 'aHide'}" data-key="${esc(l.key)}" ${whereAttr} aria-label="이 매물 아님, 이 물건에서 빼기"${lk()}>${ico('eyeoff')} 이 매물 아님</button>`;
+    // 셋째 줄 '사기 같아요'(0.8.2 디자인 4-2 안 A): 전체 폭 보조 단추 · 경고 아이콘 Ink2 · '이 매물 아님'과 같은 무게
+    const scamBtn = !where || hidden ? '' : `<button class="btn scambtn" style="color:var(--ink2);width:100%;margin-top:8px" data-act="scam" data-key="${esc(l.key)}" ${whereAttr} aria-label="${esc(RV.SCAM.label)}, ${esc(RV.SCAM.click)}"${lk()}>${ico('alert')} ${esc(RV.SCAM.label)}</button>`;
     return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dL"><div class="dhead"><h2 id="dL" class="sr">판단 창</h2><span style="flex:1"></span>${xBtn}</div>
       <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:var(--fs-body-lg);font-weight:600">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.updated, t)].filter(Boolean).join(' · '))}</p></div></div>
         <div class="price-row" style="margin-top:12px"><span class="price" style="font-size:var(--fs-display);line-height:32px">${esc(won(l.price))}</span>${badge(l.grade, false, l.key)}</div>
@@ -1465,11 +1505,12 @@
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
         <div class="sheet-acts"><a class="btn btn-fill" ${ext(l)} data-act="opened" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}">${esc(MARKET[l.m] || '원 매물')}에서 열기 ${ico('ext')}<span class="sr">새 창에서 열려요</span></a>
           <button class="btn" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}"${lk()}>${starPend ? `<span class="iconbtn pending" style="width:20px;height:20px">${ico('star')}</span> ${RV.STAR.sending}` : starOn ? `${ico('star', 'fill')} ${RV.STAR.remove}` : `${ico('star')} ${RV.STAR.add}`}</button>
-          ${p && !isPaused(p) ? (hidden ? `<span class="chg-pill">이 매물은 빼고 볼게요</span>` : `<button class="btn" style="color:var(--ink2)" data-act="hide" data-key="${esc(l.key)}" data-pid="${esc(p.id)}"${lk()}>${ico('eyeoff')} 이 매물 아님</button>`) : ''}</div>
-        ${p && !isPaused(p) ? '<p class="hint">이 매물 아님 = 이 물건의 최저가·시세·알림에서 빼요(오판 사례로 남겨 규칙을 고쳐요)</p>' : ''}
-        ${p && words.length ? `<p class="flabel" style="margin-top:20px">이 말이 든 매물은 모두 빼기</p><p class="desc" style="margin:0">찾는 물건이 아닌 걸 가르는 말을 누르세요 · '빼고 볼 단어'에 들어가요</p>
-          <div class="wchips">${words.map((w) => exPend(w) ? `<span class="cchip ex">− ${esc(w)} ${chgPill}</span>` : `<button class="cchip" data-act="exWord" data-w="${esc(w)}" data-pid="${esc(p.id)}" data-key="${esc(l.key)}"${lk()}>${esc(w)}</button>`).join('')}</div>` : ''}
-        ${isAdhoc ? '<p class="hint" style="margin-top:16px">저장한 물건에서 연 매물이 아니라 시세 판정은 참고용이에요</p>' : ''}
+          ${hideBtn}</div>
+        ${scamBtn}
+        ${where ? `<p class="hint">${esc(RV.SCAM.hideHint)}</p><p class="hint" style="margin-top:2px">${esc(RV.SCAM.hint)}</p>` : ''}
+        ${where && words.length ? `<p class="flabel" style="margin-top:20px">이 말이 든 매물은 모두 빼기</p><p class="desc" style="margin:0">찾는 물건이 아닌 걸 가르는 말을 누르세요 · '빼고 볼 단어'에 들어가요</p>
+          <div class="wchips">${words.map((w) => exPend(w) ? `<span class="cchip ex">− ${esc(w)} ${chgPill}</span>` : `<button class="cchip" data-act="${where.pid ? 'exWord' : 'aWord'}" data-w="${esc(w)}" ${whereAttr} data-key="${esc(l.key)}"${lk()}>${esc(w)}</button>`).join('')}</div>` : ''}
+        ${!p && !where && isAdhoc ? '<p class="hint" style="margin-top:16px">저장한 물건에서 연 매물이 아니라 시세 판정은 참고용이에요</p>' : ''}
       </div></aside>`;
   }
   // 변화 기록 (C-11)
@@ -2049,11 +2090,33 @@
         e.stopPropagation();
         send('hide', { pid, key }).then((r) => {
           if (!r) return;
-          toast('이 매물은 빼고 볼게요', { label: '되돌리기', run: () => unhideRec(r, pid, key) });
+          toast(RV.SCAM.hideSnack, { label: '되돌리기', run: () => unhideRec(r, pid, key) });
         });
         return;
       }
-      case 'unhideRow': { e.stopPropagation(); const r = S.sent.find((x) => x.id === t.dataset.id); unhideRec(r, pid, key); return; }
+      case 'unhideRow': { e.stopPropagation(); const r = S.sent.find((x) => x.id === t.dataset.id); undoHideRec(r); return; }
+      // 0.8.7 그냥 검색 '이 매물 아님'(앱 결과 화면 vm.hide — 그 검색 결과에서만) · 되돌리기 = on false
+      case 'aHide': {
+        e.stopPropagation();
+        const q = t.dataset.q;
+        send('adhocHide', { q, key, on: true }).then((r) => {
+          if (!r) return;
+          toast(RV.SCAM.hideSnack, { label: '되돌리기', run: () => undoHideRec(r) });
+        });
+        return;
+      }
+      case 'aWord': send('adhocWord', { q: t.dataset.q, word: t.dataset.w, key: key || undefined }); return;
+      // 0.8.7 판단 창 '사기 같아요'(앱 ListingSheet — 숨기고 판매자 숫자 기록, 시세 대비 %는 앱이 냄) · 되돌리기 = unscam(그 명령 id)
+      case 'scam': {
+        e.stopPropagation();
+        const where = pid ? { pid } : { q: t.dataset.q };
+        S.dlg = null; renderLayer();
+        send('scam', { ...where, key }).then((r) => {
+          if (!r) return;
+          toast(RV.SCAM.snack, { label: '되돌리기', run: () => undoHideRec(r) });
+        });
+        return;
+      }
       case 'opened': {
         e.stopPropagation();
         // 연 횟수 셈(앱 noteOpened) — 비밀번호를 아직 안 넣었으면 묻지 않고 건너뜀(작은 명령)
@@ -2146,6 +2209,16 @@
     const st = stOf(r).st;
     if (st === 'sent' && r.n) { await cancel(r); return; } // 앱이 받기 전 = 취소
     send('unhide', { pid, key });
+  }
+  // 숨긴 명령 하나를 되돌림(토스트·접은 줄 '되돌리기'): 앱이 받기 전이면 취소, 받았으면 그 종류의 되돌리기 명령
+  //   이 매물 아님 → unhide · 사기 같아요 → unscam(ref = 그 명령 id — 앱이 그 명령이 남긴 기록 시각으로 기록까지 지움) · 그냥 검색 이 매물 아님 → adhocHide off
+  async function undoHideRec(r) {
+    if (!r) return;
+    if (r.type === 'hide') return unhideRec(r, r.pid, r.key);
+    const st = stOf(r).st;
+    if (st === 'sent' && r.n) { await cancel(r); return; }
+    if (r.type === 'scam') { send('unscam', { ref: r.id, key: r.key }); return; }
+    if (r.type === 'adhocHide') send('adhocHide', { q: qOf(r), key: r.key, on: false });
   }
 
   document.addEventListener('keydown', (e) => {

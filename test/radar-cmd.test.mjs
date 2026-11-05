@@ -35,7 +35,7 @@ test('웹 → 앱 자료 파일이 만드는 스크립트와 같은 명령이에
   });
 });
 
-test('자료에 명령 종류 21개가 모두 있어요', () => {
+test('자료에 명령 종류가 모두 있어요(0.8.7 26종)', () => {
   const types = new Set(FX.plains().map((p) => p.type));
   assert.deepEqual([...types].sort(), [...C.TYPES].sort());
 });
@@ -240,6 +240,38 @@ test('화면 이름(what) — command-v1 7장 규칙', () => {
   assert.equal(w('move', { dir: 'down' }, { product: 'A' }), 'A 아래로');
   assert.equal(w('focus', { op: 'stop' }), '집중 감시 멈추기');
   assert.equal(w('recent', { op: 'clear' }), '최근 검색 모두 지우기');
+});
+
+test('0.8.7 새 명령 넷 — 사기 같아요(pid 또는 q 하나)·되돌리기(ref)·그냥 검색 이 매물 아님(on)·빼기 단어 (앱 WebCmd.checkFields·what 과 같음)', () => {
+  const ok = (type, f) => C.validate(C.make(type, f, NOW), NOW);
+  assert.equal(ok('scam', { pid: 's_4080', key: 'j:1' }), '');
+  assert.equal(ok('scam', { q: '4080 super', key: 'b:2' }), '');
+  assert.throws(() => C.make('scam', { key: 'j:1' }, NOW));
+  assert.throws(() => C.make('scam', { pid: 's_4080', q: '4080', key: 'j:1' }, NOW));
+  assert.throws(() => C.make('scam', { q: '  ', key: 'j:1' }, NOW));
+  assert.throws(() => C.make('scam', { pid: 's_4080', key: 'x:1' }, NOW));
+  assert.equal(ok('unscam', { ref: 'c_mvg7scbs_aaaab', key: 'j:1' }), '');
+  assert.throws(() => C.make('unscam', { ref: 'c_1_2', key: 'j:1' }, NOW));
+  assert.throws(() => C.make('unscam', { ref: 'c_mvg7scbs_aaaab' }, NOW));
+  assert.equal(ok('adhocHide', { q: '4080', key: 'd:9', on: true }), '');
+  assert.equal(ok('adhocHide', { q: '4080', key: 'd:9', on: false }), '');
+  assert.throws(() => C.make('adhocHide', { q: '4080', key: 'd:9' }, NOW));
+  assert.equal(ok('adhocWord', { q: '4080', word: '본체' }), '');
+  assert.throws(() => C.make('adhocWord', { q: '4080', word: ' ' }, NOW));
+  assert.throws(() => C.make('adhocWord', { q: '4080', word: '가'.repeat(41) }, NOW));
+  // 화면 이름(앱 WebCmd.what 과 같은 글)
+  const T = { title: '기가바이트 RTX 4080 윈드포스 V2 16G' };
+  assert.equal(C.what(C.make('scam', { pid: 's_4080', key: 'j:1' }, NOW), T), `사기 같아요 · ${C.cut20(T.title)}`);
+  assert.equal(C.what(C.make('unscam', { ref: 'c_mvg7scbs_aaaab', key: 'j:1' }, NOW), {}), '사기 같아요 되돌리기 · 매물');
+  assert.equal(C.what(C.make('adhocHide', { q: '4080', key: 'j:1', on: true }, NOW), {}), '이 매물 아님 · 매물');
+  assert.equal(C.what(C.make('adhocHide', { q: '4080', key: 'j:1', on: false }, NOW), {}), '되돌리기 · 매물');
+  assert.equal(C.what(C.make('adhocWord', { q: '4080', word: '본체' }, NOW), {}), "그냥 검색 '4080'에서 '본체' 빼기");
+  // 보낸 기록(slim): 되돌리기에 쓰는 on·ref 만 — 검색어·단어는 안 남김
+  const s1 = C.slim(C.make('adhocHide', { q: '4080', key: 'j:1', on: false }, NOW), 7);
+  assert.equal(s1.on, false); assert.equal(s1.q, undefined);
+  const s2 = C.slim(C.make('unscam', { ref: 'c_mvg7scbs_aaaab', key: 'j:1' }, NOW), 8);
+  assert.equal(s2.ref, 'c_mvg7scbs_aaaab');
+  assert.equal(C.slim(C.make('adhocWord', { q: '4080', word: '본체' }, NOW), 9).word, undefined);
 });
 
 test('그냥 검색 1시간 6번 — 앱이 센 값 + 웹이 그 뒤 보낸 것, 보관 결과·실패는 안 셈', () => {
