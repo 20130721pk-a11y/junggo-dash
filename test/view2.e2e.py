@@ -222,7 +222,8 @@ with sync_playwright() as p:
     page.click('.mchip.b')
     page.click('[data-act="variant"][data-v="SUPER"]')
     check(shown(page) == 13 and page.locator('[data-act="variant"][aria-pressed="true"]').count() == 0, '같은 칩 다시 누르면 풀림')
-    check(page.inner_text('.hero .price') == '980,000원' and '▼ 3만' in page.inner_text('section.box[aria-label="지금 최저가"]'), '칩을 풀면 묶음 지금 최저가 그대로(▼ 3만)')
+    # 0.8.7 앱 = 웹: 결과 화면 지금 최저가 칸엔 ▼▲ 알약이 없어요(앱 HeroCard) — ▼ 3만은 홈 카드에만
+    check(page.inner_text('.hero .price') == '980,000원' and '▼ 3만' not in page.inner_text('section.box[aria-label="지금 최저가"]'), '칩을 풀면 묶음 지금 최저가 그대로(▼▲ 알약은 앱처럼 홈 카드에만)')
     page.click('[data-act="variant"][data-v="기본"]')
     check(shown(page) == 7, "변형 '기본' 7건")
     page.click('[data-act="cond"][data-c="new"]')
@@ -246,7 +247,8 @@ with sync_playwright() as p:
     check(page.locator('.badge').count() == 0, '다시 내는 중 → 배지 없음')
     page.click('[data-pick="s_9070"]')
     page.wait_for_timeout(50)
-    check(page.locator('.hero .badge').count() == 0 and '시세를 낼 매물이 아직 적어요(5건 미만)' in text(page), '판정 보류 → 배지 없음 + 이유 글')
+    # 0.8.7 앱 = 웹: 앱 결과 화면 지금 최저가 칸·줄은 판정 보류 이유 글을 안 그려요(앱 HeroCard·ListingRow) — 시세 탭 기준 칸에서 봐요
+    check(page.locator('.hero .badge').count() == 0 and '시세를 낼 매물이 아직 적어요(5건 미만)' not in page.inner_text('.hero'), '판정 보류 → 배지 없음 · 이유 글 없음(앱과 같게)')
     # 같은 글 묶음(dupRows): 앱처럼 마켓마다 센다(QA-1)
     check(shown(page) == 3, '같은 글 묶음: 전체 3건')
     page.click('.mchip.b')

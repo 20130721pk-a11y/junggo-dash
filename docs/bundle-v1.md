@@ -291,3 +291,29 @@
 - 앱 허용 목록: `LISTING` += `far` · `NEARBY` = `{total, near, nearOnly, far, lines}` · `PRODUCT` += `marketCaution`.
 - 시험 자료: `test/fixtures/app-far.json` = 앱 `WebBundleFar086Test.farFieldsAreAllowed` 가 만든 그냥 검색 한 건(지어낸 매물 — 중고나라 6 · 근처 당근 2 · 근처 밖 당근 5). 시험 `test/radar-far.test.mjs`·`test/far.e2e.py`.
 - **값이 섞여 전체 판정 보류**(판정 담당 fix-086-judge J-1, 앱 `Snapshot.mixedAll`): 물건·`adhoc[]` 에 `mixedAll` = 그 한 줄('여러 물건 값이 섞여 판정 보류 — 모델까지 넣어 검색해 주세요', 앱 `Judge.MIXED_ALL_REASON`), 그럴 때만. 그때 `state` = `unknown`(판정 보류) · `lowKey` 없음 · `statePage`/`stateCard` = 그 줄 · `cut.single` = [그 줄](꿀매 기준 줄 없음 — 앱 시세 탭과 같게). 웹 `RV.screenHero(rows, { mixed })` 는 칩을 골라도 칸 없이 그 줄. 매물 줄 `grade.k` 는 `unknown`(이유 같은 글). 끈 물건·다시 잡는 중엔 안 실어요.
+
+## 0.8.7 더하기 — 앱 = 웹 정보 양(11/5 대표 '웹과 앱에서 표기되는 정보양이 달라')
+
+앱 `fix-087-parity`(08aa3d1·d918652). 꼴 번호는 그대로 1 — 칸을 더하고 범위를 넓히기만 했어요. 옛 웹은 새 칸을 모르고 지나가요.
+
+| 자리 | 칸 | 꼴 | 뜻 |
+|---|---|---|---|
+| 매물 줄 | `sheet` | (예전 꼴) | **모든 줄·묶인 줄(`dupRows[]`)** 에(전엔 앞 100줄·★·꿀매만 — 101번째 줄부터 웹 판단 창이 비었어요) |
+| 매물 줄 | `dupText` | 글, 묶인 글이 있을 때만 | 같은 글 꼬리표('번개장터·당근에도' / '같은 글 n개 더', 앱 `RowText.dupTag` — 앱 결과 줄과 같은 함수) |
+| 매물 줄 | `haggle` | 글, 소식이 있을 때만 | 흥정 신호 줄('흥정 신호 · 3번 내림 · 20일째', 앱 `RowText.haggleLine`). `news` 는 옛 웹용으로 그대로 |
+| 물건 | `variantLows[]` | [이름, 가격, 매물 키] | 다섯 개까지(앱 홈 카드). 셋째 값을 누르면 그 매물 판단 창 |
+| 물건·`adhoc[]` | `dropped.kept` | 수 | 검색어 확인 줄이 견주는 남은 수(앱 `MatchLine` 의 결과 수) — '제목에 검색어가 없는 매물이 더 많아요' 판단 |
+| 물건·`adhoc[]` | `conds` | 글 목록 | 앱 결과 화면 조건 칩과 같은 함수(`RowText.filterChips` — 앱 글 그대로: '80만 이상' · '제외 a,b' · 30일은 안 씀). 전엔 `CardCore.conditions` 글 |
+| `feed[]` | `listing` | 매물 줄 꼴(+`sheet`) | 그 꿀매가 물건 매물 줄(대표·묶인 줄)에 없을 때만 |
+| `inbox[]` | `tag` | 글 | 처리 꼬리표(앱 `InboxCore.handledTag` — '사기 같아요로 숨김' · '이 매물 아님 처리') |
+| `inbox[]` | `listing` | 매물 줄 꼴(+`sheet`) | 알림 매물이 물건 매물 줄에 없을 때만(팔림·빠짐) — 앱 알림함은 어느 줄이든 판단 화면을 열어요 |
+| `inbox` | (범위) | | **30일·300건**(앱 `InboxCore` 와 같게, 전엔 7일·100건) |
+| `watches[]` | `addedPrice` · `endPrice` | 원 | 지켜볼 때 가격(변화 기록 머리 '지켜볼 때 X → 지금 Y') · 끝난 매물의 마지막 가격(카드 가격, 앱 `lastPriceAtEnd`) |
+| `watches[].events[]` | `label` · `note` | 글 | 앱 변화 기록 꼴('종류 · 가격' + 메모 줄). 이제 **전부**(관심 매물마다 40개까지, 전엔 마지막 10개). `watches` 차례 = 앱 관심 탭(직접·공유 먼저 → 자동 → 끝난 것) |
+| `adhoc` | (범위) | | 앱에서 찾은 그냥 검색도(30분 안·앱이 매물을 보관한 것 — 앱 최근 검색이 바로 열리는 것과 같은 범위), **6개**까지(앱 `RecentCore.CACHE_KEEP`, 전엔 웹 명령 3개). 앱에서 찾은 것은 `cmd` 없음. 근처 밖 당근 줄 100줄 상한 없앰 |
+| 머리 | `scams` | 수 | '사기 같아요' 기록 수(앱 설정 '사기 같아요 기록 n건') |
+| 머리 | `trimmed` | {text, rows}, 줄였을 때만 | 잠근 묶음이 10MB 를 넘으면 앱이 물건·그냥 검색마다 싼 `rows`(100)줄 + 지금 최저가·⚠ 첫 매물·★·꿀매 줄만 남겨 올려요(`WebBundle.trim`). 웹은 맨 위에 `text` 띠. 전엔 올리지 않아 웹이 아무 말 없이 옛 묶음을 보였어요 |
+
+- 웹 그리기: 결과 줄 아래 줄 = 앱 `ListingRow`(판정 이유 글 없음 · 꼬리표 · 미개봉 · 가게 · `dupText` · `haggle` 줄), 때 = `updated`(올린 때, 앱 `listingMeta`) · 지금 최저가 칸 = 앱 `HeroCard`(▼▲ 알약·목표가 줄·'처음 본 때' 없음, 판정 보류 이유 글 없음) · 판단 창 머리 때 = 올린 때, 이유 줄 규칙 = 앱 `ListingSheet` · 관심 매물 줄 = 배지·예약중·끝난 가격·'n일째'(하루부터)·'확인 전' · 알림함 300줄 · 설정 '사기 같아요 기록 n건'. '처음 본 순' 정렬·CSV '처음 본 때'는 웹만.
+- 앱 허용 목록: 머리 += `scams`, `trimmed{text, rows}` · `LISTING` += `haggle`, `dupText` · `dupRows[]` 에 `sheet` · `FEED` += `listing` · `INBOX` += `tag`, `listing` · `WATCH` += `addedPrice`, `endPrice` · `EVENT` += `label`, `note` · `DROPPED` += `kept`.
+- 시험 자료: `test/fixtures/app-parity.json` = 앱 `WebBundleParity087Test.writesParityFixtureForTheWeb` 가 만든 묶음(지어낸 매물). 시험 `test/parity.e2e.py`.

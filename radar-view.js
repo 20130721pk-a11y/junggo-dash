@@ -326,7 +326,9 @@
     if (a) t.push(a);
     if (i.delivered === false) t.push(i.level === 'digest' ? '요약에 담아요' : '조용한 시간 — 아침에');
     if (i.inApp) t.push('앱에서 봄');
-    if (i.hidden) t.push('이 매물 아님 처리');
+    // 처리 꼬리표: 앱이 보낸 글(0.8.7 tag — '사기 같아요로 숨김' · '이 매물 아님 처리'), 옛 묶음은 hidden 만
+    if (str(i.tag)) t.push(str(i.tag));
+    else if (i.hidden) t.push('이 매물 아님 처리');
     return t;
   }
 
