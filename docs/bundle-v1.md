@@ -291,6 +291,7 @@
 - 앱 허용 목록: `LISTING` += `far` · `NEARBY` = `{total, near, nearOnly, far, lines}` · `PRODUCT` += `marketCaution`.
 - 시험 자료: `test/fixtures/app-far.json` = 앱 `WebBundleFar086Test.farFieldsAreAllowed` 가 만든 그냥 검색 한 건(지어낸 매물 — 중고나라 6 · 근처 당근 2 · 근처 밖 당근 5). 시험 `test/radar-far.test.mjs`·`test/far.e2e.py`.
 - **값이 섞여 전체 판정 보류**(판정 담당 fix-086-judge J-1, 앱 `Snapshot.mixedAll`): 물건·`adhoc[]` 에 `mixedAll` = 그 한 줄('여러 물건 값이 섞여 판정 보류 — 모델까지 넣어 검색해 주세요', 앱 `Judge.MIXED_ALL_REASON`), 그럴 때만. 그때 `state` = `unknown`(판정 보류) · `lowKey` 없음 · `statePage`/`stateCard` = 그 줄 · `cut.single` = [그 줄](꿀매 기준 줄 없음 — 앱 시세 탭과 같게). 웹 `RV.screenHero(rows, { mixed })` 는 칩을 골라도 칸 없이 그 줄. 매물 줄 `grade.k` 는 `unknown`(이유 같은 글). 끈 물건·다시 잡는 중엔 안 실어요.
+- **그냥 검색 카테고리**(0.8.9): `adhoc[]` 에 `category` = 그 검색이 쓴 카테고리 키(`''`=전체 — 사람이 고른 것, 없으면 물건 카드의 것). 웹 그냥 검색 화면 카테고리 칩이 이 값을 고른 칸으로 보여요. 칩을 누르면 `adhoc` 명령에 `category` 를 실어 보내요(command-v1).
 
 ## 0.8.7 더하기 — 앱 = 웹 정보 양(11/5 대표 '웹과 앱에서 표기되는 정보양이 달라')
 
