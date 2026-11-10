@@ -318,3 +318,9 @@
 - 웹 그리기: 결과 줄 아래 줄 = 앱 `ListingRow`(판정 이유 글 없음 · 꼬리표 · 미개봉 · 가게 · `dupText` · `haggle` 줄), 때 = `updated`(올린 때, 앱 `listingMeta`) · 지금 최저가 칸 = 앱 `HeroCard`(▼▲ 알약·목표가 줄·'처음 본 때' 없음, 판정 보류 이유 글 없음) · 판단 창 머리 때 = 올린 때, 이유 줄 규칙 = 앱 `ListingSheet` · 관심 매물 줄 = 배지·예약중·끝난 가격·'n일째'(하루부터)·'확인 전' · 알림함 300줄 · 설정 '사기 같아요 기록 n건'. '처음 본 순' 정렬·CSV '처음 본 때'는 웹만.
 - 앱 허용 목록: 머리 += `scams`, `trimmed{text, rows}` · `LISTING` += `haggle`, `dupText` · `dupRows[]` 에 `sheet` · `FEED` += `listing` · `INBOX` += `tag`, `listing` · `WATCH` += `addedPrice`, `endPrice` · `EVENT` += `label`, `note` · `DROPPED` += `kept`.
 - 시험 자료: `test/fixtures/app-parity.json` = 앱 `WebBundleParity087Test.writesParityFixtureForTheWeb` 가 만든 묶음(지어낸 매물). 시험 `test/parity.e2e.py`.
+
+## 앱 0.9.0 사진 거르기 (11/10)
+
+- 물건(`products[]`)에 `look` = 기준 사진이 있을 때만 `{ min, line, refs: [{ id, thumb }] }`(없으면 `null`). `min` = 닮음 기준(앱 `LookCore.PRESETS` 55·65·75 중 하나 또는 30~95), `line` = 앱 결과 화면 안내 줄 그대로(앱 `LookText.line` — 모델 받는 중이면 그 글), `refs[].thumb` = 매물에서 더한 기준 사진의 원래 사진 주소(갤러리에서 고른 사진은 `null` — 기기 밖으로 안 내보냄).
+- 매물 줄(`listings[]`)에 `look` = 닮음(0~100 정수), 기준 사진이 있는 물건만. 웹은 앱 결과 줄과 같은 자리(변형 꼬리표 다음)에 '닮음 n%'.
+- 기준 사진이 있는 물건은 닮음 기준 아래·닮음 모름(사진 없는 당근 포함) 매물이 물건에서 빠져요(앱 `Pipeline.relevant` — 시세·꿀매도 닮은 매물로만, 11/10 대표 결정). 그래서 `listings[]` 에는 닮은 매물만 와요.

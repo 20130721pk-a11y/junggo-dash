@@ -67,6 +67,10 @@ export function plains() {
     mk('adhocHide', { q: '4080 super', key: 'b:1000', on: true }, 35),
     mk('adhocHide', { q: '4080 super', key: 'b:1000', on: false }, 36),
     mk('adhocWord', { q: '4080 super', word: '본체', key: 'j:1001' }, 37),
+    // 앱 0.9.0 사진 거르기
+    mk('lookAdd', { pid: 's_sofa', key: 'b:3001' }, 38),
+    mk('lookSet', { pid: 's_sofa', min: 75 }, 39),
+    mk('lookSet', { pid: 's_sofa', drop: 'rmhc3x4k12' }, 40),
   ];
 }
 

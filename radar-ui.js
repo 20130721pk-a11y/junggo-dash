@@ -596,7 +596,8 @@
     const unhiding = at && S.sent.some((r) => isUnhideOf(r, at, l.key) && C.isOpen(stOf(r).st));
     // 0.8.7 앱 = 웹(앱 결과 줄 ListingRow): 판정 이유 글 줄 없이 배지만 — 아래 줄은 변형·모델 꼬리표 · 미개봉 · 가게 · 같은 글(앱 RowText.dupTag 글),
     // 셋째 줄은 '흥정 신호 · …'(앱 RowText.haggleLine). 동네·때는 넓은 화면은 칸, 좁은 화면은 아래 줄(앱과 같은 차례). 옛 묶음 ⚠(사유 없음)만 지금처럼 why 한 줄
-    const tags = [vtagOf(l, ctx), l.unopened ? '미개봉' : '', l.shop ? '가게' : '', str(l.dupText) || (l.dups > 0 ? `같은 글 ${l.dups}개 더` : '')].filter(Boolean);
+    // 앱 0.9.0 사진 거르기: 앱 결과 줄과 같은 차례(변형 꼬리표 다음 '닮음 n%')
+    const tags = [vtagOf(l, ctx), Number.isInteger(l.look) ? `닮음 ${l.look}%` : '', l.unopened ? '미개봉' : '', l.shop ? '가게' : '', str(l.dupText) || (l.dups > 0 ? `같은 글 ${l.dups}개 더` : '')].filter(Boolean);
     const hag = str(l.haggle) || (l.news ? `흥정 신호 · ${l.news}` : '');
     const hagLine = hag ? `<p class="rs hag">${esc(hag)}</p>` : '';
     const sub = (g && g.k === 'caution' && !RV.reasonsOf(g) ? `<p class="rs why">${esc(g.why)}</p>` : '')
@@ -849,6 +850,7 @@
     : `<button class="btn btn-sm" data-act="check" data-pid="${esc(p.id)}"${lk()}>${ico('refresh')}지금 확인</button>`}
             <button class="iconbtn" aria-haspopup="menu" aria-label="${esc(p.name)} 메뉴" data-act="menu" data-pid="${esc(p.id)}" id="menu-p-${esc(p.id)}">${ico('more')}</button></div></div>
         ${off ? pausedBanner(p) : ''}
+        ${p.look && str(p.look.line) ? `<p class="hint" role="status" style="margin:0 0 8px">${esc(p.look.line)}</p>` : ''}
         <div class="subtabs" role="tablist"><button role="tab" aria-selected="${ptab === 'list'}" data-act="ptab" data-t="list">목록</button><button role="tab" aria-selected="${ptab === 'price'}" data-act="ptab" data-t="price">시세</button></div>
         ${ptab === 'price' ? priceTab(x) : listTab(x)}
       </section></div>`;
@@ -1343,6 +1345,7 @@
           : vc.length >= 2 ? `${lab('variantPick', '변형')}${chipsRadio('변형', [['', '전부(따로 보기)'], ...vc.map((v) => [v, `${v} 만`])], f.variantPick, 'eVar')}<p class="hint">전부 = 변형마다 시세·최저가를 따로 보여 줘요. 하나만 고르면 그 변형만 지켜봐요.</p>${cfNote('variantPick')}` : ''}
         ${lab('keyword', '검색어')}${field('keyword', '예: 4080, 4080s')}<p class="hint">쉼표로 나누면 여러 표기를 함께 찾아요(3개까지). 띄어쓰기·대소문자는 상관없고 플스5=PS5 같은 같은 말도 알아봐요.</p>${cfNote('keyword')}
         ${lab('matchMode', '검색어 확인')}${chipsRadio('검색어 확인', [['title', '제목에 있어야'], ['content', '제목·내용']], f.matchMode, 'eMatch')}<p class="hint">${f.matchMode === 'content' ? '당근 설명·사이트 검색 결과까지 봐요. 제목에 검색어가 없어도 남아서 엉뚱한 매물이 섞일 수 있어요.' : "제목에 검색어가 없거나, 모델 번호를 비교로만 쓴 매물('RX 9070 XT (5070급)')은 빼요. 최저가·시세가 엉뚱한 매물에 흔들리지 않아요."}</p>${cfNote('matchMode')}
+        ${lookSection(p)}
         ${lab('category', '카테고리')}${chipsRadio('카테고리', C.CATEGORIES, f.category, 'eCat')}<p class="hint">고르면 세 마켓 모두 그 안에서만 찾아요. 4080·5070 같은 숫자 모델명은 품번이 겹치는 다른 물건이 빠져요.</p>${cfNote('category')}
         ${lab('excludeWords', '빼고 볼 단어')}${field('excludeWords', '예: 본체, 노트북, 케이스')}<p class="hint">제목에 하나라도 들어가면 목록·최저가·딜에서 빼요. 쉼표로 나눠 적어요.</p>${cfNote('excludeWords')}
         ${lab('includeWords', '꼭 들어갈 단어')}${field('includeWords', '예: 미개봉, 정품')}<p class="hint">적으면 그 단어가 든 매물만. 비우면 거르지 않아요.</p>${cfNote('includeWords')}
@@ -1357,6 +1360,23 @@
       d.askClose
         ? `<span class="meta" style="color:var(--ink)">바꾼 것을 버릴까요?</span><span class="grow"></span><button class="btn btn-text gray" data-act="eKeep">계속 고치기</button><button class="btn btn-text coral" data-act="eDiscard">버리기</button>`
         : `<span class="meta" id="eCount">바꾼 칸 ${diff.changed.length}개 <span class="webonly">웹만</span></span><span class="grow"></span><button class="btn btn-text gray" data-act="close">취소</button><button class="btn btn-fill" data-act="eSave" id="eSave"${locked() ? lk() : dis(!diff.changed.length || !pctOk)}>저장</button>`);
+  }
+  // 앱 0.9.0 사진 거르기(앱 조건 창 '사진으로 거르기'와 같은 글) — 웹은 기준 사진 빼기·닮음 기준만(바로 보냄, 저장 단추와 따로).
+  // 새 기준 사진은 판단 창 '이 사진처럼 생긴 것 찾기'로(11/10 대표 결정: 웹은 매물 사진만). 기기에서 고른 사진은 웹에 안 보여요(기기 밖으로 안 내보냄)
+  function lookSection(p) {
+    const lk2 = p.look && typeof p.look === 'object' ? p.look : null;
+    const refs = lk2 ? arr(lk2.refs) : [];
+    const pend = S.sent.some((r) => r.type === 'lookSet' && r.pid === p.id && C.isOpen(stOf(r).st));
+    const head = `<p class="flabel">사진으로 거르기${pend ? ` ${chgPill}` : ''}</p>`;
+    if (!refs.length) return `${head}<p class="hint">사진을 넣으면 제목이 달라도 생김새가 닮은 매물만 골라요. 검색어는 '가죽소파, 1인 소파'처럼 넓게 적어요. 매물 판단 창의 '이 사진처럼 생긴 것 찾기'로 넣을 수 있어요(앱에서는 갤러리 사진도).</p>`;
+    const min = Number(lk2.min);
+    const pics = refs.map((r) => {
+      const src = RV.safeUrl(r && r.thumb);
+      return `<span style="position:relative;display:inline-block"><span class="thumb has-img" aria-hidden="true">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="meta" style="font-size:11px;padding:4px">기기 사진</span>'}</span><button class="btn btn-text btn-sm" style="position:absolute;top:-6px;right:-6px;min-height:0;padding:0 6px" data-act="lookDrop" data-pid="${esc(p.id)}" data-id="${esc(r.id)}" aria-label="기준 사진 빼기"${lk() || dis(pend)}>✕</button></span>`;
+    }).join('');
+    return `${head}<div class="chiprow" style="gap:12px">${pics}</div>
+      <p class="flabel">닮음 기준</p><div class="chiprow" role="radiogroup" aria-label="닮음 기준">${C.LOOK_PRESETS.map(([v, n]) => `<button class="cchip" role="radio" aria-checked="${min === v}" data-act="lookMin" data-pid="${esc(p.id)}" data-v="${v}"${lk() || dis(pend)}>${esc(n)} (${v}%)</button>`).join('')}</div>
+      <p class="hint">기준 사진과 생김새가 이만큼 닮은 매물만 이 물건으로 봐요 — 시세·꿀매도 닮은 매물로만 판정해요. 사진이 없는 당근 매물은 빠져요. <span class="webonly">누르면 바로 앱에 보내요</span></p>`;
   }
   // 조건 창 '자동이면 … (지금 X)'(대표 결정 4): 앱이 센 자동 기준 모델 — 묶음 autoModel(앱 0.7.5 R12 4단계), 없으면 고른 게 없을 때의 baseVariant
   const autoModelOf = (p) => str(p.autoModel) || (p.cfg && !str(p.cfg.variantPick) ? str(p.baseVariant) : '');
@@ -1507,8 +1527,12 @@
       : `<button class="btn" style="color:var(--ink2)" data-act="${where.pid ? 'hide' : 'aHide'}" data-key="${esc(l.key)}" ${whereAttr} aria-label="이 매물 아님, 이 물건에서 빼기"${lk()}>${ico('eyeoff')} 이 매물 아님</button>`;
     // 셋째 줄 '사기 같아요'(0.8.2 디자인 4-2 안 A): 전체 폭 보조 단추 · 경고 아이콘 Ink2 · '이 매물 아님'과 같은 무게
     const scamBtn = !where || hidden ? '' : `<button class="btn scambtn" style="color:var(--ink2);width:100%;margin-top:8px" data-act="scam" data-key="${esc(l.key)}" ${whereAttr} aria-label="${esc(RV.SCAM.label)}, ${esc(RV.SCAM.click)}"${lk()}>${ico('alert')} ${esc(RV.SCAM.label)}</button>`;
+    // 앱 0.9.0 '이 사진처럼 생긴 것 찾기'(앱 판단 창과 같은 단추·글) — 저장한 물건에서 연 사진 있는 매물만
+    const lookPend = p && S.sent.some((r) => r.type === 'lookAdd' && r.pid === p.id && C.isOpen(stOf(r).st));
+    const lookBtn = !where || !where.pid || !RV.safeUrl(l.thumb) ? '' : lookPend ? `<p class="hint" style="margin-top:8px">${chgPill} 이 사진을 기준으로 다시 찾는 중</p>`
+      : `<button class="btn" style="color:var(--ink2);width:100%;margin-top:8px" data-act="lookAdd" data-key="${esc(l.key)}" data-pid="${esc(where.pid)}"${lk()}>이 사진처럼 생긴 것 찾기</button><p class="hint" style="margin-top:2px">이 매물 사진을 기준 사진으로 더해요 — 제목이 달라도 생김새가 닮은 매물만 이 물건으로 봐요(조건 → 사진으로 거르기).</p>`;
     return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dL"><div class="dhead"><h2 id="dL" class="sr">판단 창</h2><span style="flex:1"></span>${xBtn}</div>
-      <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:var(--fs-body-lg);font-weight:600">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.updated, t)].filter(Boolean).join(' · '))}</p></div></div>
+      <div class="dbody"><div class="sheet-head">${thumb(l, 'lg')}<div style="min-width:0"><p class="ltitle" style="white-space:normal;font-size:var(--fs-body-lg);font-weight:600">${esc(l.title)}</p><p class="facts sheet-meta">${mkMark(l.m, true)} ${esc([MARKET[l.m], sheetVariant(l, p || hit.adhoc), placeText(l.place), ago(l.updated, t), Number.isInteger(l.look) ? `닮음 ${l.look}%` : ''].filter(Boolean).join(' · '))}</p></div></div>
         <div class="price-row" style="margin-top:12px"><span class="price" style="font-size:var(--fs-display);line-height:32px">${esc(won(l.price))}</span>${badge(l.grade, false, l.key)}</div>
         ${sheetReason(l, p || hit.adhoc)}
         ${factsL.length ? `<div class="facts-box">${factsL.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
@@ -1516,6 +1540,7 @@
           <button class="btn" data-act="star" data-key="${esc(l.key)}" data-pid="${esc(p ? p.id : '')}" data-on="${starOn ? 0 : 1}"${lk()}>${starPend ? `<span class="iconbtn pending" style="width:20px;height:20px">${ico('star')}</span> ${RV.STAR.sending}` : starOn ? `${ico('star', 'fill')} ${RV.STAR.remove}` : `${ico('star')} ${RV.STAR.add}`}</button>
           ${hideBtn}</div>
         ${scamBtn}
+        ${lookBtn}
         ${where ? `<p class="hint">${esc(RV.SCAM.hideHint)}</p><p class="hint" style="margin-top:2px">${esc(RV.SCAM.hint)}</p>` : ''}
         ${where && words.length ? `<p class="flabel" style="margin-top:20px">이 말이 든 매물은 모두 빼기</p><p class="desc" style="margin:0">찾는 물건이 아닌 걸 가르는 말을 누르세요 · '빼고 볼 단어'에 들어가요</p>
           <div class="wchips">${words.map((w) => exPend(w) ? `<span class="cchip ex">− ${esc(w)} ${chgPill}</span>` : `<button class="cchip" data-act="${where.pid ? 'exWord' : 'aWord'}" data-w="${esc(w)}" ${whereAttr} data-key="${esc(l.key)}"${lk()}>${esc(w)}</button>`).join('')}</div>` : ''}
@@ -2138,6 +2163,15 @@
         return;
       }
       case 'exWord': send('excludeWord', { pid, word: t.dataset.w, key: key || undefined }); return;
+      // 앱 0.9.0 사진 거르기
+      case 'lookAdd': {
+        e.stopPropagation();
+        S.dlg = null; renderLayer();
+        send('lookAdd', { pid, key }).then((r) => { if (r) toast('이 사진을 기준으로 닮은 매물을 다시 찾아요'); });
+        return;
+      }
+      case 'lookDrop': send('lookSet', { pid, drop: t.dataset.id }); return;
+      case 'lookMin': send('lookSet', { pid, min: Number(t.dataset.v) }); return;
       // 그냥 검색
       case 'adhocAgain': send('adhoc', { q: S.adhocQ }); return;
       case 'adhocCat': {

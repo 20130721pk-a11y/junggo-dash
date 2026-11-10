@@ -25,7 +25,12 @@
   const TYPES = ['add', 'edit', 'identify', 'remove', 'move', 'focus', 'check', 'adhoc', 'saveAdhoc', 'star', 'hide', 'unhide', 'unhideAll',
     'excludeWord', 'watch', 'share', 'opened', 'inboxRead', 'recent', 'prefs', 'home', 'pause',
     // 0.8.7 앱 = 웹 조작: 판단 창 '사기 같아요'·되돌리기 · 그냥 검색 매물 '이 매물 아님'(되돌리기 = on false)·'빼기 단어'
-    'scam', 'unscam', 'adhocHide', 'adhocWord'];
+    'scam', 'unscam', 'adhocHide', 'adhocWord',
+    // 앱 0.9.0 사진 거르기: 매물 사진을 기준 사진으로 더하기 · 닮음 기준 바꾸기/기준 사진 빼기
+    'lookAdd', 'lookSet'];
+  // 닮음 기준(앱 LookCore.PRESETS·MIN_LO·MIN_HI 와 같은 값)
+  const LOOK_PRESETS = [[55, '넓게'], [65, '보통'], [75, '좁게']];
+  const LOOK_MIN_LO = 30, LOOK_MIN_HI = 95;
   // 화면에 상태 줄을 안 그리는 작은 명령(머리 알약에도 안 셈)
   const QUIET = ['opened', 'inboxRead'];
   // 다시 모으는 명령 — '앱이 하는 중 · 세 마켓에서 모으는 중'
@@ -153,6 +158,13 @@
       case 'unscam': return ID_RE.test(str(c.ref)) && keyOk(c.key) ? '' : 'unscam';
       case 'adhocHide': return textOk(c.q, 200) && c.q.trim() && keyOk(c.key) && boolOk(c.on) ? '' : 'adhocHide';
       case 'adhocWord': return textOk(c.q, 200) && c.q.trim() && textOk(c.word, 40) && c.word.trim() && (c.key == null || keyOk(c.key)) ? '' : 'word';
+      // 앱 0.9.0 사진 거르기(앱 WebCmd.checkFields 와 같음): min = 닮음 기준(30~95) · drop = 뺄 기준 사진 번호 — 둘 중 하나는 있어야
+      case 'lookAdd': return pidOk(c.pid) && keyOk(c.key) ? '' : 'lookAdd';
+      case 'lookSet': {
+        const minOk = c.min == null || (Number.isInteger(c.min) && c.min >= LOOK_MIN_LO && c.min <= LOOK_MIN_HI);
+        const dropOk = c.drop == null || (textOk(c.drop, 30) && c.drop.trim());
+        return pidOk(c.pid) && minOk && dropOk && !(c.min == null && c.drop == null) ? '' : 'lookSet';
+      }
       case 'watch': return keyOk(c.key) && (c.op === 'pin' || c.op === 'remove') ? '' : 'watch';
       case 'share': return shareOk(c.url) ? '' : 'url';
       case 'opened': return keyOk(c.key) && (c.pid == null || pidOk(c.pid)) ? '' : 'opened';
@@ -339,6 +351,8 @@
       case 'unscam': return `사기 같아요 되돌리기 · ${T}`;
       case 'adhocHide': return c.on === false ? `되돌리기 · ${T}` : `이 매물 아님 · ${T}`;
       case 'adhocWord': return `그냥 검색 '${str(names.q) || str(c.q)}'에서 '${str(names.word) || str(c.word)}' 빼기`;
+      case 'lookAdd': return `이 사진처럼 생긴 것 찾기 · ${T}`;
+      case 'lookSet': return c.drop == null ? `${P} 닮음 기준 바꾸기` : `${P} 기준 사진 빼기`;
       case 'watch': return `${c.op === 'pin' ? '관심 매물로 고정' : '그만 보기'} · ${T}`;
       case 'share': return '관심 매물 넣기(주소)';
       case 'opened': return `열어 봄 · ${T}`;
@@ -1007,7 +1021,7 @@
     LABEL, KIND, TITLE, V, TYPES, QUIET, GATHER, EDIT_FIELDS, TEXT_FIELDS, REFETCH_FIELDS, PREF_FIELDS, HOME_FIELDS, FIELD_LABEL,
     CATEGORIES, PCT_PRESETS, PCT_MIN, PCT_MAX, KM_CHOICES, PERIODS, QUIET_CHOICES, FOCUS_HOURS, FOCUS_EVERY, FOCUS_MAX, HOME_MAX, SHARE_HOSTS,
     OPEN_MAX, ADHOC_PER_HOUR, ADHOC_CACHE_MS, CHECK_ALL_MS, POLL_MS, POLL_FOR_MS, TOAST_MS, DONE_FOLD_MS, KEEP_MS, STALE_MS, ID_RE, QUICK,
-    PAUSE, pauseDay, newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
+    PAUSE, LOOK_PRESETS, LOOK_MIN_LO, LOOK_MIN_HI, pauseDay, newId, validate, make, seal, open, deriveCmdKey, createIssue, closeIssue, getIssue, pruneSent, slim, stateOf, isOpen, isBad, lineOf, what, cut20,
     adhocUse, checkAllWait, adhocCached, norm, alts, firstAlt, suggest, watchingCard, STOP, gpuName, familyOf, shareOk, editInit, editDiff, changedLabels,
     identifySet, identifyPreview, quant, niceCeil, priceStats, priceBar,
     UNKNOWN_MODEL, MODEL_TEXT, tokens, aliasesOf, unglue, hits, assignModel, userModel, cleanDefs, modelNames, canSplitModels, renameModel, mergeModel, removeModel, addModel,

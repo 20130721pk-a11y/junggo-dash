@@ -194,3 +194,13 @@ GitHub REST(버전 머리 `X-GitHub-Api-Version: 2022-11-28`):
 - **웹 → 앱**: `test/fixtures/web-cmds.json` — 웹 코드(`radar-cmd.js`)가 시험 비밀번호·소금으로 잠근 명령 상자와 그 열린 내용 짝(종류마다 하나 이상). 앱 담당은 `DashBox.open(box, key, "junggo-radar-cmd")` 로 열어 `plain` 과 같은지, 각 명령을 같은 함수 입력으로 읽을 수 있는지 시험해요. 비밀번호·소금은 파일 안 `password`·`salt`(시험 전용 — 실제 값 아님). `node test/fixtures/make-cmds.mjs` 로 다시 만들어요.
 - **앱 → 웹**: 앱 담당이 `test/fixtures/app-cmds.json` 을 만들어 웹 저장소 이 가지에 올려요 — 꼴: `{ "note", "password", "salt", "iter", "boxes": [{ "box": <앱 DashBox.seal 로 잠근 명령>, "plain": <열린 내용> }], "bundle": <cmds·cfg·pctPreview·identify 등 새 칸이 든 묶음 꼴 1 JSON> }`. 웹 시험(`test/radar-cmd.test.mjs`)이 파일이 있으면 ① 앱이 잠근 상자를 웹이 열 수 있는지 ② 묶음 새 칸을 웹이 읽어 조건 창·결과 줄을 그릴 수 있는지 봐요(없으면 건너뜀).
 - 실제 데이터 저장소에 시험 명령을 올리지 않아요(L-11) — 시험은 가짜 GitHub(웹 화면 시험)와 위 파일만.
+
+## 앱 0.9.0 사진 거르기 명령 (11/10)
+
+| type | 칸 | 앱이 하는 일 |
+|---|---|---|
+| `lookAdd` | `pid`, `key` | 그 매물 사진을 물건의 기준 사진으로 더하고(앱 판단 창 '이 사진처럼 생긴 것 찾기'와 같은 `Radar.addLookRef`) 다시 확인이 끝날 때까지 기다려 결과를 올려요. 사진을 못 받으면 `failed`. |
+| `lookSet` | `pid`, `min`(30~95 정수, 선택), `drop`(기준 사진 번호, 선택) — 둘 중 하나는 있어야 | 닮음 기준 바꾸기 · 기준 사진 빼기(앱 조건 창 '사진으로 거르기' 저장과 같은 `Radar.update`). |
+
+- 둘 다 잠시 끈 물건에는 안 해요(`PAUSED_BLOCK`). what: `이 사진처럼 생긴 것 찾기 · {매물}` / `{물건} 닮음 기준 바꾸기` / `{물건} 기준 사진 빼기`.
+- 새 기준 사진을 웹에서 올리는 길은 없어요(11/10 대표 결정 — 웹은 매물 사진만).
