@@ -253,6 +253,10 @@ test('0.8.7 새 명령 넷 — 사기 같아요(pid 또는 q 하나)·되돌리�
   assert.equal(ok('unscam', { ref: 'c_mvg7scbs_aaaab', key: 'j:1' }), '');
   assert.throws(() => C.make('unscam', { ref: 'c_1_2', key: 'j:1' }, NOW));
   assert.throws(() => C.make('unscam', { ref: 'c_mvg7scbs_aaaab' }, NOW));
+  // 0.8.9 그냥 검색 카테고리(선택)
+  assert.equal(ok('adhoc', { q: 'LC3', category: 'appliance' }), '');
+  assert.equal(ok('adhoc', { q: 'LC3', category: '' }), '');
+  assert.throws(() => C.make('adhoc', { q: 'LC3', category: 'nope' }, NOW));
   assert.equal(ok('adhocHide', { q: '4080', key: 'd:9', on: true }), '');
   assert.equal(ok('adhocHide', { q: '4080', key: 'd:9', on: false }), '');
   assert.throws(() => C.make('adhocHide', { q: '4080', key: 'd:9' }, NOW));

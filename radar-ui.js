@@ -919,7 +919,16 @@
     }
     return `${searchBlock(q)}<div class="pv solo" style="margin-top:16px"><section style="min-width:0">
       <div class="pv-head"><button class="back" data-go="home">${ico('left')}홈</button><h1>'${esc(q)}'</h1><span class="meta">그냥 검색 · 저장 안 함</span></div>
+      ${adhocCatRow(q, a, waiting)}
       <div style="height:12px"></div>${body}</section></div>`;
+  }
+  // 0.8.9 그냥 검색 카테고리(앱 결과 화면 칩과 같은 목록) — 고르면 그 안에서 다시 모으라고 앱에 보내요
+  function adhocCatRow(q, a, waiting) {
+    const pick = (S.adhocCatPick || {})[C.norm(q)];
+    const cur = pick != null ? pick : a && typeof a.category === 'string' ? a.category : '';
+    const off = waiting || lk() ? ' disabled' : '';
+    return `<div class="chiprow" role="radiogroup" aria-label="카테고리" style="margin-top:12px"><span class="meta" style="align-self:center">카테고리</span>${C.CATEGORIES.map(([k, l]) =>
+      `<button class="cchip" role="radio" aria-checked="${cur === k}" data-act="adhocCat" data-k="${esc(k)}"${off}>${esc(l)}</button>`).join('')}</div>`;
   }
   // '+ 지켜보기'(0.8.6 W-2): 보낸 명령이 열린 동안은 '바꾸는 중'(다시 보내지 않음), 앱이 끝냈으면(새로 만듦·이미 지켜봄 둘 다 pid) '지켜보는 중 ›'(그 물건 화면)
   function saveAdhocRec(q) {
@@ -2131,6 +2140,12 @@
       case 'exWord': send('excludeWord', { pid, word: t.dataset.w, key: key || undefined }); return;
       // 그냥 검색
       case 'adhocAgain': send('adhoc', { q: S.adhocQ }); return;
+      case 'adhocCat': {
+        const k = t.dataset.k || '';
+        S.adhocCatPick = S.adhocCatPick || {};
+        S.adhocCatPick[C.norm(S.adhocQ)] = k;
+        send('adhoc', { q: S.adhocQ, category: k }); return;
+      }
       case 'saveAdhoc': {
         // 열린 명령이 있거나 이미 지켜보면 또 보내지 않아요(0.8.6 W-2)
         const r0 = saveAdhocRec(S.adhocQ);

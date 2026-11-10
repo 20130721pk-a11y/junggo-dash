@@ -79,7 +79,7 @@ GitHub REST(버전 머리 `X-GitHub-Api-Version: 2022-11-28`):
 | `move` | `pid`, `dir` `"up"`·`"down"` | 카드 ⋯ 위로/아래로(`Store.move`) | — | 맨 끝이면 `done`(그대로) |
 | `focus` | `op` `"start"`: `ids`[pid, 2개까지], `hours` 1~3, `everyMin` 5·10 / `op` `"stop"` | 설정 집중 감시 시작·멈추기(`Prefs.setFocus` + `FocusService`) | start 만 6시간 | 안드로이드 12+ 백그라운드에서 못 켜면 '눌러서 켜기' 알림을 띄우고 `failed` '폰에서 알림을 눌러 주세요'(기획 2-8) |
 | `check` | `pid`? (없으면 전부) | 하나 = 결과 화면 새로고침과 같게(30분 안 전체 확인이면 빠른 확인) · 전부 = 당겨서 새로고침(`Radar` 전체 확인) | 6시간 | 전부는 30분에 한 번(초안) — 30분 안 두 번째면 `failed` '30분에 한 번만 할 수 있어요' |
-| `adhoc` | `q` | 검색창 그냥 검색(`collector.fetch` + `Products.adhocItem` + `filtered`, 30분 안 같은 검색어면 보관 결과) | 6시간 | 결과를 묶음 `adhoc` 에. 보관 결과로 답했으면 결과에 `cached:true`(웹 1시간 횟수에 안 셈). 웹 그냥 검색 **1시간 6번**(보관 결과 빼고, 앱이 셈) 넘으면 `failed` '1시간에 6번까지예요' |
+| `adhoc` | `q`, `category`?(0.8.9 — 카테고리 키, `''`=전체) | 검색창 그냥 검색(`collector.fetch` + `Products.adhocItem` + `filtered`, 30분 안 같은 검색어면 보관 결과 — `category` 를 바꿨으면 새로 모음. 고른 카테고리는 검색어마다 앱이 기억(`AdhocCats`)하고 묶음 `adhoc.category` 로 실음) | 6시간 | 결과를 묶음 `adhoc` 에. 보관 결과로 답했으면 결과에 `cached:true`(웹 1시간 횟수에 안 셈). 웹 그냥 검색 **1시간 6번**(보관 결과 빼고, 앱이 셈) 넘으면 `failed` '1시간에 6번까지예요' |
 | `saveAdhoc` | `q`, `variantPick` `""`(둘 다)·`"기본"`·변형 이름 | 그냥 검색 결과 '+ 지켜보기'(`saveCurrent(variantPick)`) — 그 검색어의 보관 결과로. 없으면 먼저 모음 | — | 만들면 `pid` 를 결과에 |
 | `star` | `key`, `pid`?, `on` 참/거짓 | 관심 매물에 넣기 = `Store.watchListing(l, STAR, pid)` / 빼기 = `Store.removeWatch`. 매물을 풀·스냅숏에서 못 찾으면 키만으로(공유 넣기와 같은 꼴) | — | 이미 그 상태면 `done` |
 | `hide` | `pid`, `key` | 이 매물 아님(`Radar.hide` — 숨김 키 + 오판 사례) | — | `done` |

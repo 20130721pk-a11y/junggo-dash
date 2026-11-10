@@ -139,7 +139,8 @@
         if (c.op === 'stop') return '';
         return c.op === 'start' && Array.isArray(c.ids) && c.ids.length >= 1 && c.ids.length <= FOCUS_MAX && c.ids.every(pidOk) && FOCUS_HOURS.includes(c.hours) && FOCUS_EVERY.includes(c.everyMin) ? '' : 'focus';
       case 'check': return c.pid == null || pidOk(c.pid) ? '' : 'pid';
-      case 'adhoc': return textOk(c.q, 200) && c.q.trim() ? '' : 'q';
+      // 0.8.9: category(선택) = 그냥 검색 카테고리 키(''=전체) — 앱 WebCmd 와 같은 검사
+      case 'adhoc': return textOk(c.q, 200) && c.q.trim() && (c.category == null || CATEGORIES.some((x) => x[0] === c.category)) ? '' : 'q';
       case 'saveAdhoc': return textOk(c.q, 200) && c.q.trim() && textOk(c.variantPick, 30) ? '' : 'saveAdhoc';
       case 'star': return keyOk(c.key) && boolOk(c.on) && (c.pid == null || pidOk(c.pid)) ? '' : 'star';
       case 'hide': case 'unhide': return pidOk(c.pid) && keyOk(c.key) ? '' : 'hide';
