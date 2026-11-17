@@ -477,6 +477,24 @@ with sync_playwright() as p:
     lst = page.inner_text('.drawer')
     check('RTX 4080 조건 바꾸기' in lst and "그냥 검색 '버즈3 프로'" in lst and 'RTX 5070 추가' in lst, '명령 목록: 무엇 · 상태 · 시각')
     shot(page, '12-cmds', False)
+    # 11/17 보낸 명령 지우기: 끝난 명령만 '삭제'·'끝난 명령 모두 지우기' — 처리 중 명령은 남김, 이슈(gh)엔 아무것도 안 보냄
+    n_rows = page.locator('#dC ~ * .cmdlist li, .drawer .cmdlist li').count()
+    n_del = page.locator('.drawer [data-act="cmdDel"]').count()
+    n_open = page.evaluate("() => JSON.parse(localStorage.getItem('jd.cmds') || '[]').length")
+    gh_n0 = gh.last()
+    if n_del:
+        page.locator('.drawer [data-act="cmdDel"]').first.click()
+        page.wait_for_timeout(200)
+        check(page.locator('.drawer .cmdlist li').count() == n_rows - 1, '삭제: 그 줄이 목록에서 빠짐')
+        check(page.evaluate("() => JSON.parse(localStorage.getItem('jd.cmds') || '[]').length") == n_open - 1, '삭제: 이 브라우저 기록(jd.cmds)에서도 빠짐')
+        if page.locator('.drawer [data-act="cmdClear"]').count():
+            page.click('.drawer [data-act="cmdClear"]')
+            page.wait_for_timeout(200)
+        check(page.locator('.drawer [data-act="cmdDel"]').count() == 0, '끝난 명령 모두 지우기: 삭제할 줄이 안 남음(처리 중 줄은 남음)')
+        check(gh.last() == gh_n0, '지우기는 이슈를 만들거나 닫지 않음')
+    else:
+        check(page.locator('.drawer [data-act="cmdClear"]').count() == 0, '끝난 명령이 없으면 모두 지우기 단추 없음')
+    print('cmd del rows', n_rows, 'del', n_del)
     page.keyboard.press('Escape')
 
     # ---------- 11. 관심 매물 · 알림함 ----------

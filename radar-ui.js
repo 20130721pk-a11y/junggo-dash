@@ -1575,11 +1575,14 @@
       if (line.cancel && r.n) acts.push(`<button class="btn btn-text gray btn-sm" data-act="cancel" data-id="${esc(r.id)}">취소</button>`);
       if (line.reopen && r.pid && prod(r.pid)) acts.push(`<button class="btn btn-text btn-sm" data-act="edit" data-pid="${esc(r.pid)}" data-reopen="${esc(r.id)}">새 값으로 조건 열기</button>`);
       if (line.retry && S.plain[r.id]) acts.push(`<button class="btn btn-text btn-sm" data-act="retry" data-id="${esc(r.id)}">다시 보내기</button>`);
-      if (C.isBad(s.st) && !S.dismissed[r.id]) acts.push(`<button class="btn btn-text gray btn-sm" data-act="dismiss" data-id="${esc(r.id)}">닫기</button>`);
+      // 11/17: 끝난(처리 중이 아닌) 명령은 목록에서 지울 수 있다 — 이 브라우저의 기록만 지우고 앱·이슈에는 아무것도 보내지 않는다
+      if (!C.isOpen(s.st)) acts.push(`<button class="btn btn-text gray btn-sm" data-act="cmdDel" data-id="${esc(r.id)}">삭제</button>`);
       return `<li><span style="color:${color}">${ico(line.icon)}</span><div><div class="w">${esc(whatOf(r))}</div><div class="s ${line.cls}">${line.lead ? `<b>${esc(line.lead)}</b> — ` : ''}${esc(line.text)} <span class="muted">· ${esc(clock(r.at, t))}</span>${isIos() && s.st === 'sent' ? '<span class="muted"> · 앱을 열면 처리해요</span>' : ''}</div>${acts.length ? `<div class="cacts">${acts.join('')}</div>` : ''}</div></li>`;
     }).join('');
+    const canClear = L.some((r) => !C.isOpen(stOf(r).st));
+    const clearBtn = canClear ? `<div class="cacts" style="margin:0 0 4px -8px"><button class="btn btn-text gray btn-sm" data-act="cmdClear">끝난 명령 모두 지우기</button></div>` : '';
     return `<div class="scrim clear" data-act="scrim"></div><aside class="drawer sm" role="dialog" aria-modal="true" aria-labelledby="dC"><div class="dhead"><div style="flex:1"><h2 id="dC">보낸 명령</h2><p class="desc">최근 7일 · 앱이 처리한 결과가 묶음으로 와요${isIos() ? ' · 아이폰은 앱을 열면 처리해요' : ''}</p></div>${xBtn}</div>
-      <div class="dbody">${rows ? `<ul class="cmdlist">${rows}</ul>` : '<p class="empty">보낸 명령이 없어요</p>'}</div></aside>`;
+      <div class="dbody">${rows ? `${clearBtn}<ul class="cmdlist">${rows}</ul>` : '<p class="empty">보낸 명령이 없어요</p>'}</div></aside>`;
   }
   // 카드 ⋯ 메뉴 — 앱과 같은 6줄·같은 순서
   function menuHTML() {
@@ -1973,6 +1976,9 @@
       case 'cancel': { const r = S.sent.find((x) => x.id === t.dataset.id); if (r) cancel(r); return; }
       case 'retry': { const r = S.sent.find((x) => x.id === t.dataset.id); if (r) retry(r); return; }
       case 'dismiss': S.dismissed[t.dataset.id] = true; render(); return;
+      // 11/17 보낸 명령 지우기 — 처리 중(열린) 명령은 남긴다(잠금·취소가 이 기록으로 돈다)
+      case 'cmdDel': { S.sent = S.sent.filter((x) => x.id !== t.dataset.id || C.isOpen(stOf(x).st)); saveSent(); savePlain(); render(); return; }
+      case 'cmdClear': { S.sent = S.sent.filter((x) => C.QUIET.includes(x.type) || C.isOpen(stOf(x).st)); saveSent(); savePlain(); render(); return; }
       // 홈
       case 'recentGo': doSearch(t.dataset.q); return;
       case 'recentDel': recentDelLater(t.dataset.q); return;
